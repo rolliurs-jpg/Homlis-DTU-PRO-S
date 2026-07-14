@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+config_v5.json
+hoymiles_log.csv
+Historiques_importes/
+fond_solaire.png
+.idea/
+.vscode/
