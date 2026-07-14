@@ -10,6 +10,7 @@ Elle propose un historique CSV, une visualisation de production, un bilan d'auto
 
 - Lecture locale du DTU via la commande `hoymiles-wifi` (toutes les 60 secondes).
 - Lecture Dinky/Denky par HTTP Tasmota (`Status 8`) ou TIC TCP existante.
+- Lecture automatique des index Linky HC/HP du firmware Téléinfo Dinky, avec conservation locale des écarts de compteur.
 - Historique local CSV, export CSV et consultation à la souris.
 - Bilan suivi / jour / semaine / mois / année : PV, autoconsommation et achat EDF.
 - Tarifs HP, HC, abonnement et plages HC personnalisables.
@@ -33,7 +34,7 @@ Exemple de configuration : [config.example.json](config.example.json). Ne publie
 
 ## Dinky / Linky
 
-Pour un Dinky/Denky sous Tasmota, activez `linky.enabled`, définissez `mode` sur `dinky_http` et saisissez son adresse IP dans `linky.host`. La valeur lue dépend de la configuration Téléinfo et du compteur ; vérifiez toujours le sens de la puissance réseau avec votre installation.
+Pour un Dinky/Denky sous Tasmota, activez `linky.enabled`, définissez `mode` sur `dinky_http` et saisissez son adresse IP dans `linky.host`. Avec le firmware Téléinfo compatible, l'application enregistre les index cumulés HC/HP chaque minute dans `linky_index_log.csv`. Le premier mois commence au premier index enregistré ; un relevé EDF manuel peut servir de référence pour une période antérieure.
 
 ## Bilan et tarifs
 

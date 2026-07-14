@@ -1,5 +1,6 @@
 import csv
 import json
+import re
 import shutil
 import socket
 import subprocess
@@ -28,10 +29,12 @@ MAX_VISIBLE_POINTS = 300
 BASE = Path.home() / "AppData" / "Local" / "BoiteNoireHoymiles"
 BASE.mkdir(parents=True, exist_ok=True)
 CSV_FILE = BASE / "hoymiles_log.csv"
+LINKY_INDEX_FILE = BASE / "linky_index_log.csv"
 CONFIG_FILE = BASE / "config_v5.json"
 IMPORT_DIR = BASE / "Historiques_importes"
 IMPORT_DIR.mkdir(parents=True, exist_ok=True)
 BACKGROUND_IMAGE = Path(__file__).with_name("fond_solaire.png")
+APP_ICON = Path(__file__).with_name("icone_panneau_solaire.ico")
 
 LEGACY_EMPTY_LINKY_CONFIG = {
     "enabled": False,
@@ -57,7 +60,9 @@ DEFAULT_CONFIG = {
         "abonnement_mensuel_eur": 0.0,
         "plages_hc": "",
         "ddsu_import_positif": True
-    }
+    },
+    # Relevés saisis depuis l'espace client EDF, indexés par mois AAAA-MM.
+    "releves_edf": {}
 }
 
 def load_config():
@@ -82,6 +87,8 @@ def load_config():
         if not isinstance(saved_tariffs, dict):
             saved_tariffs = {}
         cfg["tarifs_edf"] = {**DEFAULT_CONFIG["tarifs_edf"], **saved_tariffs}
+        saved_readings = data.get("releves_edf", {})
+        cfg["releves_edf"] = saved_readings if isinstance(saved_readings, dict) else {}
         return cfg
     except Exception:
         return DEFAULT_CONFIG.copy()
@@ -94,6 +101,7 @@ def save_config():
 
 times, ac_power, grid_power, power_limit = [], [], [], []
 linky_power = []
+linky_hc_index, linky_hp_index = [], []
 follow_now = True
 last_success = None
 dtu_failures = 0
@@ -153,14 +161,48 @@ def load_history():
 
 LOADED_HISTORY_FILES = load_history()
 
+def load_linky_indexes():
+    """Charge les index cumulés enregistrés localement par le Dinky."""
+    if not LINKY_INDEX_FILE.exists():
+        return 0
+    count = 0
+    try:
+        with LINKY_INDEX_FILE.open("r", newline="", encoding="utf-8-sig") as f:
+            for row in csv.DictReader(f):
+                try:
+                    when = datetime.strptime(row["date_heure"], "%Y-%m-%d %H:%M:%S")
+                    hc = float(row["hc_kwh"])
+                    hp = float(row["hp_kwh"])
+                    linky_hc_index.append((when, hc))
+                    linky_hp_index.append((when, hp))
+                    count += 1
+                except (KeyError, TypeError, ValueError):
+                    pass
+    except OSError:
+        pass
+    return count
+
+LOADED_LINKY_INDEXES = load_linky_indexes()
+
 if not CSV_FILE.exists():
     with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerow(
             ["date_heure", "production_ac_w", "reseau_ddsu_w", "consigne_w", "linky_w"]
         )
 
+if not LINKY_INDEX_FILE.exists():
+    with LINKY_INDEX_FILE.open("w", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(["date_heure", "hc_kwh", "hp_kwh"])
+
 fig, ax = plt.subplots(figsize=(13.5, 7.5))
 fig.patch.set_facecolor("#f8fafc")
+try:
+    # Même symbole dans la barre de titre, la barre des tâches et le raccourci Windows.
+    manager = plt.get_current_fig_manager()
+    if APP_ICON.exists():
+        manager.window.iconbitmap(default=str(APP_ICON))
+except Exception:
+    pass
 try:
     background_ax = fig.add_axes([0, 0, 1, 1], zorder=-10)
     background_ax.imshow(plt.imread(BACKGROUND_IMAGE), aspect="auto", alpha=0.32)
@@ -380,6 +422,39 @@ def read_linky_dinky_http():
     except (OSError, URLError, ValueError, json.JSONDecodeError, RuntimeError) as e:
         return None, f"Dinky hors ligne ({e})"
 
+def read_dinky_energy_indexes():
+    """Lit les index Linky HC/HP affichés par le firmware Téléinfo du Dinky."""
+    cfg = CONFIG.get("linky", {})
+    host = str(cfg.get("host", "")).strip()
+    port = int(cfg.get("port", 80) or 80)
+    if not host:
+        return None, "configuration Dinky incomplète"
+    url = f"http://{host}:{port}/?m=1"
+    try:
+        with urlopen(url, timeout=float(cfg.get("timeout_s", 2))) as response:
+            page = response.read().decode("utf-8", errors="replace")
+        def extract(label):
+            match = re.search(rf"{label}</div>\s*<div class='tic36r'>([0-9.,]+)", page)
+            if not match:
+                raise RuntimeError(f"index {label} absent de la page Téléinfo")
+            return float(match.group(1).replace(",", "."))
+        return {"hc": extract("Creuses"), "hp": extract("Pleines")}, "index HC/HP lu"
+    except (OSError, URLError, ValueError, RuntimeError) as e:
+        return None, f"index Dinky indisponible ({e})"
+
+def append_linky_energy_indexes(when, indexes):
+    """Conserve les index cumulés séparément sans modifier l'historique V6.2."""
+    if not isinstance(indexes, dict):
+        return
+    hc = float(indexes["hc"])
+    hp = float(indexes["hp"])
+    if linky_hc_index and linky_hc_index[-1][0] == when:
+        return
+    linky_hc_index.append((when, hc))
+    linky_hp_index.append((when, hp))
+    with LINKY_INDEX_FILE.open("a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow([when.strftime("%Y-%m-%d %H:%M:%S"), f"{hc:.3f}", f"{hp:.3f}"])
+
 
 def read_linky():
     """Conserve le protocole TCP existant et ajoute l'API HTTP du Dinky."""
@@ -492,12 +567,37 @@ def is_hc(when, ranges):
             return True
     return False
 
+def calculate_dinky_energy(start, end):
+    """Déduit les kWh importés de l'écart entre deux index Linky HC/HP."""
+    samples = list(zip(linky_hc_index, linky_hp_index))
+    samples = [(when_hc, hc, hp) for ((when_hc, hc), (when_hp, hp)) in samples
+               if when_hc == when_hp and when_hc <= end]
+    if len(samples) < 2:
+        return None
+    before = [sample for sample in samples if sample[0] <= start]
+    first = before[-1] if before else samples[0]
+    last = samples[-1]
+    if last[0] <= first[0]:
+        return None
+    hc = last[1] - first[1]
+    hp = last[2] - first[2]
+    if hc < -0.01 or hp < -0.01:
+        return None
+    return {
+        "hc": max(0.0, hc),
+        "hp": max(0.0, hp),
+        "total": max(0.0, hc) + max(0.0, hp),
+        "complete": bool(before) and first[0] <= start + timedelta(minutes=2),
+        "from": first[0],
+    }
+
 def calculate_bilan_day():
     tariffs = CONFIG["tarifs_edf"]
     ranges = parse_hc_ranges(tariffs.get("plages_hc", ""))
     direction = 1 if tariffs.get("ddsu_import_positif", True) else -1
     today = datetime.now().date()
     now = datetime.now()
+    start = datetime.combine(today, datetime.min.time())
     result = {"pv": 0.0, "auto": 0.0, "edf": 0.0, "hp": 0.0, "hc": 0.0, "cost": 0.0}
 
     for index, when in enumerate(times):
@@ -526,6 +626,7 @@ def calculate_bilan_day():
     monthly = float(tariffs.get("abonnement_mensuel_eur", 0.0) or 0.0)
     days_in_month = calendar.monthrange(today.year, today.month)[1]
     result["cost"] = result["hp"] * hp_price + result["hc"] * hc_price + monthly / days_in_month
+    result["dinky"] = calculate_dinky_energy(start, now)
     return result
 
 def calculate_bilan_period():
@@ -546,7 +647,7 @@ def calculate_bilan_period():
         return result
     if bilan_period == "suivi":
         result = {"pv": 0.0, "auto": 0.0, "edf": 0.0, "hp": 0.0, "hc": 0.0, "cost": 0.0,
-                  "instant": True, "title": titles["suivi"]}
+                  "instant": True, "title": titles["suivi"], "dinky": None}
         if times:
             pv = max(0.0, float(ac_power[-1]))
             grid = direction * float(grid_power[-1])
@@ -588,6 +689,7 @@ def calculate_bilan_period():
         subscription += monthly / calendar.monthrange(day.year, day.month)[1]
         day += timedelta(days=1)
     result["cost"] = result["hp"] * hp_price + result["hc"] * hc_price + subscription
+    result["dinky"] = calculate_dinky_energy(start, now)
     return result
 
 def draw_bilan():
@@ -598,9 +700,25 @@ def draw_bilan():
     bilan_ax.clear()
     bilan_ax.set_facecolor((1, 1, 1, 0.40))
     values = [bilan["pv"], bilan["auto"], bilan["edf"]]
-    labels = ["Production PV", "Autoconsommée", "Achat EDF"]
+    labels = ["Production PV", "Autoconsommée", "Achat mesuré"]
+    colors = ["#2563eb", "#16a34a", "#f97316"]
+    month_key = datetime.now().strftime("%Y-%m")
+    real_reading = CONFIG.get("releves_edf", {}).get(month_key) if bilan_period == "mois" else None
+    dinky_energy = bilan.get("dinky")
+    dinky_complete = isinstance(dinky_energy, dict) and dinky_energy.get("complete")
+    if not bilan["instant"] and dinky_complete:
+        values.append(dinky_energy["total"])
+        labels.append("Linky réel")
+        colors.append("#7c3aed")
+    if not bilan["instant"] and isinstance(real_reading, dict) and not dinky_complete:
+        try:
+            values.append(max(0.0, float(real_reading.get("kwh", 0.0))))
+            labels.append("EDF réel")
+            colors.append("#7c3aed")
+        except (TypeError, ValueError):
+            real_reading = None
     unit = "W" if bilan["instant"] else "kWh"
-    bars = bilan_ax.bar(labels, values, color=["#2563eb", "#16a34a", "#f97316"], width=0.58)
+    bars = bilan_ax.bar(labels, values, color=colors, width=0.58)
     bilan_ax.set_ylabel("Énergie aujourd'hui (kWh)")
     bilan_ax.grid(axis="y", color="#dbe3ef", linewidth=0.7)
     bilan_ax.set_axisbelow(True)
@@ -618,6 +736,18 @@ def draw_bilan():
         summary = f"Production : {bilan['pv']:.0f} W  |  Autoconsommation : {bilan['auto']:.0f} W\nAchat EDF instantané : {bilan['edf']:.0f} W  |  {tariff_note}"
     else:
         summary = f"Achat EDF : {bilan['edf']:.2f} kWh (HP {bilan['hp']:.2f} / HC {bilan['hc']:.2f})\nCoût estimé de la période : {bilan['cost']:.2f} €  |  {tariff_note}"
+        if isinstance(dinky_energy, dict):
+            coverage = "relevé complet" if dinky_energy.get("complete") else f"partiel depuis {dinky_energy['from']:%d/%m %H:%M}"
+            summary = (f"Dinky / Linky : {dinky_energy['total']:.3f} kWh "
+                       f"(HC {dinky_energy['hc']:.3f} / HP {dinky_energy['hp']:.3f}) — {coverage}\n"
+                       f"Mesure DDSU : {bilan['edf']:.2f} kWh  |  {tariff_note}")
+        if isinstance(real_reading, dict):
+            try:
+                edf_reference = (f"Relevé EDF : {float(real_reading.get('kwh', 0.0)):.2f} kWh"
+                                 f"  |  Coût EDF : {float(real_reading.get('cout_eur', 0.0)):.2f} €")
+                summary = f"{edf_reference}\n{summary}"
+            except (TypeError, ValueError):
+                pass
     bilan_ax.text(0.43, 1.10, summary, transform=bilan_ax.transAxes, va="top", fontsize=10,
                   bbox=dict(boxstyle="round,pad=0.45", facecolor="white", edgecolor="#dbe3ef", alpha=0.82),
                   clip_on=False)
@@ -654,13 +784,50 @@ def open_tariffs(event=None):
     except Exception as exc:
         messagebox.showerror("Tarifs EDF", str(exc), parent=plt.get_current_fig_manager().window)
 
+def open_real_edf_reading(event=None):
+    """Enregistre un total réel communiqué par EDF, sans accès au compte utilisateur."""
+    try:
+        parent = plt.get_current_fig_manager().window
+        default_month = datetime.now().strftime("%Y-%m")
+        month = simpledialog.askstring(
+            "Relevé EDF réel", "Mois du relevé (AAAA-MM) :",
+            initialvalue=default_month, parent=parent
+        )
+        if month is None:
+            return
+        month = month.strip()
+        datetime.strptime(month + "-01", "%Y-%m-%d")
+        previous = CONFIG.setdefault("releves_edf", {}).get(month, {})
+        kwh = simpledialog.askstring(
+            "Relevé EDF réel", "Achat EDF réel en kWh :",
+            initialvalue=str(previous.get("kwh", "")), parent=parent
+        )
+        if kwh is None:
+            return
+        cost = simpledialog.askstring(
+            "Relevé EDF réel", "Coût EDF réel en € :",
+            initialvalue=str(previous.get("cout_eur", "")), parent=parent
+        )
+        if cost is None:
+            return
+        CONFIG["releves_edf"][month] = {
+            "kwh": float_from_user(kwh, "kWh EDF réel"),
+            "cout_eur": float_from_user(cost, "coût EDF réel"),
+        }
+        save_config()
+        draw_bilan()
+        fig.canvas.draw_idle()
+    except Exception as exc:
+        messagebox.showerror("Relevé EDF réel", str(exc), parent=plt.get_current_fig_manager().window)
+
 period_buttons = {}
-period_caption = fig.text(0.08, 0.252, "Période du bilan", ha="left", va="center", fontsize=9,
+period_caption = fig.text(0.10, 0.245, "Période du bilan", ha="left", va="center", fontsize=9,
                           color="#334155", visible=False,
                           bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="#dbe3ef", alpha=0.72))
 
 def refresh_period_buttons():
     period_caption.set_visible(showing_bilan)
+    real_edf_ax.set_visible(showing_bilan)
     for period, button in period_buttons.items():
         button.ax.set_visible(showing_bilan)
         button.ax.set_facecolor("#2563eb" if period == bilan_period else "#64748b")
@@ -682,17 +849,24 @@ def toggle_bilan(event=None):
     cursor_dot.set_visible(False)
     cursor_box.set_visible(False)
     bilan_button.label.set_text("Suivi production" if showing_bilan else "Bilan consommation")
+    layout_bottom_actions()
     refresh_period_buttons()
     if showing_bilan:
         draw_bilan()
     fig.canvas.draw_idle()
 
-tariffs_ax = plt.axes([0.47, 0.165, 0.13, 0.048])
+tariffs_ax = plt.axes([0.31, 0.165, 0.18, 0.048])
 tariffs_button = Button(tariffs_ax, "Tarifs EDF", color="#475569", hovercolor="#334155")
 tariffs_button.label.set_color("white")
 tariffs_button.on_clicked(open_tariffs)
 
-bilan_button_ax = plt.axes([0.61, 0.165, 0.18, 0.048])
+real_edf_ax = plt.axes([0.38, 0.165, 0.19, 0.048])
+real_edf_button = Button(real_edf_ax, "Relevé EDF réel", color="#7c3aed", hovercolor="#6d28d9")
+real_edf_button.label.set_color("white")
+real_edf_button.on_clicked(open_real_edf_reading)
+real_edf_ax.set_visible(False)
+
+bilan_button_ax = plt.axes([0.52, 0.165, 0.22, 0.048])
 bilan_button = Button(bilan_button_ax, "Bilan consommation", color="#16a34a", hovercolor="#15803d")
 bilan_button.label.set_color("white")
 bilan_button.on_clicked(toggle_bilan)
@@ -700,17 +874,31 @@ bilan_button.on_clicked(toggle_bilan)
 for position, (period, label) in enumerate((
     ("suivi", "Suivi"), ("jour", "Jour"), ("semaine", "Semaine"), ("mois", "Mois"), ("annee", "Année"),
 )):
-    period_ax = plt.axes([0.17 + position * 0.105, 0.215, 0.095, 0.038])
+    period_ax = plt.axes([0.25 + position * 0.095, 0.215, 0.085, 0.038])
     period_button = Button(period_ax, label, color="#2563eb" if period == bilan_period else "#64748b", hovercolor="#334155")
     period_button.label.set_color("white")
     period_button.on_clicked(lambda event, choice=period: set_bilan_period(choice))
     period_ax.set_visible(False)
     period_buttons[period] = period_button
 
-export_ax = plt.axes([0.80, 0.165, 0.13, 0.048])
+export_ax = plt.axes([0.77, 0.165, 0.16, 0.048])
 export_button = Button(export_ax, "Exporter CSV", color="#2563eb", hovercolor="#1d4ed8")
 export_button.label.set_color("white")
 export_button.on_clicked(export_history)
+
+def layout_bottom_actions():
+    """Aligne les actions selon la page, sans laisser de vide inutile."""
+    if showing_bilan:
+        tariffs_ax.set_position([0.19, 0.165, 0.16, 0.048])
+        real_edf_ax.set_position([0.38, 0.165, 0.19, 0.048])
+        bilan_button_ax.set_position([0.60, 0.165, 0.20, 0.048])
+        export_ax.set_position([0.83, 0.165, 0.13, 0.048])
+    else:
+        tariffs_ax.set_position([0.31, 0.165, 0.18, 0.048])
+        bilan_button_ax.set_position([0.52, 0.165, 0.22, 0.048])
+        export_ax.set_position([0.77, 0.165, 0.16, 0.048])
+
+layout_bottom_actions()
 
 def update(_):
     global last_success, dtu_failures
@@ -730,6 +918,17 @@ def update(_):
         set_connection_badge(connection_badges[1], "delayed", "● Linky/Dinky en attente")
     else:
         set_connection_badge(connection_badges[1], "offline", "● Linky/Dinky hors ligne")
+
+    dinky_indexes = None
+    dinky_index_status = "index non lu"
+    linky_cfg = CONFIG.get("linky", {})
+    if linky_cfg.get("enabled") and str(linky_cfg.get("mode", "")).lower() in ("dinky_http", "tasmota_http"):
+        try:
+            dinky_indexes, dinky_index_status = read_dinky_energy_indexes()
+            if dinky_indexes is not None:
+                append_linky_energy_indexes(datetime.now(), dinky_indexes)
+        except Exception as exc:
+            dinky_index_status = f"index Dinky indisponible ({exc})"
 
     dtu_started = monotonic()
     try:
@@ -785,7 +984,7 @@ def update(_):
         status_text.set_text(
             f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté — dernière réponse 0 s — "
             f"{len(times)} mesures — {len(LOADED_HISTORY_FILES)} fichier(s) historique — "
-            f"échecs lecture DTU : {dtu_failures} — {mode} — Linky : {linky_status}"
+            f"échecs lecture DTU : {dtu_failures} — {mode} — Linky : {linky_status} — {dinky_index_status}"
         )
     except Exception as e:
         dtu_failures += 1
@@ -796,7 +995,7 @@ def update(_):
         last_update = last_success.strftime("%d/%m/%Y %H:%M:%S") if last_success else "jamais"
         status_text.set_text(
             f"Dernière mise à jour : {last_update} — DTU sans réponse — dernière réponse il y a {age} — "
-            f"échecs lecture DTU : {dtu_failures} — Linky : {linky_status} — {e}"
+            f"échecs lecture DTU : {dtu_failures} — Linky : {linky_status} — {dinky_index_status} — {e}"
         )
 
     return (

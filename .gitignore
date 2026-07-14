@@ -4,6 +4,7 @@ __pycache__/
 venv/
 config_v5.json
 hoymiles_log.csv
+linky_index_log.csv
 Historiques_importes/
 fond_solaire.png
 .idea/
