@@ -11,7 +11,7 @@
   "tarifs_edf": {
     "hp_eur_kwh": 0.0,
     "hc_eur_kwh": 0.0,
-    "abonnement_mensuel_eur": 0.0,
+    "abonnement_journalier_eur": 0.0,
     "plages_hc": "",
     "ddsu_import_positif": true
   }
