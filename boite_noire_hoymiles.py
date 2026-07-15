@@ -5,7 +5,7 @@ import shutil
 import socket
 import subprocess
 import calendar
-from tkinter import simpledialog, messagebox
+from tkinter import filedialog, simpledialog, messagebox
 from bisect import bisect_left
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,7 +20,7 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.widgets import Button
 
-VERSION = "6.7.5"
+VERSION = "6.7.6"
 DEFAULT_DTU_HOST = ""
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -584,11 +584,44 @@ def export_history(event=None):
 
         default_name = f"hoymiles_historique_{datetime.now():%Y%m%d_%H%M}.csv"
         desktop = Path.home() / "Desktop"
-        export_dir = desktop if desktop.exists() else BASE / "Exports"
-        export_dir.mkdir(parents=True, exist_ok=True)
+        initial_dir = desktop if desktop.exists() else BASE / "Exports"
+        parent = plt.get_current_fig_manager().window
+        selected_dir = filedialog.askdirectory(
+            parent=parent,
+            title="Choisir le dossier d'export de l'historique",
+            initialdir=str(initial_dir),
+        )
+        if not selected_dir:
+            status_text.set_text("Export annulé")
+            fig.canvas.draw_idle()
+            return
+        export_dir = Path(selected_dir)
         destination = export_dir / default_name
-        shutil.copy2(CSV_FILE, destination)
+        # Le journal interne utilise la virgule (format Python standard). Pour
+        # LibreOffice / Excel en français, l'export public utilise le point-
+        # virgule et un BOM UTF-8 : les six colonnes s'ouvrent alors seules.
+        with CSV_FILE.open("r", newline="", encoding="utf-8") as source, \
+                destination.open("w", newline="", encoding="utf-8-sig") as target:
+            reader = csv.DictReader(source)
+            fields = ["date", "heure", "production_ac_w", "reseau_ddsu_w", "consigne_w", "consommation_edf_w"]
+            writer = csv.DictWriter(target, fieldnames=fields, delimiter=";")
+            writer.writeheader()
+            for row in reader:
+                date_heure = row.get("date_heure", "").split(" ", 1)
+                writer.writerow({
+                    "date": date_heure[0] if date_heure else "",
+                    "heure": date_heure[1] if len(date_heure) > 1 else "",
+                    "production_ac_w": row.get("production_ac_w", ""),
+                    "reseau_ddsu_w": row.get("reseau_ddsu_w", ""),
+                    "consigne_w": row.get("consigne_w", ""),
+                    "consommation_edf_w": row.get("linky_w", ""),
+                })
         status_text.set_text(f"Historique exporté : {destination}")
+        messagebox.showinfo(
+            "Export terminé",
+            f"L'historique a été exporté avec succès.\n\n{destination}",
+            parent=parent,
+        )
     except Exception as e:
         status_text.set_text(f"Export impossible — {e}")
     fig.canvas.draw_idle()
@@ -885,9 +918,12 @@ def draw_bilan():
     bilan_ax.spines["top"].set_visible(False)
     bilan_ax.spines["right"].set_visible(False)
     bilan_cost_ax.set_ylabel("Coût EDF (€)", color="#334155")
+    bilan_cost_ax.yaxis.set_label_position("right")
+    bilan_cost_ax.yaxis.tick_right()
     bilan_cost_ax.tick_params(axis="y", colors="#334155")
     bilan_cost_ax.spines["top"].set_visible(False)
     bilan_cost_ax.spines["left"].set_visible(False)
+    bilan_cost_ax.spines["right"].set_visible(True)
     left_handles, left_labels = bilan_ax.get_legend_handles_labels()
     right_handles, right_labels = bilan_cost_ax.get_legend_handles_labels()
     bilan_ax.legend(
