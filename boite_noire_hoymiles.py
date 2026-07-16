@@ -5,6 +5,7 @@ import shutil
 import socket
 import subprocess
 import calendar
+import sys
 from tkinter import filedialog, simpledialog, messagebox
 from bisect import bisect_left
 from datetime import datetime, timedelta
@@ -14,18 +15,30 @@ from urllib.error import URLError
 from urllib.parse import quote
 from urllib.request import urlopen
 
+import matplotlib
+# Le backend natif macOS de Matplotlib peut planter avec Python 3.14 lors d'un
+# clic sur un bouton. TkAgg est stable sur Apple Silicon et permet les boîtes
+# de dialogue Tarifs EDF.
+if sys.platform == "darwin":
+    matplotlib.use("TkAgg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.widgets import Button
 
-VERSION = "6.7.6"
+VERSION = "6.7.8"
 DEFAULT_DTU_HOST = ""
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
+DIRECT_WINDOW_HOURS = 4
 
-BASE = Path.home() / "AppData" / "Local" / "BoiteNoireHoymiles"
+# Les mesures restent locales à chaque ordinateur. Windows et macOS utilisent
+# leurs emplacements standards, sans changer les noms de fichiers historiques.
+if sys.platform == "darwin":
+    BASE = Path.home() / "Library" / "Application Support" / "BoiteNoireHoymiles"
+else:
+    BASE = Path.home() / "AppData" / "Local" / "BoiteNoireHoymiles"
 BASE.mkdir(parents=True, exist_ok=True)
 CSV_FILE = BASE / "hoymiles_log.csv"
 LINKY_INDEX_FILE = BASE / "linky_index_log.csv"
@@ -78,7 +91,8 @@ def load_config():
         saved_linky = data.get("linky", {})
         if not isinstance(saved_linky, dict):
             saved_linky = {}
-        # Migration sans toucher aux réglages TCP réellement configurés.
+        # Migration sans toucher aux réglages TCP réellement configurés :
+        # l'ancien bloc vide est remplacé par le Dinky installé sur ce site.
         if saved_linky == LEGACY_EMPTY_LINKY_CONFIG:
             saved_linky = DEFAULT_CONFIG["linky"]
         cfg["linky"] = {**DEFAULT_CONFIG["linky"], **saved_linky}
@@ -88,6 +102,11 @@ def load_config():
         cfg["tarifs_edf"] = {**DEFAULT_CONFIG["tarifs_edf"], **saved_tariffs}
         saved_readings = data.get("releves_edf", {})
         cfg["releves_edf"] = saved_readings if isinstance(saved_readings, dict) else {}
+        # Première édition macOS : elle utilisait par erreur l'ancienne IP .162.
+        # La migration ne touche qu'à ce réglage obsolète et garde les tarifs,
+        # historiques et autres paramètres saisis sur le Mac.
+        if sys.platform == "darwin" and str(cfg.get("dtu_host", "")).strip() == "10.10.100.162":
+            cfg["dtu_host"] = DEFAULT_DTU_HOST
         return cfg
     except Exception:
         return DEFAULT_CONFIG.copy()
@@ -195,11 +214,30 @@ if not LINKY_INDEX_FILE.exists():
 
 fig, ax = plt.subplots(figsize=(13.5, 7.5))
 fig.patch.set_facecolor("#f8fafc")
+
+def dialog_parent():
+    """Retourne la fenêtre Tk sous Windows, ou None pour les boîtes macOS."""
+    try:
+        window = getattr(plt.get_current_fig_manager(), "window", None)
+        return window if hasattr(window, "tk") else None
+    except Exception:
+        return None
+
 try:
     # Même symbole dans la barre de titre, la barre des tâches et le raccourci Windows.
     manager = plt.get_current_fig_manager()
     if APP_ICON.exists():
-        manager.window.iconbitmap(default=str(APP_ICON))
+        try:
+            manager.window.iconbitmap(default=str(APP_ICON))
+        except Exception:
+            # macOS utilise l'icône de l'application / du lanceur, pas un .ico.
+            pass
+    # Barre Matplotlib destinée au développement (zoom, pan, sauvegarde) :
+    # le logiciel possède ses propres commandes, elle ne doit pas encombrer l'interface.
+    toolbar = getattr(manager, "toolbar", None)
+    if toolbar is not None:
+        toolbar.pack_forget()
+        manager._hoymiles_toolbar_hidden = True
 except Exception:
     pass
 try:
@@ -231,7 +269,7 @@ limit_ax.tick_params(axis="y", colors="#16a34a")
 limit_ax.spines["top"].set_visible(False)
 limit_ax.spines["left"].set_visible(False)
 
-status_text = fig.text(0.08, 0.065, "Connexion au DTU...", ha="left", va="bottom", fontsize=9, color="#475569")
+status_text = fig.text(0.08, 0.028, "Connexion au DTU...", ha="left", va="bottom", fontsize=8.3, color="#475569")
 # Les cartes de tête ont été retirées visuellement ; les objets sont conservés pour l'animation Matplotlib.
 live_cards = [fig.text(0, 0, "", visible=False) for _ in range(4)]
 
@@ -285,6 +323,12 @@ cursor_box = fig.text(
     0, 0, "", transform=fig.transFigure, fontsize=9, ha="left", va="top", visible=False,
     bbox=dict(boxstyle="round,pad=0.45", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.62), zorder=102,
 )
+bilan_cursor_data = {"labels": [], "production": [], "hc": [], "hp": [], "subscription": []}
+comparison_cursor_data = {"labels": [], "production": [], "ddsu": [], "linky": []}
+bilan_cursor_box = fig.text(
+    0, 0, "", transform=fig.transFigure, fontsize=9, ha="left", va="top", visible=False,
+    bbox=dict(boxstyle="round,pad=0.45", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.76), zorder=103,
+)
 
 
 def show_cursor(index):
@@ -327,7 +371,13 @@ def show_cursor(index):
 
 def move_cursor(event):
     """Affiche les mesures de la date la plus proche du curseur de la souris."""
-    if showing_bilan or not times or event.x is None or event.y is None:
+    if showing_bilan:
+        if showing_comparison:
+            move_comparison_cursor(event.x, event.y)
+        else:
+            move_bilan_cursor(event.x, event.y)
+        return
+    if not times or event.x is None or event.y is None:
         return
     if not ax.bbox.contains(event.x, event.y):
         cursor_line.set_visible(False)
@@ -359,13 +409,20 @@ def read_dtu():
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
     hosts = []
-    for host in (HOST, "10.10.100.162", "10.10.100.254"):
+    for host in (HOST, "10.10.100.254"):
         if host and host not in hosts:
             hosts.append(host)
 
+    # Sous macOS l'application est lancée depuis un environnement Python privé.
+    # Le programme hoymiles-wifi est donc dans le même dossier que Python, et
+    # n'est pas forcément visible dans le PATH général du Mac.
+    executable_dir = Path(sys.executable).resolve().parent
+    cli_candidates = (executable_dir / "hoymiles-wifi", executable_dir / "hoymiles-wifi.exe")
+    hoymiles_cli = next((str(candidate) for candidate in cli_candidates if candidate.exists()), "hoymiles-wifi")
+
     errors = []
     for host in hosts:
-        cmd = ["hoymiles-wifi", "--host", host, "--as-json", "get-real-data-new"]
+        cmd = [hoymiles_cli, "--host", host, "--as-json", "get-real-data-new"]
         try:
             result = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=12,
@@ -536,7 +593,10 @@ def redraw():
     if times and not showing_bilan:
         show_cursor(len(times) - 1)
     if showing_bilan:
-        draw_bilan()
+        if showing_comparison:
+            draw_hoymiles_comparison()
+        else:
+            draw_bilan()
 
 def update_end_labels():
     """Affiche les valeurs à droite en évitant le chevauchement."""
@@ -585,7 +645,7 @@ def export_history(event=None):
         default_name = f"hoymiles_historique_{datetime.now():%Y%m%d_%H%M}.csv"
         desktop = Path.home() / "Desktop"
         initial_dir = desktop if desktop.exists() else BASE / "Exports"
-        parent = plt.get_current_fig_manager().window
+        parent = dialog_parent()
         selected_dir = filedialog.askdirectory(
             parent=parent,
             title="Choisir le dossier d'export de l'historique",
@@ -599,7 +659,7 @@ def export_history(event=None):
         destination = export_dir / default_name
         # Le journal interne utilise la virgule (format Python standard). Pour
         # LibreOffice / Excel en français, l'export public utilise le point-
-        # virgule et un BOM UTF-8 : les six colonnes s'ouvrent alors seules.
+        # virgule et un BOM UTF-8 : les cinq colonnes s'ouvrent alors seules.
         with CSV_FILE.open("r", newline="", encoding="utf-8") as source, \
                 destination.open("w", newline="", encoding="utf-8-sig") as target:
             reader = csv.DictReader(source)
@@ -626,12 +686,54 @@ def export_history(event=None):
         status_text.set_text(f"Export impossible — {e}")
     fig.canvas.draw_idle()
 
+def capture_screen(event=None):
+    """Enregistre la page affichée avec un repère de date et de version."""
+    captured_at = datetime.now()
+    filename = f"hoymiles_capture_{captured_at.strftime('%Y-%m-%d_%H-%M-%S')}.png"
+    initial_dir = Path.home() / "Pictures"
+    if not initial_dir.exists():
+        initial_dir = BASE
+    destination = filedialog.asksaveasfilename(
+        title="Enregistrer la capture Hoymiles",
+        initialdir=str(initial_dir),
+        initialfile=filename,
+        defaultextension=".png",
+        filetypes=[("Image PNG", "*.png")],
+        parent=dialog_parent(),
+    )
+    if not destination:
+        return
+    stamp = fig.text(
+        0.985, 0.008,
+        f"Capture : {captured_at.strftime('%d/%m/%Y %H:%M:%S')}  |  Boîte noire Hoymiles v{VERSION}",
+        ha="right", va="bottom", fontsize=8.2, color="#0f172a",
+        bbox={"boxstyle": "round,pad=0.25", "facecolor": "white", "edgecolor": "#94a3b8", "alpha": 0.88},
+        zorder=100,
+    )
+    try:
+        fig.savefig(destination, dpi=160, facecolor=fig.get_facecolor())
+        messagebox.showinfo(
+            "Capture enregistrée",
+            f"Image prête à envoyer à Hoymiles :\n{destination}",
+            parent=dialog_parent(),
+        )
+    except Exception as exc:
+        messagebox.showerror("Capture impossible", str(exc), parent=dialog_parent())
+    finally:
+        stamp.remove()
+        fig.canvas.draw_idle()
+
 showing_bilan = False
+showing_comparison = False
 bilan_period = "24h"
+edf_cost_details = {"message": "Aucun bilan EDF n'est encore disponible."}
+comparison_details = {"message": "Aucune comparaison n'est encore disponible."}
 bilan_ax = fig.add_axes([0.08, 0.34, 0.83, 0.46])
 bilan_ax.set_visible(False)
 bilan_cost_ax = bilan_ax.twinx()
 bilan_cost_ax.set_visible(False)
+comparison_ax = fig.add_axes([0.08, 0.34, 0.83, 0.46])
+comparison_ax.set_visible(False)
 
 def float_from_user(value, label):
     try:
@@ -865,6 +967,58 @@ def automatic_energy_series(period, now):
     achat_edf = [hc_value + hp_value for hc_value, hp_value in zip(hc, hp)]
     return labels, production, achat_edf, hc, hp, title, source, start
 
+def hoymiles_ddsu_energy_series(period, now):
+    """Énergie estimée uniquement avec les données locales DTU + DDSU.
+
+    Cette série n'appelle jamais le Dinky et ne contient donc aucune mesure
+    Linky. Le signe du DDSU utilise le réglage déjà présent dans Tarifs EDF.
+    """
+    if period == "24h":
+        start = datetime.combine(now.date(), datetime.min.time())
+        labels = [f"{hour:02d} h" for hour in range(24)]
+        index_for = lambda when: when.hour
+    elif period == "semaine":
+        start = datetime.combine(now.date() - timedelta(days=now.weekday()), datetime.min.time())
+        labels = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+        index_for = lambda when: (when.date() - start.date()).days
+    elif period == "mois":
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        labels = [str(day) for day in range(1, calendar.monthrange(now.year, now.month)[1] + 1)]
+        index_for = lambda when: when.day - 1
+    else:
+        start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        labels = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"]
+        index_for = lambda when: when.month - 1
+
+    production = [0.0] * len(labels)
+    ddsu_import = [0.0] * len(labels)
+    ddsu_hc = [0.0] * len(labels)
+    ddsu_hp = [0.0] * len(labels)
+    direction = 1 if CONFIG["tarifs_edf"].get("ddsu_import_positif", True) else -1
+    ranges = parse_hc_ranges(CONFIG["tarifs_edf"].get("plages_hc", ""))
+    for index, when in enumerate(times):
+        if when < start or when > now:
+            continue
+        next_when = times[index + 1] if index + 1 < len(times) else now
+        seconds = min((next_when - when).total_seconds(), 180)
+        if seconds <= 0:
+            continue
+        try:
+            bucket = index_for(when)
+            if not 0 <= bucket < len(labels):
+                continue
+            factor = seconds / 3_600_000
+            production[bucket] += max(0.0, float(ac_power[index])) * factor
+            imported = max(0.0, direction * float(grid_power[index])) * factor
+            ddsu_import[bucket] += imported
+            if is_hc(when, ranges):
+                ddsu_hc[bucket] += imported
+            else:
+                ddsu_hp[bucket] += imported
+        except (IndexError, TypeError, ValueError):
+            continue
+    return labels, production, ddsu_import, ddsu_hc, ddsu_hp, start
+
 def subscription_series(period, start, now, count, daily_subscription):
     """Répartit l'abonnement dans les colonnes de coût, sans le mélanger aux kWh."""
     values = [0.0] * count
@@ -885,6 +1039,50 @@ def subscription_series(period, start, now, count, daily_subscription):
         day += timedelta(days=1)
     return values
 
+def latest_dinky_indexes():
+    """Retourne le dernier index connu, sans imposer une nouvelle lecture réseau."""
+    if linky_hc_index and linky_hp_index:
+        return {"hc": float(linky_hc_index[-1][1]), "hp": float(linky_hp_index[-1][1])}
+    return None
+
+def real_edf_month_totals(now):
+    """Total EDF vérifié, complété uniquement par les index après la saisie.
+
+    Le relevé EDF couvre déjà tout ce qui précède sa date de saisie. Les kWh
+    enregistrés auparavant par le logiciel ne sont donc jamais ajoutés une
+    seconde fois. Après le relevé, les nouveaux index Dinky prolongent le total.
+    """
+    month = now.strftime("%Y-%m")
+    reading = CONFIG.get("releves_edf", {}).get(month, {})
+    try:
+        hc = max(0.0, float(reading["hc_kwh"]))
+        hp = max(0.0, float(reading["hp_kwh"]))
+        subscription = max(0.0, float(reading["abonnement_eur"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    current = latest_dinky_indexes()
+    try:
+        base_hc = float(reading["dinky_hc_index"])
+        base_hp = float(reading["dinky_hp_index"])
+        if current is not None:
+            hc += max(0.0, current["hc"] - base_hc)
+            hp += max(0.0, current["hp"] - base_hp)
+    except (KeyError, TypeError, ValueError):
+        pass
+    return hc, hp, subscription, reading.get("saisi_le", "")
+
+def replace_total(values, total, fallback_index):
+    """Conserve la forme des barres lorsque possible, mais rend le total exact."""
+    previous = sum(values)
+    if previous > 0:
+        factor = total / previous
+        return [value * factor for value in values]
+    result = [0.0] * len(values)
+    if result:
+        result[max(0, min(fallback_index, len(result) - 1))] = total
+    return result
+
 def draw_bilan():
     if not showing_bilan:
         return
@@ -894,9 +1092,29 @@ def draw_bilan():
     hp_price = float(tariffs.get("hp_eur_kwh", 0.0) or 0.0)
     hc_price = float(tariffs.get("hc_eur_kwh", 0.0) or 0.0)
     daily_subscription = float(tariffs.get("abonnement_journalier_eur", tariffs.get("abonnement_mensuel_eur", 0.0)) or 0.0)
+    real_reading = real_edf_month_totals(now)
+    real_note = ""
+    if real_reading is not None and bilan_period in ("mois", "annee"):
+        real_hc, real_hp, real_subscription, entered_at = real_reading
+        current_bucket = now.day - 1 if bilan_period == "mois" else now.month - 1
+        if bilan_period == "annee":
+            # Dans l'année, seule la colonne du mois en cours est remplacée.
+            hc[current_bucket] = real_hc
+            hp[current_bucket] = real_hp
+        # Dans le mois, un relevé EDF est un total cumulatif. Il ne doit pas
+        # être placé artificiellement dans la barre du jour de saisie.
+        # Les barres journalières restent donc les seules mesures détaillées
+        # réellement reçues du Dinky depuis le démarrage du logiciel.
+        achat_edf = [hc_value + hp_value for hc_value, hp_value in zip(hc, hp)]
+        real_note = f" — relevé EDF réel {entered_at}" if entered_at else " — relevé EDF réel"
     hp_cost = [value * hp_price for value in hp]
     hc_cost = [value * hc_price for value in hc]
     subscription = subscription_series(bilan_period, start, now, len(labels), daily_subscription)
+    if real_reading is not None and bilan_period in ("mois", "annee"):
+        if bilan_period == "mois":
+            subscription = replace_total(subscription, real_reading[2], now.day - 1)
+        else:
+            subscription[now.month - 1] = real_reading[2]
     bilan_ax.clear()
     bilan_cost_ax.clear()
     bilan_cost_ax.set_visible(True)
@@ -907,9 +1125,9 @@ def draw_bilan():
     edf_positions = [position + 0.20 for position in positions]
     bilan_ax.bar(pv_positions, production, width=0.38, color="#2563eb", label="Production PV")
     bilan_cost_ax.bar(edf_positions, subscription, width=0.38, color="#111827", label="Abonnement EDF")
-    bilan_cost_ax.bar(edf_positions, hp_cost, width=0.38, bottom=subscription, color="#f97316", label="Achat EDF HP")
+    bilan_cost_ax.bar(edf_positions, hp_cost, width=0.38, bottom=subscription, color="#f97316", label="Achat Linky/Dinky HP")
     hp_and_subscription = [fixed + hp_value for fixed, hp_value in zip(subscription, hp_cost)]
-    bilan_cost_ax.bar(edf_positions, hc_cost, width=0.38, bottom=hp_and_subscription, color="#7c3aed", label="Achat EDF HC")
+    bilan_cost_ax.bar(edf_positions, hc_cost, width=0.38, bottom=hp_and_subscription, color="#7c3aed", label="Achat Linky/Dinky HC")
     bilan_ax.set_xticks(positions)
     bilan_ax.set_xticklabels(labels, rotation=0 if len(labels) <= 12 else 60, ha="right" if len(labels) > 12 else "center")
     bilan_ax.set_ylabel("Énergie (kWh)")
@@ -918,6 +1136,8 @@ def draw_bilan():
     bilan_ax.spines["top"].set_visible(False)
     bilan_ax.spines["right"].set_visible(False)
     bilan_cost_ax.set_ylabel("Coût EDF (€)", color="#334155")
+    # Axe dédié aux euros : il reste toujours à droite, même après un
+    # changement de période ou un rafraîchissement du bilan.
     bilan_cost_ax.yaxis.set_label_position("right")
     bilan_cost_ax.yaxis.tick_right()
     bilan_cost_ax.tick_params(axis="y", colors="#334155")
@@ -928,28 +1148,250 @@ def draw_bilan():
     right_handles, right_labels = bilan_cost_ax.get_legend_handles_labels()
     bilan_ax.legend(
         left_handles + right_handles, left_labels + right_labels,
-        loc="lower left", bbox_to_anchor=(0.0, 1.02), frameon=False, ncol=2,
-        borderaxespad=0.0,
+        loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False, ncol=2,
+        borderaxespad=0.0, fontsize=9,
     )
-    bilan_ax.set_title(title, loc="left", fontsize=14, pad=42)
+    # Le titre est volontairement plus haut que la légende à deux lignes.
+    bilan_ax.set_title(title, loc="left", fontsize=14, pad=52)
     total_pv = sum(production)
-    total_edf = sum(achat_edf)
+    chart_hc_total = sum(hc)
+    chart_hp_total = sum(hp)
+    total_edf = chart_hc_total + chart_hp_total
     subscription_cost = sum(subscription)
     estimated_cost = sum(hp_cost) + sum(hc_cost) + subscription_cost
+    if real_reading is not None and bilan_period in ("mois", "annee"):
+        # Le relevé manuel est la référence pour les totaux et le coût affichés.
+        total_edf = real_reading[0] + real_reading[1]
+        subscription_cost = real_reading[2]
+        estimated_cost = real_reading[0] * hc_price + real_reading[1] * hp_price + subscription_cost
     tariff_note = "Tarifs à renseigner" if not (tariffs.get("hp_eur_kwh") or tariffs.get("hc_eur_kwh")) else \
         f"HP {hp_price:.4f} €/kWh  |  HC {hc_price:.4f} €/kWh  |  Abo {daily_subscription:.2f} €/jour"
-    bilan_ax.text(
-        0.98, 1.16,
-        f"Achat Linky : {total_edf:.2f} kWh (HC {sum(hc):.2f} / HP {sum(hp):.2f})\nCoût : {estimated_cost:.2f} € dont abonnement {subscription_cost:.2f} €\n{dinky_source} — {tariff_note}",
-        transform=bilan_ax.transAxes, ha="right", va="top", fontsize=9,
-        bbox=dict(boxstyle="round,pad=0.45", facecolor="white", edgecolor="#dbe3ef", alpha=0.82),
-        clip_on=False,
+    manual_reading = CONFIG.get("releves_edf", {}).get(now.strftime("%Y-%m"), {})
+    manual_details = ""
+    try:
+        manual_hc = real_reading[0] if real_reading is not None else float(manual_reading["hc_kwh"])
+        manual_hp = real_reading[1] if real_reading is not None else float(manual_reading["hp_kwh"])
+        manual_subscription = real_reading[2] if real_reading is not None else float(manual_reading["abonnement_eur"])
+        manual_final_cost = manual_hc * hc_price + manual_hp * hp_price + manual_subscription
+        manual_details = (
+            f"\n\nRelevé EDF manuel — {now:%m/%Y}\n"
+            f"• HC : {manual_hc:.2f} kWh\n"
+            f"• HP : {manual_hp:.2f} kWh\n"
+            f"• Abonnement : {manual_subscription:.2f} €\n\n"
+            f"TOTAL EDF réel depuis le 1er : {manual_final_cost:.2f} €\n"
+            "Ce relevé est utilisé pour le bilan Mois et Année."
+        )
+    except (KeyError, TypeError, ValueError):
+        manual_details = "\n\nAucun relevé EDF manuel enregistré pour ce mois."
+    edf_cost_details["message"] = (
+        f"{title}\n\n"
+        f"Achat Linky : {total_edf:.2f} kWh\n"
+        f"• Heures creuses : {(real_reading[0] if real_reading is not None and bilan_period in ('mois', 'annee') else chart_hc_total):.2f} kWh\n"
+        f"• Heures pleines : {(real_reading[1] if real_reading is not None and bilan_period in ('mois', 'annee') else chart_hp_total):.2f} kWh\n"
+        f"• Abonnement : {subscription_cost:.2f} €\n\n"
+        f"Coût EDF : {estimated_cost:.2f} €\n\n"
+        f"Source : {dinky_source}{real_note}\n{tariff_note}{manual_details}"
     )
+    bilan_cursor_data.update({
+        "labels": labels,
+        "production": production,
+        "hc": hc,
+        "hp": hp,
+        "subscription": subscription,
+    })
+
+def move_bilan_cursor(x, y):
+    """Affiche les valeurs réelles d'une colonne du bilan au survol."""
+    if not showing_bilan or showing_comparison or x is None or y is None or not bilan_ax.bbox.contains(x, y):
+        bilan_cursor_box.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+    labels = bilan_cursor_data["labels"]
+    if not labels:
+        return
+    xdata = bilan_ax.transData.inverted().transform((x, y))[0]
+    index = int(round(xdata))
+    if not 0 <= index < len(labels):
+        bilan_cursor_box.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+    xfig, _ = fig.transFigure.inverted().transform((x, y))
+    if xfig > 0.65:
+        bilan_cursor_box.set_ha("right")
+        bilan_cursor_box.set_position((xfig - 0.012, 0.785))
+    else:
+        bilan_cursor_box.set_ha("left")
+        bilan_cursor_box.set_position((xfig + 0.012, 0.785))
+    bilan_cursor_box.set_text(
+        f"{labels[index]}\n"
+        f"Production  {bilan_cursor_data['production'][index]:.2f} kWh\n"
+        f"Linky HC    {bilan_cursor_data['hc'][index]:.2f} kWh\n"
+        f"Linky HP    {bilan_cursor_data['hp'][index]:.2f} kWh\n"
+        f"Abonnement  {bilan_cursor_data['subscription'][index]:.2f} €"
+    )
+    bilan_cursor_box.set_visible(True)
+    fig.canvas.draw_idle()
+
+def show_real_edf_cost(event=None):
+    """Affiche le détail du coût sans surcharger la zone du graphique."""
+    messagebox.showinfo("Coût EDF réel", edf_cost_details["message"], parent=dialog_parent())
+
+def draw_hoymiles_comparison():
+    """Affiche côte à côte l'estimation DTU/DDSU et la mesure Linky/Dinky."""
+    if not showing_bilan or not showing_comparison:
+        return
+    now = datetime.now()
+    labels, production, ddsu_import, ddsu_hc, ddsu_hp, start = hoymiles_ddsu_energy_series(bilan_period, now)
+    # Cette seule série utilise le Dinky : elle est volontairement séparée de
+    # l'estimation Hoymiles afin de rendre l'écart contrôlable visuellement.
+    _, _, linky_import, linky_hc, linky_hp, _, linky_source, _ = automatic_energy_series(bilan_period, now)
+    real_reading = real_edf_month_totals(now)
+    real_linky_hc = sum(linky_hc)
+    real_linky_hp = sum(linky_hp)
+    real_note = ""
+    if real_reading is not None and bilan_period in ("mois", "annee"):
+        real_hc, real_hp, _, _ = real_reading
+        current_bucket = now.day - 1 if bilan_period == "mois" else now.month - 1
+        real_linky_hc, real_linky_hp = real_hc, real_hp
+        if bilan_period == "annee":
+            linky_hc[current_bucket] = real_hc
+            linky_hp[current_bucket] = real_hp
+        else:
+            real_note = " — relevé mensuel cumulé, non réparti artificiellement par jour"
+        linky_import = [hc_value + hp_value for hc_value, hp_value in zip(linky_hc, linky_hp)]
+    comparison_ax.clear()
+    comparison_ax.set_facecolor((1, 1, 1, 0.40))
+    positions = list(range(len(labels)))
+    comparison_ax.bar([pos - 0.25 for pos in positions], production, width=0.22,
+                      color="#2563eb", label="Production DTU")
+    comparison_ax.bar(positions, ddsu_import, width=0.22,
+                      color="#f59e0b", label="Estimation achat DDSU")
+    comparison_ax.bar([pos + 0.25 for pos in positions], linky_import, width=0.22,
+                      color="#7c3aed", label="Achat réel Linky/Dinky")
+    comparison_ax.set_xticks(positions)
+    comparison_ax.set_xticklabels(labels, rotation=0 if len(labels) <= 12 else 60,
+                                  ha="right" if len(labels) > 12 else "center")
+    comparison_ax.set_ylabel("Énergie (kWh)")
+    comparison_ax.grid(axis="y", color="#dbe3ef", linewidth=0.7)
+    comparison_ax.set_axisbelow(True)
+    comparison_ax.spines["top"].set_visible(False)
+    comparison_ax.spines["right"].set_visible(False)
+    comparison_ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False, ncol=3,
+                         borderaxespad=0.0, fontsize=9)
+    comparison_ax.set_title("Comparatif énergie — Hoymiles / Linky", loc="left", fontsize=14, pad=52)
+    total_ddsu = sum(ddsu_import)
+    total_linky = real_linky_hc + real_linky_hp if real_reading is not None and bilan_period in ("mois", "annee") else sum(linky_import)
+    difference = total_ddsu - total_linky
+    relative_error = abs(difference) / total_linky * 100 if total_linky > 0 else float("nan")
+    tariffs = CONFIG["tarifs_edf"]
+    hp_price = float(tariffs.get("hp_eur_kwh", 0.0) or 0.0)
+    hc_price = float(tariffs.get("hc_eur_kwh", 0.0) or 0.0)
+    daily_subscription = float(tariffs.get("abonnement_journalier_eur", tariffs.get("abonnement_mensuel_eur", 0.0)) or 0.0)
+    subscription = subscription_series(bilan_period, start, now, len(labels), daily_subscription)
+    if real_reading is not None and bilan_period in ("mois", "annee"):
+        if bilan_period == "mois":
+            subscription = replace_total(subscription, real_reading[2], now.day - 1)
+        else:
+            subscription[now.month - 1] = real_reading[2]
+    subscription_total = sum(subscription)
+    ddsu_cost = sum(ddsu_hp) * hp_price + sum(ddsu_hc) * hc_price + subscription_total
+    linky_cost = real_linky_hp * hp_price + real_linky_hc * hc_price + subscription_total
+    direction = 1 if tariffs.get("ddsu_import_positif", True) else -1
+    instant_ddsu = max(0.0, direction * float(grid_power[-1])) if grid_power else float("nan")
+    instant_linky = float(linky_power[-1]) if linky_power and linky_power[-1] == linky_power[-1] else float("nan")
+    if instant_ddsu == instant_ddsu and instant_linky == instant_linky:
+        instant_line = f"Écart instantané DDSU ↔ Linky : {instant_ddsu - instant_linky:+.0f} W"
+    else:
+        instant_line = "Écart instantané DDSU ↔ Linky : en attente"
+    relative_line = f"Erreur relative ........... {relative_error:.1f} %" if relative_error == relative_error else \
+                    "Erreur relative ........... —"
+    comparison_details["message"] = (
+        f"Période comparée : {start:%d/%m/%Y %H:%M} → {now:%d/%m/%Y %H:%M}\n"
+        f"Version logiciel : {VERSION}\n\n"
+        f"{instant_line}\n\n"
+        f"Production DTU (mesure DTU) ....... {sum(production):.2f} kWh\n"
+        f"Consommation DDSU (estimation) .... {total_ddsu:.2f} kWh\n"
+        f"Consommation Linky/Dinky (index) .. {total_linky:.2f} kWh\n\n"
+        f"Écart ..................... {difference:+.2f} kWh\n"
+        f"{relative_line}\n\n"
+        f"Coût estimé DDSU .......... {ddsu_cost:.2f} €\n"
+        f"Coût réel Linky ........... {linky_cost:.2f} €\n"
+        f"(abonnement inclus : {subscription_total:.2f} €)\n"
+        f"Source réelle : {linky_source}{real_note}\n"
+        "Les totaux DTU et Linky sont deux mesures indépendantes."
+    )
+    comparison_cursor_data.update({
+        "labels": labels,
+        "production": production,
+        "ddsu": ddsu_import,
+        "linky": linky_import,
+    })
+
+def move_comparison_cursor(x, y):
+    """Affiche les trois valeurs d'énergie de la période survolée."""
+    if not showing_bilan or not showing_comparison or x is None or y is None or not comparison_ax.bbox.contains(x, y):
+        bilan_cursor_box.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+    labels = comparison_cursor_data["labels"]
+    if not labels:
+        return
+    xdata = comparison_ax.transData.inverted().transform((x, y))[0]
+    index = int(round(xdata))
+    if not 0 <= index < len(labels):
+        bilan_cursor_box.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+    xfig, _ = fig.transFigure.inverted().transform((x, y))
+    if xfig > 0.65:
+        bilan_cursor_box.set_ha("right")
+        bilan_cursor_box.set_position((xfig - 0.012, 0.785))
+    else:
+        bilan_cursor_box.set_ha("left")
+        bilan_cursor_box.set_position((xfig + 0.012, 0.785))
+    bilan_cursor_box.set_text(
+        f"{labels[index]}\n"
+        f"Production DTU   {comparison_cursor_data['production'][index]:.2f} kWh\n"
+        f"DDSU estimé      {comparison_cursor_data['ddsu'][index]:.2f} kWh\n"
+        f"Linky/Dinky réel {comparison_cursor_data['linky'][index]:.2f} kWh"
+    )
+    bilan_cursor_box.set_visible(True)
+    fig.canvas.draw_idle()
+
+def show_comparison_details(event=None):
+    """Montre le tableau chiffré sans masquer les barres du comparatif."""
+    messagebox.showinfo("Détail comparaison", comparison_details["message"], parent=dialog_parent())
+
+def toggle_hoymiles_comparison(event=None):
+    """Bascule entre le bilan EDF réel et le comparatif indépendant Hoymiles."""
+    global showing_comparison
+    if not showing_bilan:
+        return
+    showing_comparison = not showing_comparison
+    bilan_ax.set_visible(not showing_comparison)
+    bilan_cost_ax.set_visible(not showing_comparison)
+    comparison_ax.set_visible(showing_comparison)
+    bilan_cursor_box.set_visible(False)
+    edf_reading_button.ax.set_visible(not showing_comparison)
+    edf_cost_button.ax.set_visible(not showing_comparison)
+    comparison_details_button.ax.set_visible(showing_comparison)
+    if showing_comparison:
+        edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        comparison_details_ax.set_position([0.75, 0.815, 0.16, 0.042])
+    else:
+        edf_cost_ax.set_position([0.75, 0.815, 0.16, 0.042])
+        comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
+    comparison_button.label.set_text("Retour bilan EDF" if showing_comparison else "Estimation Hoymiles")
+    if showing_comparison:
+        draw_hoymiles_comparison()
+    else:
+        draw_bilan()
+    fig.canvas.draw()
 
 def open_tariffs(event=None):
     tariffs = CONFIG["tarifs_edf"]
     try:
-        parent = plt.get_current_fig_manager().window
+        parent = dialog_parent()
         hp = simpledialog.askstring("Tarifs EDF", "Prix HP en €/kWh :", initialvalue=str(tariffs["hp_eur_kwh"]), parent=parent)
         if hp is None:
             return
@@ -979,15 +1421,15 @@ def open_tariffs(event=None):
         draw_bilan()
         fig.canvas.draw_idle()
     except Exception as exc:
-        messagebox.showerror("Tarifs EDF", str(exc), parent=plt.get_current_fig_manager().window)
+        messagebox.showerror("Tarifs EDF", str(exc), parent=dialog_parent())
 
 def open_real_edf_reading(event=None):
-    """Enregistre un total réel communiqué par EDF, sans accès au compte utilisateur."""
+    """Enregistre un cumul EDF mensuel et le point de départ Dinky associé."""
     try:
-        parent = plt.get_current_fig_manager().window
+        parent = dialog_parent()
         default_month = datetime.now().strftime("%Y-%m")
         month = simpledialog.askstring(
-            "Relevé EDF réel", "Mois du relevé (AAAA-MM) :",
+            "Relevé EDF réel", "Mois du relevé (AAAA-MM) :\nLe cumul commence le 1er jour du mois.",
             initialvalue=default_month, parent=parent
         )
         if month is None:
@@ -995,32 +1437,99 @@ def open_real_edf_reading(event=None):
         month = month.strip()
         datetime.strptime(month + "-01", "%Y-%m-%d")
         previous = CONFIG.setdefault("releves_edf", {}).get(month, {})
-        kwh = simpledialog.askstring(
-            "Relevé EDF réel", "Achat EDF réel en kWh :",
-            initialvalue=str(previous.get("kwh", "")), parent=parent
+        hc = simpledialog.askstring(
+            "Relevé EDF réel", "Consommation HC cumulée depuis le 1er du mois (kWh) :",
+            initialvalue=str(previous.get("hc_kwh", "")), parent=parent
         )
-        if kwh is None:
+        if hc is None:
             return
-        cost = simpledialog.askstring(
-            "Relevé EDF réel", "Coût EDF réel en € :",
-            initialvalue=str(previous.get("cout_eur", "")), parent=parent
+        hp = simpledialog.askstring(
+            "Relevé EDF réel", "Consommation HP cumulée depuis le 1er du mois (kWh) :",
+            initialvalue=str(previous.get("hp_kwh", "")), parent=parent
         )
-        if cost is None:
+        if hp is None:
             return
+        subscription = simpledialog.askstring(
+            "Relevé EDF réel", "Abonnement cumulé depuis le 1er du mois (€) :",
+            initialvalue=str(previous.get("abonnement_eur", "")), parent=parent
+        )
+        if subscription is None:
+            return
+        indexes, _ = read_dinky_energy_indexes()
+        if indexes is None:
+            indexes = latest_dinky_indexes() or {}
         CONFIG["releves_edf"][month] = {
-            "kwh": float_from_user(kwh, "kWh EDF réel"),
-            "cout_eur": float_from_user(cost, "coût EDF réel"),
+            "hc_kwh": float_from_user(hc, "HC EDF réel"),
+            "hp_kwh": float_from_user(hp, "HP EDF réel"),
+            "abonnement_eur": float_from_user(subscription, "abonnement EDF réel"),
+            "dinky_hc_index": float(indexes["hc"]) if "hc" in indexes else None,
+            "dinky_hp_index": float(indexes["hp"]) if "hp" in indexes else None,
+            "saisi_le": datetime.now().strftime("%d/%m/%Y %H:%M"),
         }
         save_config()
-        draw_bilan()
+        if showing_bilan:
+            draw_bilan()
         fig.canvas.draw_idle()
+        messagebox.showinfo(
+            "Relevé EDF enregistré",
+            f"Relevé {month} enregistré.\n\nHC : {float_from_user(hc, 'HC'):.2f} kWh\n"
+            f"HP : {float_from_user(hp, 'HP'):.2f} kWh\n"
+            f"Abonnement : {float_from_user(subscription, 'abonnement'):.2f} €\n\n"
+            "Les prochains kWh lus par le Dinky seront ajoutés sans double compte.",
+            parent=parent,
+        )
     except Exception as exc:
-        messagebox.showerror("Relevé EDF réel", str(exc), parent=plt.get_current_fig_manager().window)
+        messagebox.showerror("Relevé EDF réel", str(exc), parent=dialog_parent())
 
 period_buttons = {}
-period_caption = fig.text(0.20, 0.225, "Période du bilan", ha="left", va="center", fontsize=9,
+period_caption = fig.text(0.20, 0.285, "Période du bilan", ha="left", va="center", fontsize=9,
                           color="#334155", visible=False,
                           bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="#dbe3ef", alpha=0.72))
+
+history_buttons = {}
+history_view = "direct"
+history_caption = fig.text(0.17, 0.225, "Affichage production", ha="left", va="center", fontsize=9,
+                           color="#334155", visible=False,
+                           bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="#dbe3ef", alpha=0.72))
+
+def apply_history_view():
+    """Cadre le graphique production sur la période demandée."""
+    if not times:
+        return
+    # La dernière mesure est la référence. Le délai d'une minute entre deux
+    # lectures ne doit pas empêcher le retour immédiat au suivi direct.
+    end = max(times[-1], datetime.now())
+    if history_view == "direct":
+        start = end - timedelta(hours=DIRECT_WINDOW_HOURS)
+    elif history_view == "24h":
+        start = end - timedelta(hours=24)
+    elif history_view == "hier":
+        end = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        start = end - timedelta(days=1)
+    else:
+        start = times[0]
+    if start == end:
+        end = start + timedelta(minutes=1)
+    # Désactive explicitement l'ajustement automatique : sinon Matplotlib peut
+    # réafficher tout l'historique après la mise à jour des courbes.
+    ax.set_autoscalex_on(False)
+    ax.set_xlim(mdates.date2num(start), mdates.date2num(end), auto=False)
+
+def refresh_history_buttons():
+    history_caption.set_visible(not showing_bilan)
+    for view, button in history_buttons.items():
+        button.ax.set_visible(not showing_bilan)
+        button.ax.set_facecolor("#2563eb" if view == history_view else "#64748b")
+
+def set_history_view(view):
+    global history_view, follow_now
+    history_view = view
+    follow_now = view == "direct"
+    refresh_history_buttons()
+    apply_history_view()
+    # draw() est volontairement immédiat : le changement de période doit être
+    # visible au clic, sans attendre le cycle de lecture du DTU.
+    fig.canvas.draw()
 
 def refresh_period_buttons():
     period_caption.set_visible(showing_bilan)
@@ -1032,32 +1541,75 @@ def set_bilan_period(period):
     global bilan_period
     bilan_period = period
     refresh_period_buttons()
-    draw_bilan()
+    if showing_comparison:
+        draw_hoymiles_comparison()
+    else:
+        draw_bilan()
     fig.canvas.draw_idle()
 
 def toggle_bilan(event=None):
-    global showing_bilan
+    global showing_bilan, showing_comparison
     showing_bilan = not showing_bilan
+    if not showing_bilan:
+        showing_comparison = False
     ax.set_visible(not showing_bilan)
     limit_ax.set_visible(not showing_bilan)
-    bilan_ax.set_visible(showing_bilan)
-    bilan_cost_ax.set_visible(showing_bilan)
+    bilan_ax.set_visible(showing_bilan and not showing_comparison)
+    bilan_cost_ax.set_visible(showing_bilan and not showing_comparison)
+    comparison_ax.set_visible(showing_bilan and showing_comparison)
     dashboard_title.set_visible(not showing_bilan)
     dashboard_subtitle.set_visible(not showing_bilan)
     cursor_line.set_visible(False)
     cursor_dot.set_visible(False)
     cursor_box.set_visible(False)
+    bilan_cursor_box.set_visible(False)
     bilan_button.label.set_text("Suivi production" if showing_bilan else "Bilan consommation")
     layout_bottom_actions()
     refresh_period_buttons()
+    refresh_history_buttons()
+    edf_reading_button.ax.set_visible(showing_bilan)
+    edf_cost_button.ax.set_visible(showing_bilan)
+    comparison_button.ax.set_visible(showing_bilan)
+    comparison_details_button.ax.set_visible(False)
+    comparison_button.label.set_text("Estimation Hoymiles")
     if showing_bilan:
-        draw_bilan()
+        draw_hoymiles_comparison() if showing_comparison else draw_bilan()
     fig.canvas.draw_idle()
 
 tariffs_ax = plt.axes([0.31, 0.145, 0.18, 0.048])
 tariffs_button = Button(tariffs_ax, "Tarifs EDF", color="#64748b", hovercolor="#475569")
 tariffs_button.label.set_color("white")
 tariffs_button.on_clicked(open_tariffs)
+
+edf_reading_ax = plt.axes([0.08, 0.145, 0.20, 0.048])
+edf_reading_button = Button(edf_reading_ax, "Ajout manuel relevé EDF", color="#0f766e", hovercolor="#115e59")
+edf_reading_button.label.set_color("white")
+edf_reading_button.on_clicked(open_real_edf_reading)
+edf_reading_ax.set_visible(False)
+
+edf_cost_ax = plt.axes([0.75, 0.815, 0.16, 0.042], zorder=25)
+edf_cost_button = Button(edf_cost_ax, "Coût EDF réel", color="#0f766e", hovercolor="#115e59")
+edf_cost_button.label.set_color("white")
+edf_cost_button.on_clicked(show_real_edf_cost)
+edf_cost_ax.set_visible(False)
+
+comparison_details_ax = plt.axes([0.75, 0.815, 0.16, 0.042], zorder=25)
+comparison_details_button = Button(comparison_details_ax, "Détail comparaison", color="#0f766e", hovercolor="#115e59")
+comparison_details_button.label.set_color("white")
+comparison_details_button.on_clicked(show_comparison_details)
+comparison_details_ax.set_visible(False)
+
+comparison_ax_button = plt.axes([0.57, 0.815, 0.16, 0.042], zorder=25)
+comparison_button = Button(comparison_ax_button, "Estimation Hoymiles", color="#b45309", hovercolor="#92400e")
+comparison_button.label.set_color("white")
+comparison_button.on_clicked(toggle_hoymiles_comparison)
+comparison_ax_button.set_visible(False)
+
+# Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
+capture_ax = plt.axes([0.84, 0.89, 0.12, 0.042], zorder=30)
+capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
+capture_button.label.set_color("white")
+capture_button.on_clicked(capture_screen)
 
 bilan_button_ax = plt.axes([0.52, 0.145, 0.22, 0.048])
 bilan_button = Button(bilan_button_ax, "Bilan consommation", color="#2563eb", hovercolor="#1d4ed8")
@@ -1067,12 +1619,28 @@ bilan_button.on_clicked(toggle_bilan)
 for position, (period, label) in enumerate((
     ("24h", "24 h"), ("semaine", "Semaine"), ("mois", "Mois"), ("annee", "Année"),
 )):
-    period_ax = plt.axes([0.30 + position * 0.105, 0.205, 0.095, 0.038])
+    # Cette rangée est distincte de celle du suivi production. Même cachés,
+    # les axes Matplotlib reçoivent les clics ; ils ne doivent donc jamais se
+    # superposer.
+    period_ax = plt.axes([0.30 + position * 0.105, 0.255, 0.095, 0.038], zorder=5)
     period_button = Button(period_ax, label, color="#2563eb" if period == bilan_period else "#64748b", hovercolor="#334155")
     period_button.label.set_color("white")
     period_button.on_clicked(lambda event, choice=period: set_bilan_period(choice))
     period_ax.set_visible(False)
     period_buttons[period] = period_button
+
+for view, label, x, width in (
+    ("direct", "Direct", 0.28, 0.10),
+    ("24h", "24 h", 0.40, 0.10),
+    ("hier", "Hier", 0.52, 0.10),
+    ("historique", "Historique", 0.64, 0.15),
+):
+    history_ax = plt.axes([x, 0.205, width, 0.038], zorder=20)
+    history_button = Button(history_ax, label, color="#2563eb" if view == history_view else "#64748b", hovercolor="#334155")
+    history_button.label.set_color("white")
+    history_button.on_clicked(lambda event, choice=view: set_history_view(choice))
+    history_ax.set_visible(True)
+    history_buttons[view] = history_button
 
 export_ax = plt.axes([0.77, 0.145, 0.16, 0.048])
 export_button = Button(export_ax, "Exporter CSV", color="#475569", hovercolor="#334155")
@@ -1082,15 +1650,29 @@ export_button.on_clicked(export_history)
 def layout_bottom_actions():
     """Aligne les actions selon la page, sans laisser de vide inutile."""
     if showing_bilan:
-        tariffs_ax.set_position([0.18, 0.145, 0.18, 0.048])
-        bilan_button_ax.set_position([0.40, 0.145, 0.22, 0.048])
-        export_ax.set_position([0.66, 0.145, 0.16, 0.048])
+        comparison_ax_button.set_position([0.57, 0.815, 0.16, 0.042])
+        if showing_comparison:
+            edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
+            comparison_details_ax.set_position([0.75, 0.815, 0.16, 0.042])
+        else:
+            edf_cost_ax.set_position([0.75, 0.815, 0.16, 0.042])
+            comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        edf_reading_ax.set_position([0.08, 0.145, 0.20, 0.048])
+        tariffs_ax.set_position([0.31, 0.145, 0.18, 0.048])
+        bilan_button_ax.set_position([0.52, 0.145, 0.22, 0.048])
+        export_ax.set_position([0.77, 0.145, 0.16, 0.048])
     else:
+        # Un axe masqué peut tout de même capter les clics Matplotlib : on le
+        # retire physiquement du graphique de production.
+        edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        comparison_ax_button.set_position([0.001, 0.001, 0.001, 0.001])
+        comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
         tariffs_ax.set_position([0.18, 0.145, 0.18, 0.048])
         bilan_button_ax.set_position([0.40, 0.145, 0.22, 0.048])
         export_ax.set_position([0.66, 0.145, 0.16, 0.048])
 
 layout_bottom_actions()
+refresh_history_buttons()
 
 def update(_):
     global last_success, dtu_failures
@@ -1137,7 +1719,11 @@ def update(_):
 
         sgs = data["sgsData"][0]
         meter = data["meterData"][0]
-        ac = sgs["activePower"] / 10
+        # Selon le firmware, la puissance de production est soit à la racine
+        # (dtuPower / activePower), soit dans sgsData. Les champs à zéro sont
+        # omis par le DTU dans son JSON : la nuit, leur absence signifie donc 0 W.
+        ac_raw = data.get("dtuPower", data.get("activePower", sgs.get("activePower", 0)))
+        ac = float(ac_raw) / 10
         # Certains firmwares ne renvoient temporairement que la valeur de phase.
         # Les deux champs représentent la même mesure sur cette installation monophasée.
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
@@ -1161,9 +1747,8 @@ def update(_):
         redraw()
         update_end_labels()
 
-        if follow_now and len(times) >= 2:
-            start_index = max(0, len(times) - MAX_VISIBLE_POINTS)
-            ax.set_xlim(times[start_index], times[-1])
+        if follow_now:
+            apply_history_view()
 
         if lky is None:
             linky_card_txt = "LINKY DINKY\nEN ATTENTE"
@@ -1176,9 +1761,8 @@ def update(_):
 
         mode = "suivi direct" if follow_now else "historique"
         status_text.set_text(
-            f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté — dernière réponse 0 s — "
-            f"{len(times)} mesures — {len(LOADED_HISTORY_FILES)} fichier(s) historique — "
-            f"échecs lecture DTU : {dtu_failures} — {mode} — Linky : {linky_status} — {dinky_index_status}"
+            f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté — réponse : 0 s — échecs DTU : {dtu_failures}\n"
+            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status}"
         )
     except Exception as e:
         dtu_failures += 1
@@ -1188,8 +1772,8 @@ def update(_):
             age = f"{int((datetime.now() - last_success).total_seconds())} s"
         last_update = last_success.strftime("%d/%m/%Y %H:%M:%S") if last_success else "jamais"
         status_text.set_text(
-            f"Dernière mise à jour : {last_update} — DTU sans réponse — dernière réponse il y a {age} — "
-            f"échecs lecture DTU : {dtu_failures} — Linky : {linky_status} — {dinky_index_status} — {e}"
+            f"Dernière mise à jour : {last_update} — DTU sans réponse depuis {age} — échecs DTU : {dtu_failures}\n"
+            f"Linky : {linky_status} — {dinky_index_status} — erreur DTU : {str(e)[:110]}"
         )
 
     return (
@@ -1200,8 +1784,7 @@ def update(_):
 redraw()
 update_end_labels()
 if times:
-    start_index = max(0, len(times) - MAX_VISIBLE_POINTS)
-    ax.set_xlim(times[start_index], times[-1])
+    apply_history_view()
 else:
     # Évite l'axe Matplotlib 31/12 -> 01/01 quand l'historique est neuf.
     now0 = datetime.now()
@@ -1224,7 +1807,7 @@ def enable_full_window_resize():
         def resize_to_window():
             width = window.winfo_width()
             toolbar = getattr(manager, "toolbar", None)
-            toolbar_height = toolbar.winfo_height() if toolbar is not None else 0
+            toolbar_height = 0 if getattr(manager, "_hoymiles_toolbar_hidden", False) else (toolbar.winfo_height() if toolbar is not None else 0)
             height = window.winfo_height() - toolbar_height
             if width < 640 or height < 480:
                 return
@@ -1251,7 +1834,13 @@ def enable_full_window_resize():
         def on_tk_motion(event):
             x = event.x
             y = canvas_widget.winfo_height() - event.y
-            if showing_bilan or not times or not ax.bbox.contains(x, y):
+            if showing_bilan:
+                if showing_comparison:
+                    move_comparison_cursor(x, y)
+                else:
+                    move_bilan_cursor(x, y)
+                return
+            if not times or not ax.bbox.contains(x, y):
                 return
             xdata = ax.transData.inverted().transform((x, y))[0]
             x_values = mdates.date2num(times)

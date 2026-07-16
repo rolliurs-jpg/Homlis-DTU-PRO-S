@@ -2,6 +2,8 @@
 
 Application Python locale sous Windows pour suivre une installation Hoymiles : production photovoltaïque, puissance DDSU, limite DTU et consommation réelle du Linky via Dinky/Denky compatible Tasmota.
 
+Version actuelle : **6.7.8**.
+
 > Projet communautaire indépendant, non affilié à Hoymiles, Enedis ou EDF. Aucune commande de zéro-injection n'est envoyée par cette application : ce réglage reste géré par le DTU / S-Miles Cloud.
 
 ## Fonctions
@@ -13,6 +15,8 @@ Application Python locale sous Windows pour suivre une installation Hoymiles : p
 - Graphiques 24 h, semaine, mois et année.
 - Tarifs EDF HP/HC et abonnement journalier réglables.
 - Indicateurs de connexion DTU et Linky/Dinky.
+- Comparatif indépendant Hoymiles (DTU/DDSU) et Linky/Dinky, avec dates/heures de la période analysée.
+- Capture PNG de chaque page, datée et portant la version du logiciel, pour les échanges avec le support.
 
 ## Installation Windows
 
@@ -41,6 +45,8 @@ Ne publiez jamais votre propre fichier `config_v5.json` : il contient les adress
 ## Bilan EDF réel
 
 Le bilan utilise les index HC/HP du Linky fournis par le Dinky 4. Le DDSU est affiché pour le suivi technique, mais il n'est pas utilisé pour calculer les achats EDF.
+
+Un relevé EDF manuel est un total cumulatif : il est utilisé pour les totaux et coûts mensuels, sans être artificiellement affecté à une seule journée du graphique.
 
 Le graphique affiche :
 
