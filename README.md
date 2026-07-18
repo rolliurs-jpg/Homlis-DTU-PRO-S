@@ -42,6 +42,23 @@ Fermez l'application puis indiquez l'adresse IP du DTU dans `dtu_host`. Pour un 
 
 Ne publiez jamais votre propre fichier `config_v5.json` : il contient les adresses IP de votre réseau.
 
+## Réseaux nécessaires : DTU et Dinky ne sont pas sur le même réseau
+
+La configuration testée par ce projet utilise **deux réseaux distincts**, accessibles en même temps par l'ordinateur :
+
+- Le **Dinky 4** est connecté à la box Internet. Il lit la Téléinfo du Linky et fournit au logiciel la puissance et les index HC/HP via le réseau local de la maison.
+- Le **DTU Pro-S** diffuse son propre réseau Wi-Fi. L'ordinateur s'y connecte directement pour lire les données locales du DTU ; ce réseau n'a généralement pas accès à Internet.
+
+Il faut donc deux connexions simultanées : par exemple le Wi-Fi interne (ou Ethernet) vers la box et le Dinky, et un second adaptateur Wi-Fi USB vers le DTU. Sur un Mac ou un PC disposant de deux interfaces Wi-Fi, le principe est identique.
+
+```text
+Linky ──Téléinfo──> Dinky 4 ──réseau de la box──> ordinateur
+                                                     │
+DTU Pro-S ──son propre Wi-Fi─────────────────────────┘
+```
+
+Si l'adaptateur Wi-Fi du DTU se déconnecte, le Dinky peut continuer à enregistrer le Linky mais la production DTU n'est plus lue jusqu'à la reconnexion.
+
 ## Bilan EDF réel
 
 Le bilan utilise les index HC/HP du Linky fournis par le Dinky 4. Le DDSU est affiché pour le suivi technique, mais il n'est pas utilisé pour calculer les achats EDF.
