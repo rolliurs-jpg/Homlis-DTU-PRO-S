@@ -28,7 +28,7 @@ If fso.FileExists(appData & "\hoymiles_log.csv") Then fso.CopyFile appData & "\h
 If fso.FileExists(appData & "\linky_index_log.csv") Then fso.CopyFile appData & "\linky_index_log.csv", backup & "\linky_index_log.csv", True
 
 If Not fso.FileExists(configFile) Then
-    choice = MsgBox("Choisissez le reseau du DTU." & vbCrLf & vbCrLf & "Oui : Wi-Fi dedie du DTU (10.10.100.254, deux Wi-Fi)." & vbCrLf & "Non : DTU et Dinky sur la Livebox (Ethernet ou Wi-Fi Livebox).", vbYesNoCancel + vbQuestion, "Boite noire Hoymiles - connexion")
+    choice = MsgBox("Choisissez le reseau du DTU." & vbCrLf & vbCrLf & "Oui : Wi-Fi dedie du DTU (10.10.100.254, deux Wi-Fi)." & vbCrLf & "Non : DTU relie a la Livebox en Ethernet ; Dinky et PC sur le Wi-Fi de la Livebox.", vbYesNoCancel + vbQuestion, "Boite noire Hoymiles - connexion")
     If choice = vbCancel Then WScript.Quit 0
     If choice = vbYes Then
         dtuHost = "10.10.100.254"

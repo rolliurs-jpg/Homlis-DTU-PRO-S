@@ -56,17 +56,17 @@ L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les 
 
 ### Configuration A — deux réseaux simultanés
 
-Le **Dinky 4** est relié à la box et le **DTU Pro-S** diffuse son propre Wi-Fi. L’ordinateur doit donc disposer de deux connexions actives, par exemple Ethernet/Wi-Fi vers la box + adaptateur Wi-Fi USB vers le DTU.
+Le **Dinky 4** est relié à la box et l’ordinateur le consulte par le **Wi-Fi de la box**. Le **DTU Pro-S** diffuse son propre Wi-Fi. L’ordinateur doit donc disposer de deux connexions Wi-Fi actives : le Wi-Fi interne vers la box et le Dinky, puis un second adaptateur Wi-Fi USB vers le DTU.
 
 ```text
-Linky ── Téléinfo ──> Dinky 4 ── réseau de la box ──> ordinateur
+Linky ── Téléinfo ──> Dinky 4 ── Wi-Fi de la box ──> PC
                                                     │
-DTU Pro-S ─────────── Wi-Fi propre au DTU ─────────┘
+DTU Pro-S ─────────── Wi-Fi propre au DTU ── 2e Wi-Fi du PC
 ```
 
 ### Configuration B — un réseau unique
 
-Si le DTU est raccordé à la box en Ethernet ou Wi-Fi, le DTU et le Dinky peuvent être sur le même réseau local. L’installateur permet de saisir l’adresse IP attribuée au DTU par la box.
+Si le DTU est raccordé à la box en **Ethernet**, le DTU et le Dinky peuvent être sur le même réseau local. L’installateur permet de saisir l’adresse IP attribuée au DTU par la box. Le DTU n’utilise pas le Wi-Fi de la box : son Wi-Fi reste son réseau propre.
 
 > Si le Wi-Fi du DTU se coupe, le Dinky peut continuer à enregistrer le Linky mais la production PV ne sera plus relevée jusqu’à la reconnexion du DTU.
 
