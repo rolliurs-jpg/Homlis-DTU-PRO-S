@@ -2,7 +2,7 @@
 
 Application Python locale sous Windows pour suivre une installation Hoymiles : production photovoltaïque, puissance DDSU, limite DTU et consommation réelle du Linky via Dinky/Denky compatible Tasmota.
 
-Version actuelle : **6.7.8**.
+Version actuelle : **7.0.0**.
 
 > Projet communautaire indépendant, non affilié à Hoymiles, Enedis ou EDF. Aucune commande de zéro-injection n'est envoyée par cette application : ce réglage reste géré par le DTU / S-Miles Cloud.
 
@@ -10,9 +10,9 @@ Version actuelle : **6.7.8**.
 
 - Lecture locale du DTU Pro-S toutes les 60 secondes via `hoymiles-wifi`.
 - Lecture de la puissance Linky et des index HC/HP avec un Dinky/Denky Tasmota.
-- Historique local CSV, export CSV et lecture de la courbe à la souris.
+- Historique local CSV, export CSV par plage de dates et lecture de la courbe à la souris.
 - Bilan automatique : production PV en kWh, achats EDF HC/HP depuis le Linky, coût estimé et abonnement journalier.
-- Graphiques 24 h, semaine, mois et année.
+- Graphiques 24 h, 7 derniers jours, mois et année.
 - Tarifs EDF HP/HC et abonnement journalier réglables.
 - Indicateurs de connexion DTU et Linky/Dinky.
 - Comparatif indépendant Hoymiles (DTU/DDSU) et Linky/Dinky, avec dates/heures de la période analysée.
@@ -21,8 +21,8 @@ Version actuelle : **6.7.8**.
 ## Installation Windows
 
 1. Téléchargez le dépôt avec **Code → Download ZIP**, puis décompressez-le.
-2. Double-cliquez sur `INSTALLER_WINDOWS.cmd`.
-3. L'installateur installe les dépendances Python, crée un raccourci sur le Bureau et conserve les données déjà présentes sur le PC.
+2. Double-cliquez sur `INSTALLER_WINDOWS.vbs`.
+3. Confirmez l'installation puis choisissez le réseau du DTU au premier passage. L'installateur travaille sans fenêtre de terminal, installe les dépendances Python, crée un raccourci sur le Bureau et conserve les données déjà présentes sur le PC.
 4. Lancez le raccourci **Boîte noire Hoymiles**.
 
 ### Prérequis
@@ -30,7 +30,7 @@ Version actuelle : **6.7.8**.
 - Windows 10 ou Windows 11.
 - Python 3.10 ou plus récent, installé avec l'option **Add Python to PATH**.
 - DTU Pro-S accessible sur le réseau local.
-- Pour le DTU, le paquet `hoymiles-wifi` est installé automatiquement par l'installateur.
+- Une connexion Internet est nécessaire lors de la première installation, afin d'installer `matplotlib` et `hoymiles-wifi`.
 
 ## Configuration initiale
 
