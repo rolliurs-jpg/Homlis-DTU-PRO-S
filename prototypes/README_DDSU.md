@@ -4,6 +4,8 @@ Ce dossier est séparé de l'application principale. Il sert uniquement à reche
 
 `dtu_ddsu_probe.py` est **strictement en lecture seule** : il utilise seulement les fonctions Modbus de lecture `0x03` et `0x04`. Il n'envoie aucune consigne et ne modifie pas le DTU.
 
+Sur Mac, le plus simple est de double-cliquer sur `LANCER_PROTOTYPE_DDSU.command`, puis de saisir l'adresse IP Ethernet du DTU. Ce lanceur utilise le Python déjà installé avec la Boîte noire Hoymiles.
+
 ## Essai de base
 
 Depuis un ordinateur sur le même réseau que le DTU :
