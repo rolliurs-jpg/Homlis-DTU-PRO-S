@@ -1,7 +1,7 @@
 Option Explicit
 
 Dim shell, fso, folder, appData, backup, configFile, choice
-Dim dtuHost, dinkyHost, json, outputFile, shortcut, desktop, result, q
+Dim dtuHost, dinkyHost, json, outputFile, inputFile, shortcut, desktop, result, q, modeFile, dtuMode, chooser, re, existingConfig
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -27,33 +27,61 @@ If fso.FileExists(configFile) Then fso.CopyFile configFile, backup & "\config_v5
 If fso.FileExists(appData & "\hoymiles_log.csv") Then fso.CopyFile appData & "\hoymiles_log.csv", backup & "\hoymiles_log.csv", True
 If fso.FileExists(appData & "\linky_index_log.csv") Then fso.CopyFile appData & "\linky_index_log.csv", backup & "\linky_index_log.csv", True
 
-If Not fso.FileExists(configFile) Then
-    choice = MsgBox("Choisissez le reseau du DTU." & vbCrLf & vbCrLf & "Oui : Wi-Fi dedie du DTU (10.10.100.254, deux Wi-Fi)." & vbCrLf & "Non : DTU relie a la Livebox en Ethernet ; Dinky et PC sur le Wi-Fi de la Livebox.", vbYesNoCancel + vbQuestion, "Boite noire Hoymiles - connexion")
+existingConfig = fso.FileExists(configFile)
+choice = vbNo
+If existingConfig Then
+    choice = MsgBox("Les reglages existants sont conserves." & vbCrLf & vbCrLf & "Voulez-vous modifier la connexion du DTU ?", vbYesNoCancel + vbQuestion, "Boite noire Hoymiles - connexion DTU")
     If choice = vbCancel Then WScript.Quit 0
-    If choice = vbYes Then
+End If
+
+If (Not existingConfig) Or choice = vbYes Then
+    chooser = folder & "\CHOISIR_RESEAU.ps1"
+    modeFile = shell.ExpandEnvironmentStrings("%TEMP%") & "\BoiteNoireHoymiles_mode_reseau.txt"
+    If fso.FileExists(modeFile) Then fso.DeleteFile modeFile, True
+    result = shell.Run("powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File " & q & chooser & q & " -ResultPath " & q & modeFile & q, 0, True)
+    If Not fso.FileExists(modeFile) Then WScript.Quit 0
+
+    Set outputFile = fso.OpenTextFile(modeFile, 1, False)
+    dtuMode = UCase(Trim(outputFile.ReadAll))
+    outputFile.Close
+    fso.DeleteFile modeFile, True
+
+    If dtuMode = "WIFI" Then
         dtuHost = "10.10.100.254"
-    Else
-        dtuHost = Trim(InputBox("Adresse IP du DTU indiquee par la Livebox :", "DTU sur Livebox"))
+    ElseIf dtuMode = "LAN" Then
+        dtuHost = Trim(InputBox("Adresse IP du DTU attribuee par la box :", "DTU-LAN sur la box"))
         If dtuHost = "" Then
             MsgBox "Installation annulee : l'adresse IP du DTU est necessaire.", vbExclamation, "Boite noire Hoymiles"
             WScript.Quit 1
         End If
+    Else
+        WScript.Quit 0
     End If
-    dinkyHost = Trim(InputBox("Adresse IP du Dinky :", "Dinky sur Livebox", "192.168.1.126"))
-    If dinkyHost = "" Then dinkyHost = "192.168.1.126"
-    json = "{" & q & "dtu_host" & q & ":" & q & dtuHost & q & "," & _
-           q & "linky" & q & ":{" & q & "enabled" & q & ":true," & _
-           q & "mode" & q & ":" & q & "dinky_http" & q & "," & _
-           q & "host" & q & ":" & q & dinkyHost & q & "," & _
-           q & "port" & q & ":80," & q & "timeout_s" & q & ":2," & _
-           q & "path" & q & ":" & q & "Status 8" & q & "}," & _
-           q & "tarifs_edf" & q & ":{" & q & "hp_eur_kwh" & q & ":0.0," & _
-           q & "hc_eur_kwh" & q & ":0.0," & q & "abonnement_mensuel_eur" & q & ":0.0," & _
-           q & "abonnement_journalier_eur" & q & ":0.63," & q & "plages_hc" & q & ":" & q & q & "," & _
-           q & "ddsu_import_positif" & q & ":true}," & _
-           q & "dtu_wifi_recovery" & q & ":{" & q & "enabled" & q & ":false," & _
-           q & "interface" & q & ":" & q & q & "," & q & "profile" & q & ":" & q & q & "," & _
-           q & "after_minutes" & q & ":30}," & q & "releves_edf" & q & ":{}}"
+    If existingConfig Then
+        Set inputFile = fso.OpenTextFile(configFile, 1, False)
+        json = inputFile.ReadAll
+        inputFile.Close
+        Set re = New RegExp
+        re.Global = False
+        re.Pattern = q & "dtu_host" & q & ":" & q & "[^" & q & "]*" & q
+        json = re.Replace(json, q & "dtu_host" & q & ":" & q & dtuHost & q)
+    Else
+        dinkyHost = Trim(InputBox("Adresse IP du Dinky :", "Dinky sur Livebox", "192.168.1.126"))
+        If dinkyHost = "" Then dinkyHost = "192.168.1.126"
+        json = "{" & q & "dtu_host" & q & ":" & q & dtuHost & q & "," & _
+               q & "linky" & q & ":{" & q & "enabled" & q & ":true," & _
+               q & "mode" & q & ":" & q & "dinky_http" & q & "," & _
+               q & "host" & q & ":" & q & dinkyHost & q & "," & _
+               q & "port" & q & ":80," & q & "timeout_s" & q & ":2," & _
+               q & "path" & q & ":" & q & "Status 8" & q & "}," & _
+               q & "tarifs_edf" & q & ":{" & q & "hp_eur_kwh" & q & ":0.0," & _
+               q & "hc_eur_kwh" & q & ":0.0," & q & "abonnement_mensuel_eur" & q & ":0.0," & _
+               q & "abonnement_journalier_eur" & q & ":0.63," & q & "plages_hc" & q & ":" & q & q & "," & _
+               q & "ddsu_import_positif" & q & ":true}," & _
+               q & "dtu_wifi_recovery" & q & ":{" & q & "enabled" & q & ":false," & _
+               q & "interface" & q & ":" & q & q & "," & q & "profile" & q & ":" & q & q & "," & _
+               q & "after_minutes" & q & ":30}," & q & "releves_edf" & q & ":{}}"
+    End If
     Set outputFile = fso.CreateTextFile(configFile, True, False)
     outputFile.Write json
     outputFile.Close

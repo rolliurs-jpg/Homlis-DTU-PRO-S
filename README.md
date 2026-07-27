@@ -40,7 +40,7 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 
 1. Sur cette page, cliquez sur **Code → Download ZIP**, puis décompressez l’archive.
 2. Double-cliquez sur **`INSTALLER_WINDOWS.vbs`**.
-3. Confirmez l’installation et choisissez votre mode réseau DTU.
+3. Cochez **DTU-WIFI** (deux cartes Wi-Fi) ou **DTU-LAN** (câble Ethernet, DTU et Dinky 4 sur la box).
 4. Lancez le raccourci **Boîte noire Hoymiles** créé sur le Bureau.
 
 L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les dépendances, sauvegarde les réglages et historiques déjà présents, puis crée le raccourci.
