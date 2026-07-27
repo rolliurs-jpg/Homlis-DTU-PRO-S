@@ -42,6 +42,8 @@ DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
 DIRECT_WINDOW_HOURS = 4
+MAX_DTU_LIMIT_PCT = 120.0
+DEFAULT_DTU_LIMIT_PCT = 110.0
 
 # Les mesures restent locales à chaque ordinateur. Windows et macOS utilisent
 # leurs emplacements standards, sans changer les noms de fichiers historiques.
@@ -195,8 +197,16 @@ def load_history():
         except Exception:
             pass
 
+    # Les anciennes versions pouvaient enregistrer une limite firmware
+    # aberrante (par exemple 500 %). On conserve le CSV brut comme preuve,
+    # mais l'affichage retrouve la dernière limite réaliste.
+    previous_limit = DEFAULT_DTU_LIMIT_PCT
     for t in sorted(merged):
         ac, grid, limit_w, lky = merged[t]
+        if 0 <= limit_w <= MAX_DTU_LIMIT_PCT:
+            previous_limit = limit_w
+        else:
+            limit_w = previous_limit
         times.append(t)
         ac_power.append(ac)
         grid_power.append(grid)
@@ -2030,8 +2040,33 @@ def update(_):
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
         if grid_raw is None:
             raise RuntimeError("puissance réseau absente de la réponse DTU")
-        grid = float(grid_raw) if source != "modbus_tcp" else float("nan")
-        limit_w = sgs["powerLimit"] / 10 if source != "modbus_tcp" else float("nan")
+        if source == "modbus_tcp":
+            grid = float("nan")
+            limit_w = float("nan")
+            limit_note = ""
+        else:
+            grid = float(grid_raw)
+            # Le DTU annonce normalement une limite en dixièmes de pourcentage
+            # (1100 = 110 %). Certains firmwares renvoient ponctuellement une
+            # valeur incohérente, par exemple 5000 = 500 %, qui ne doit pas
+            # déformer la courbe ni laisser croire à une modification réelle.
+            raw_limit = sgs.get("powerLimit")
+            if raw_limit is None:
+                raise RuntimeError("limite DTU absente de la réponse")
+            candidate_limit = float(raw_limit) / 10
+            limit_note = ""
+            if 0 <= candidate_limit <= MAX_DTU_LIMIT_PCT:
+                limit_w = candidate_limit
+            else:
+                previous_valid = next(
+                    (value for value in reversed(power_limit)
+                     if 0 <= value <= MAX_DTU_LIMIT_PCT),
+                    DEFAULT_DTU_LIMIT_PCT,
+                )
+                limit_w = previous_valid
+                limit_note = (
+                    f" — limite DTU incohérente ignorée : {candidate_limit:.0f} % reçu"
+                )
         times.append(now)
         ac_power.append(ac)
         grid_power.append(grid)
@@ -2067,7 +2102,7 @@ def update(_):
         mode = "suivi direct" if follow_now else "historique"
         status_text.set_text(
             f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté ({'Modbus TCP' if source == 'modbus_tcp' else 'Wi-Fi direct'}) — réponse : 0 s — échecs DTU : {dtu_failures}\n"
-            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status}"
+            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status}{limit_note}"
         )
     except Exception as e:
         dtu_failures += 1
