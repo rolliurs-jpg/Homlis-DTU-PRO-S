@@ -69,6 +69,10 @@ LEGACY_EMPTY_LINKY_CONFIG = {
 
 DEFAULT_CONFIG = {
     "dtu_host": DEFAULT_DTU_HOST,
+    # En Ethernet, le DTU-Pro-S ne rend pas la consigne de puissance lisible
+    # par Modbus. Cette valeur est la consigne réglée dans S-Miles et permet de
+    # conserver la courbe bleue sans jamais envoyer de commande au DTU.
+    "dtu_lan_limit_pct": 110.0,
     "linky": {
         "enabled": True,
         "mode": "dinky_http",
@@ -449,9 +453,14 @@ def read_dtu():
     if not str(HOST).startswith("10.10.100.") and HoymilesModbusTCP is not None:
         try:
             plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
+            try:
+                limit_pct = float(CONFIG.get("dtu_lan_limit_pct", 110.0))
+            except (TypeError, ValueError):
+                limit_pct = 110.0
             return {
                 "_source": "modbus_tcp",
                 "_modbus_pv_w": float(plant.pv_power),
+                "_modbus_limit_pct": max(0.0, min(120.0, limit_pct)),
                 "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
                 "meterData": [{"phaseTotalPower": 0}],
             }
@@ -2031,7 +2040,11 @@ def update(_):
         if grid_raw is None:
             raise RuntimeError("puissance réseau absente de la réponse DTU")
         grid = float(grid_raw) if source != "modbus_tcp" else float("nan")
-        limit_w = sgs["powerLimit"] / 10 if source != "modbus_tcp" else float("nan")
+        limit_w = (
+            sgs["powerLimit"] / 10
+            if source != "modbus_tcp"
+            else float(data.get("_modbus_limit_pct", float("nan")))
+        )
         times.append(now)
         ac_power.append(ac)
         grid_power.append(grid)
@@ -2060,7 +2073,9 @@ def update(_):
             f"RÉSEAU DDSU\n{grid:+.0f} W" if source != "modbus_tcp" else "RÉSEAU DDSU\nN/D (Modbus)"
         )
         live_cards[2].set_text(
-            f"LIMITE DTU\n{limit_w:.0f} %" if source != "modbus_tcp" else "LIMITE DTU\nN/D (Modbus)"
+            f"LIMITE DTU\n{limit_w:.0f} %"
+            if source != "modbus_tcp"
+            else f"LIMITE DTU\n{limit_w:.0f} % (réglage)"
         )
         live_cards[3].set_text(linky_card_txt)
 
