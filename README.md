@@ -1,91 +1,119 @@
-# Boîte noire Hoymiles — DTU Pro-S / Dinky 4 / Linky
+# Boîte noire Hoymiles — DTU Pro-S, DDSU666, Linky et Dinky 4
 
-Application Python locale sous Windows pour suivre une installation Hoymiles : production photovoltaïque, puissance DDSU, limite DTU et consommation réelle du Linky via Dinky/Denky compatible Tasmota.
+> **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-Version actuelle : **7.0.1**.
+[![Version](https://img.shields.io/badge/version-7.0.1-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-> Projet communautaire indépendant, non affilié à Hoymiles, Enedis ou EDF. Aucune commande de zéro-injection n'est envoyée par cette application : ce réglage reste géré par le DTU / S-Miles Cloud.
+**Boîte noire Hoymiles** est une application Python locale pour Windows qui lit directement un **DTU Pro-S Hoymiles**, un **Linky Téléinfo** via **Dinky 4 / Tasmota**, et met en évidence les écarts éventuels avec le **DDSU666**. Les données restent sur votre ordinateur.
 
-## Fonctions
+🌐 **Présentation et guide visuel :** activez GitHub Pages sur le dossier `docs` pour publier la vitrine du projet.
 
-- Lecture locale du DTU Pro-S toutes les 60 secondes via `hoymiles-wifi`.
-- Lecture de la puissance Linky et des index HC/HP avec un Dinky/Denky Tasmota.
-- Historique local CSV, export CSV par plage de dates et lecture de la courbe à la souris.
-- Bilan automatique : production PV en kWh, achats EDF HC/HP depuis le Linky, coût estimé et abonnement journalier.
-- Graphiques 24 h, 7 derniers jours, mois et année.
-- Tarifs EDF HP/HC et abonnement journalier réglables.
+![Suivi production photovoltaïque Hoymiles, DTU Pro-S et Linky Dinky](docs/assets/suivi-production-v7.png)
+
+## Pourquoi ce logiciel ?
+
+Les données remontées par S-Miles Cloud, le DTU et le DDSU ne correspondent pas toujours à la puissance réellement soutirée au réseau. Cette application permet de conserver un historique local et de comparer, sur la même période :
+
+- la **production photovoltaïque** remontée par le DTU Pro-S ;
+- la puissance réseau / estimation du **DDSU666** ;
+- la puissance et les index **réels du Linky**, lus par le Dinky 4 ;
+- les achats EDF en **heures pleines (HP)**, **heures creuses (HC)** et l’abonnement.
+
+Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché comme indicateur technique et de comparaison.
+
+## Fonctionnalités
+
+- Lecture locale du **DTU Pro-S** avec `hoymiles-wifi`.
+- Lecture du **Linky Téléinfo** et des index HP/HC avec Dinky 4 / Denky compatible Tasmota.
+- Courbes de production PV, réseau DDSU, Linky/Dinky et limite DTU.
+- Vues **direct**, **24 h**, **hier** et **historique**.
+- Bilan automatique sur 24 h, 7 jours, mois et année.
+- Coût EDF calculé à partir du Linky : HP, HC et abonnement réglables.
+- Comparatif énergie **Hoymiles / Linky** pour identifier les écarts DDSU ↔ Linky.
+- Export CSV filtrable par plage de dates.
+- Captures PNG datées et versionnées pour le support Hoymiles.
 - Indicateurs de connexion DTU et Linky/Dinky.
-- Comparatif indépendant Hoymiles (DTU/DDSU) et Linky/Dinky, avec dates/heures de la période analysée.
-- Capture PNG de chaque page, datée et portant la version du logiciel, pour les échanges avec le support.
 
-## Installation Windows
+## Installation rapide Windows
 
-1. Téléchargez le dépôt avec **Code → Download ZIP**, puis décompressez-le.
-2. Double-cliquez sur `INSTALLER_WINDOWS.vbs`.
-3. Confirmez l'installation puis choisissez le réseau du DTU au premier passage. L'installateur travaille sans fenêtre de terminal, installe les dépendances Python, crée un raccourci sur le Bureau et conserve les données déjà présentes sur le PC.
-4. Lancez le raccourci **Boîte noire Hoymiles**.
+1. Sur cette page, cliquez sur **Code → Download ZIP**, puis décompressez l’archive.
+2. Double-cliquez sur **`INSTALLER_WINDOWS.vbs`**.
+3. Confirmez l’installation et choisissez votre mode réseau DTU.
+4. Lancez le raccourci **Boîte noire Hoymiles** créé sur le Bureau.
+
+L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les dépendances, sauvegarde les réglages et historiques déjà présents, puis crée le raccourci.
 
 ### Prérequis
 
-- Windows 10 ou Windows 11.
-- Python 3.10 ou plus récent, installé avec l'option **Add Python to PATH**.
-- DTU Pro-S accessible sur le réseau local.
-- Une connexion Internet est nécessaire lors de la première installation, afin d'installer `matplotlib` et `hoymiles-wifi`.
+- Windows 10 ou Windows 11 ;
+- Python 3.10 ou plus récent, installé avec l’option **Add Python to PATH** ;
+- connexion Internet uniquement lors de la première installation ;
+- DTU Pro-S et Dinky accessibles depuis l’ordinateur.
 
-## Configuration initiale
+## Réseau : deux configurations possibles
 
-Au premier lancement, le fichier suivant est créé :
+### Configuration A — deux réseaux simultanés
+
+Le **Dinky 4** est relié à la box et le **DTU Pro-S** diffuse son propre Wi-Fi. L’ordinateur doit donc disposer de deux connexions actives, par exemple Ethernet/Wi-Fi vers la box + adaptateur Wi-Fi USB vers le DTU.
+
+```text
+Linky ── Téléinfo ──> Dinky 4 ── réseau de la box ──> ordinateur
+                                                    │
+DTU Pro-S ─────────── Wi-Fi propre au DTU ─────────┘
+```
+
+### Configuration B — un réseau unique
+
+Si le DTU est raccordé à la box en Ethernet ou Wi-Fi, le DTU et le Dinky peuvent être sur le même réseau local. L’installateur permet de saisir l’adresse IP attribuée au DTU par la box.
+
+> Si le Wi-Fi du DTU se coupe, le Dinky peut continuer à enregistrer le Linky mais la production PV ne sera plus relevée jusqu’à la reconnexion du DTU.
+
+## Paramétrage et données locales
+
+Le premier lancement crée :
 
 `%LOCALAPPDATA%\BoiteNoireHoymiles\config_v5.json`
 
-Fermez l'application puis indiquez l'adresse IP du DTU dans `dtu_host`. Pour un Dinky 4, activez `linky.enabled`, choisissez `dinky_http` et indiquez l'adresse IP du Dinky. Un exemple sans données personnelles est fourni dans [config.example.json](config.example.json).
+Vous pouvez ensuite fermer le logiciel et modifier l’adresse du DTU, du Dinky, ainsi que les tarifs EDF. Un modèle sans information personnelle est disponible dans [config.example.json](config.example.json).
 
-Ne publiez jamais votre propre fichier `config_v5.json` : il contient les adresses IP de votre réseau.
+Les données restent sur votre PC :
 
-## Réseaux nécessaires : DTU et Dinky ne sont pas sur le même réseau
+| Donnée | Emplacement |
+| --- | --- |
+| Historique production | `%LOCALAPPDATA%\BoiteNoireHoymiles\hoymiles_log.csv` |
+| Index Linky/Dinky | `%LOCALAPPDATA%\BoiteNoireHoymiles\linky_index_log.csv` |
+| Réglages | `%LOCALAPPDATA%\BoiteNoireHoymiles\config_v5.json` |
 
-La configuration testée par ce projet utilise **deux réseaux distincts**, accessibles en même temps par l'ordinateur :
+Ne publiez jamais votre `config_v5.json`, vos adresses IP, numéros de série ou mots de passe.
 
-- Le **Dinky 4** est connecté à la box Internet. Il lit la Téléinfo du Linky et fournit au logiciel la puissance et les index HC/HP via le réseau local de la maison.
-- Le **DTU Pro-S** diffuse son propre réseau Wi-Fi. L'ordinateur s'y connecte directement pour lire les données locales du DTU ; ce réseau n'a généralement pas accès à Internet.
+## Bilan EDF réel et comparatif DDSU666
 
-Il faut donc deux connexions simultanées : par exemple le Wi-Fi interne (ou Ethernet) vers la box et le Dinky, et un second adaptateur Wi-Fi USB vers le DTU. Sur un Mac ou un PC disposant de deux interfaces Wi-Fi, le principe est identique.
+Le bilan EDF s’appuie sur les index HP/HC du Linky obtenus par le Dinky. Il ne se base pas sur la puissance DDSU.
 
-```text
-Linky ──Téléinfo──> Dinky 4 ──réseau de la box──> ordinateur
-                                                     │
-DTU Pro-S ──son propre Wi-Fi─────────────────────────┘
-```
+![Bilan EDF : production PV, achats HP/HC et abonnement](docs/assets/bilan-edf-v7.png)
 
-Si l'adaptateur Wi-Fi du DTU se déconnecte, le Dinky peut continuer à enregistrer le Linky mais la production DTU n'est plus lue jusqu'à la reconnexion.
+Le comparatif distingue volontairement :
 
-## Bilan EDF réel
+| Mesure | Usage dans le logiciel |
+| --- | --- |
+| Production PV du DTU | Suivi de la génération solaire |
+| DDSU666 | Indicateur Hoymiles, comparaison technique |
+| Linky/Dinky | Référence pour la consommation et le coût EDF |
 
-Le bilan utilise les index HC/HP du Linky fournis par le Dinky 4. Le DDSU est affiché pour le suivi technique, mais il n'est pas utilisé pour calculer les achats EDF.
+Ce projet n’envoie **aucune commande de zéro-injection**. Cette fonction reste gérée par le DTU et/ou S-Miles Cloud.
 
-Un relevé EDF manuel est un total cumulatif : il est utilisé pour les totaux et coûts mensuels, sans être artificiellement affecté à une seule journée du graphique.
+## Support et contribution
 
-Le graphique affiche :
+Vous pouvez ouvrir une [Issue GitHub](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues) pour signaler une compatibilité DTU, DDSU666, Dinky/Denky ou Linky, ou joindre une capture exportée par l’application.
 
-- à gauche, l'énergie de production PV en kWh ;
-- à droite, le coût EDF en euros, réparti entre abonnement, HP et HC.
+Pour rester utile à tous, indiquez la version du logiciel, le modèle DTU et le type de Dinky, mais masquez toute donnée personnelle et tout identifiant réseau.
 
-Les premières valeurs exactes apparaissent dès que le Dinky a enregistré ses index. Laissez l'application ouverte pour conserver une courbe continue.
+## Projet communautaire indépendant
 
-## Données locales et sauvegarde
-
-Les données restent uniquement sur le PC :
-
-- historique de production : `%LOCALAPPDATA%\BoiteNoireHoymiles\hoymiles_log.csv`
-- index Linky : `%LOCALAPPDATA%\BoiteNoireHoymiles\linky_index_log.csv`
-- configuration : `%LOCALAPPDATA%\BoiteNoireHoymiles\config_v5.json`
-
-L'installateur sauvegarde ces fichiers avant une mise à jour dans le dossier `sauvegarde_avant_mise_a_jour`.
-
-## Contribution
-
-Les retours de compatibilité DTU, DDSU, Dinky/Denky et Linky sont bienvenus via les **Issues** GitHub. N'ajoutez jamais une IP publique, un numéro de série, un mot de passe ou une configuration personnelle.
+Ce projet est indépendant et non affilié à Hoymiles, Enedis, EDF, Tasmota ou S-Miles Cloud. Les valeurs affichées sont des aides de suivi ; elles ne remplacent pas les relevés contractuels d’Enedis ou d’EDF.
 
 ## Licence
 
-Licence MIT. Voir [LICENSE](LICENSE).
+Licence [MIT](LICENSE).

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Boîte noire Hoymiles | DTU Pro-S, DDSU666, Linky et Dinky 4</title>
+  <meta name="description" content="Application locale gratuite pour suivre un DTU Pro-S Hoymiles, comparer le DDSU666 au Linky et calculer les achats EDF avec Dinky 4.">
+  <meta name="keywords" content="Hoymiles, DTU Pro-S, DDSU666, Linky, Dinky 4, Teleinfo, photovoltaïque, autoconsommation, zéro injection, S-Miles">
+  <meta name="author" content="Communauté Boîte noire Hoymiles">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Boîte noire Hoymiles — suivi DTU Pro-S et Linky">
+  <meta property="og:description" content="Surveillez votre production PV et comparez DTU, DDSU666 et Linky/Dinky localement.">
+  <meta property="og:image" content="assets/suivi-production-v7.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav" aria-label="Navigation principale">
+      <a class="brand" href="#accueil">☀ Boîte noire Hoymiles</a>
+      <div class="nav-links">
+        <a href="#fonctionnalites">Fonctions</a>
+        <a href="#installation">Installation</a>
+        <a href="#reseau">Réseau</a>
+        <a class="github-link" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Voir sur GitHub</a>
+      </div>
+    </nav>
+    <div id="accueil" class="hero-content">
+      <p class="eyebrow">VERSION 7.0.1 · WINDOWS · OPEN SOURCE</p>
+      <h1>Vos données Hoymiles.<br><span>Enfin comparées au vrai compteur.</span></h1>
+      <p class="lead">Une application locale pour suivre un DTU Pro-S, visualiser la production photovoltaïque et comparer le DDSU666 avec les mesures réelles du Linky via Dinky 4.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip">Télécharger gratuitement</a>
+        <a class="button secondary" href="#installation">Guide d’installation</a>
+      </div>
+      <ul class="trust-list" aria-label="Points essentiels">
+        <li>✓ Données conservées sur votre PC</li>
+        <li>✓ Linky/Dinky pour le coût EDF réel</li>
+        <li>✓ Export CSV et captures datées</li>
+      </ul>
+    </div>
+  </header>
+
+  <main>
+    <section id="fonctionnalites" class="section intro">
+      <p class="eyebrow blue">UNE VUE FIABLE DE L’INSTALLATION</p>
+      <h2>Production PV, consommation réelle et écart DDSU.</h2>
+      <p>Le logiciel rend lisibles les données qui comptent : la production remontée par le DTU, l’indication réseau du DDSU666 et la puissance réellement mesurée par votre Linky.</p>
+      <div class="cards">
+        <article class="card"><span>01</span><h3>Suivi local DTU Pro-S</h3><p>Lecture directe de la production PV, du réseau DDSU et de la limite configurée sur le DTU.</p></article>
+        <article class="card"><span>02</span><h3>Linky & Dinky 4</h3><p>Puissance instantanée et index heures pleines / heures creuses par Téléinfo.</p></article>
+        <article class="card"><span>03</span><h3>Preuves exportables</h3><p>Historique CSV par période et captures datées pour dialoguer avec le support Hoymiles.</p></article>
+      </div>
+    </section>
+
+    <section class="section screenshot-section">
+      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky/Dinky et limite DTU possèdent leurs propres couleurs et une légende permanente.</p></div>
+      <figure class="app-shot"><img src="assets/suivi-production-v7.png" alt="Interface Boîte noire Hoymiles : suivi de production PV, DDSU, Linky et limite DTU"><figcaption>Suivi instantané et historique de la production photovoltaïque.</figcaption></figure>
+    </section>
+
+    <section id="installation" class="section split-section">
+      <div><p class="eyebrow blue">INSTALLATION WINDOWS</p><h2>Installez, choisissez le réseau, surveillez.</h2><p>L’installation est pensée pour rester simple. Elle ne laisse pas de terminal ouvert et conserve vos historiques locaux lors d’une mise à jour.</p></div>
+      <ol class="steps">
+        <li><strong>1. Téléchargez</strong><span>Récupérez le ZIP du projet depuis GitHub et décompressez-le.</span></li>
+        <li><strong>2. Installez</strong><span>Double-cliquez sur <code>INSTALLER_WINDOWS.vbs</code>.</span></li>
+        <li><strong>3. Choisissez</strong><span>Indiquez si le DTU utilise son Wi-Fi propre ou le réseau de votre box.</span></li>
+        <li><strong>4. Lancez</strong><span>Utilisez le raccourci Boîte noire Hoymiles créé sur le Bureau.</span></li>
+      </ol>
+    </section>
+
+    <section id="reseau" class="section network">
+      <p class="eyebrow blue">DTU + DINKY : DEUX OPTIONS RÉSEAU</p>
+      <h2>La bonne connexion pour chaque équipement.</h2>
+      <div class="network-grid">
+        <article><h3>Deux réseaux simultanés</h3><p>Le Dinky est sur la box. Le DTU diffuse son Wi-Fi propre. Utilisez deux connexions sur le PC : Ethernet / Wi-Fi pour la box, second Wi-Fi pour le DTU.</p><div class="diagram">Linky → Dinky 4 → Box → PC<br>DTU Pro-S → Wi-Fi dédié → PC</div></article>
+        <article><h3>Un seul réseau local</h3><p>Lorsque le DTU est relié à la box par Ethernet ou Wi-Fi, le DTU et le Dinky sont accessibles depuis le même réseau. L’installateur demande alors l’adresse IP du DTU.</p><div class="diagram">Linky → Dinky 4 → Box ← DTU Pro-S<br>                    ↓<br>                    PC</div></article>
+      </div>
+    </section>
+
+    <section class="section screenshot-section">
+      <div class="section-heading"><div><p class="eyebrow blue">BILAN EDF</p><h2>Le Linky pour les kWh et les euros.</h2></div><p>Le calcul HP, HC et abonnement s’appuie sur les index Linky/Dinky, et non sur le DDSU.</p></div>
+      <figure class="app-shot"><img src="assets/bilan-edf-v7.png" alt="Bilan EDF avec production photovoltaïque, heures pleines, heures creuses et abonnement"><figcaption>Bilan sur 24 h, 7 jours, mois ou année.</figcaption></figure>
+    </section>
+
+    <section class="section faq">
+      <p class="eyebrow blue">QUESTIONS ESSENTIELLES</p>
+      <h2>Ce que fait — et ne fait pas — le logiciel.</h2>
+      <details open><summary>Le logiciel pilote-t-il le zéro injection ?</summary><p>Non. Le zéro injection reste configuré et piloté par le DTU / S-Miles Cloud. L’application observe et compare les données.</p></details>
+      <details><summary>Pourquoi comparer le DDSU au Linky ?</summary><p>Le DDSU est utile pour le système Hoymiles mais peut différer du compteur. Le Linky/Dinky est la référence retenue pour suivre les achats EDF.</p></details>
+      <details><summary>Mes données partent-elles sur Internet ?</summary><p>Non. Les historiques, réglages et exports restent locaux sur votre ordinateur. GitHub sert uniquement à diffuser le logiciel.</p></details>
+    </section>
+  </main>
+
+  <footer>
+    <div><strong>Boîte noire Hoymiles</strong><p>Projet communautaire indépendant, non affilié à Hoymiles, Enedis, EDF, Tasmota ou S-Miles Cloud.</p></div>
+    <div class="footer-links"><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Dépôt GitHub</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues">Signaler un problème</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/LICENSE">Licence MIT</a></div>
+  </footer>
+</body>
+</html>
