@@ -1,2 +1,3 @@
 matplotlib
 hoymiles-wifi
+hoymiles-modbus==0.10.0

@@ -18,7 +18,7 @@ choose_python() {
   for candidate in \
     "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" \
     "$(command -v python3 2>/dev/null || true)"; do
-    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -c "import tkinter" >/dev/null 2>&1; then
+    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -c "import sys, tkinter; raise SystemExit(sys.version_info >= (3, 14))" >/dev/null 2>&1; then
       PYTHON_BIN="$candidate"
       return 0
     fi
@@ -27,7 +27,7 @@ choose_python() {
 }
 
 if ! choose_python; then
-  dialog "Python avec Tkinter est nécessaire. Installez Python depuis python.org (version universelle macOS), puis relancez l'installation."
+  dialog "Python 3.10 à 3.13 avec Tkinter est nécessaire. Installez la version universelle macOS depuis python.org, puis relancez l'installation."
   exit 1
 fi
 
@@ -51,7 +51,7 @@ if [ -n "$MODE" ]; then
   selection=$(/usr/bin/osascript -e 'choose from list {"DTU-LAN — recommandé : câble Ethernet vers la box, DTU et Dinky 4 sur la box", "DTU-WIFI — expérimental : Wi-Fi propre du DTU, adaptateur Wi-Fi USB compatible macOS requis"} with title "Connexion du DTU" with prompt "Choisissez une seule connexion pour le DTU Pro-S." default items {"DTU-LAN — recommandé : câble Ethernet vers la box, DTU et Dinky 4 sur la box"} OK button name "Continuer" Cancel button name "Annuler"') || exit 0
 
   if /usr/bin/printf '%s' "$selection" | /usr/bin/grep -q "DTU-LAN"; then
-    DTU_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP attribuée au DTU par votre box :" default answer "192.168.1.200" with title "DTU-LAN sur la box" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
+    DTU_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP réellement attribuée au DTU par votre box :" default answer "" with title "DTU-LAN sur la box" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
   else
     DTU_HOST="10.10.100.254"
   fi

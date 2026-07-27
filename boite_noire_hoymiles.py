@@ -28,8 +28,16 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
 from matplotlib.widgets import Button
 
+try:
+    # Le DTU-Pro-S expose les mesures détaillées par Modbus-TCP lorsqu'il est
+    # raccordé à la box en Ethernet. Cette dépendance est optionnelle afin de
+    # conserver le fonctionnement Wi-Fi direct des anciennes installations.
+    from hoymiles_modbus.client import HoymilesModbusTCP
+except ImportError:
+    HoymilesModbusTCP = None
+
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.1"
+VERSION = "7.0.3"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -435,6 +443,23 @@ def read_dtu():
         startupinfo.wShowWindow = subprocess.SW_HIDE
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
+    # Un DTU sur le LAN ne présente pas le service Wi-Fi direct (port 10081) :
+    # il expose à la place Modbus-TCP sur le port 502. L'interroger d'abord
+    # évite trois délais de 12 secondes inutiles à chaque cycle de lecture.
+    if not str(HOST).startswith("10.10.100.") and HoymilesModbusTCP is not None:
+        try:
+            plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
+            return {
+                "_source": "modbus_tcp",
+                "_modbus_pv_w": float(plant.pv_power),
+                "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
+                "meterData": [{"phaseTotalPower": 0}],
+            }
+        except Exception as exc:
+            modbus_error = f"Modbus TCP {HOST}: {exc}"
+    else:
+        modbus_error = ""
+
     hosts = []
     for host in (HOST, "10.10.100.162", "10.10.100.254"):
         if host and host not in hosts:
@@ -467,6 +492,8 @@ def read_dtu():
             return data
         except Exception as e:
             errors.append(f"{host}: {e}")
+    if modbus_error:
+        errors.insert(0, modbus_error)
     raise RuntimeError(" | ".join(errors))
 
 def reconnect_dtu_wifi():
@@ -1988,20 +2015,23 @@ def update(_):
         # Le DTU répond : son rythme de mise à jour peut être lent sans être une panne.
         set_connection_badge(connection_badges[0], "online", "● DTU connecté")
 
+        source = data.get("_source", "wifi_direct")
         sgs = data["sgsData"][0]
         meter = data["meterData"][0]
         # Selon le firmware, la puissance de production est soit à la racine
         # (dtuPower / activePower), soit dans sgsData. Les champs à zéro sont
         # omis par le DTU dans son JSON : la nuit, leur absence signifie donc 0 W.
-        ac_raw = data.get("dtuPower", data.get("activePower", sgs.get("activePower", 0)))
+        ac_raw = data.get("_modbus_pv_w", data.get("dtuPower", data.get("activePower", sgs.get("activePower", 0))))
+        if source == "modbus_tcp":
+            ac_raw = float(ac_raw) * 10
         ac = float(ac_raw) / 10
         # Certains firmwares ne renvoient temporairement que la valeur de phase.
         # Les deux champs représentent la même mesure sur cette installation monophasée.
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
         if grid_raw is None:
             raise RuntimeError("puissance réseau absente de la réponse DTU")
-        grid = float(grid_raw)
-        limit_w = sgs["powerLimit"] / 10
+        grid = float(grid_raw) if source != "modbus_tcp" else float("nan")
+        limit_w = sgs["powerLimit"] / 10 if source != "modbus_tcp" else float("nan")
         times.append(now)
         ac_power.append(ac)
         grid_power.append(grid)
@@ -2026,13 +2056,17 @@ def update(_):
         else:
             linky_card_txt = f"LINKY DINKY\n{lky:.0f} W (TIC)"
         live_cards[0].set_text(f"PRODUCTION PV\n{ac:.0f} W")
-        live_cards[1].set_text(f"RÉSEAU DDSU\n{grid:+.0f} W")
-        live_cards[2].set_text(f"LIMITE DTU\n{limit_w:.0f} %")
+        live_cards[1].set_text(
+            f"RÉSEAU DDSU\n{grid:+.0f} W" if source != "modbus_tcp" else "RÉSEAU DDSU\nN/D (Modbus)"
+        )
+        live_cards[2].set_text(
+            f"LIMITE DTU\n{limit_w:.0f} %" if source != "modbus_tcp" else "LIMITE DTU\nN/D (Modbus)"
+        )
         live_cards[3].set_text(linky_card_txt)
 
         mode = "suivi direct" if follow_now else "historique"
         status_text.set_text(
-            f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté — réponse : 0 s — échecs DTU : {dtu_failures}\n"
+            f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté ({'Modbus TCP' if source == 'modbus_tcp' else 'Wi-Fi direct'}) — réponse : 0 s — échecs DTU : {dtu_failures}\n"
             f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status}"
         )
     except Exception as e:
@@ -2081,8 +2115,13 @@ else:
     ax.set_xlim(now0, now0.replace(second=0, microsecond=0) + __import__("datetime").timedelta(hours=2))
     fig.autofmt_xdate()
 
-# Première lecture immédiate au démarrage, puis une lecture chaque minute.
+# Premier relevé avant d'ouvrir la fenêtre. Sur macOS/Tk, les minuteurs de
+# démarrage peuvent être ignorés tant que la fenêtre n'a pas été activée ; un
+# relevé Modbus prend ici quelques secondes mais garantit l'affichage direct
+# des données dès l'ouverture.
 update(None)
+
+# Puis une lecture chaque minute.
 ani = FuncAnimation(fig, update, interval=INTERVAL_MS, cache_frame_data=False)
 
 def enable_full_window_resize():

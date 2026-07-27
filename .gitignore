@@ -6,5 +6,8 @@ config_v5.json
 hoymiles_log.csv
 linky_index_log.csv
 Historiques_importes/
+.matplotlib/
+*.log
+*.env
 .idea/
 .vscode/
