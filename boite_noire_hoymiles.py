@@ -129,6 +129,9 @@ def load_config():
 CONFIG = load_config()
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
 
+# Bleu ciel pour la production PV : distinct du bleu foncé utilisé pour les HP EDF.
+PV_COLOR = "#0ea5e9"
+
 def save_config():
     CONFIG_FILE.write_text(json.dumps(CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -265,7 +268,7 @@ except Exception:
     pass
 plt.subplots_adjust(left=0.08, bottom=0.34, right=0.91, top=0.75)
 
-line_ac, = ax.plot([], [], linewidth=2.15, color="#1d4ed8", label="Production PV")
+line_ac, = ax.plot([], [], linewidth=2.15, color=PV_COLOR, label="Production PV")
 line_grid, = ax.plot([], [], linewidth=1.45, color="#dc2626", label="Réseau DDSU")
 line_linky, = ax.plot([], [], linewidth=1.40, color="#93c5fd", linestyle="--", label="Linky Dinky")
 limit_ax = ax.twinx()
@@ -339,7 +342,7 @@ set_connection_badge(connection_badges[1], "delayed", "● Linky/Dinky en attent
 cursor_line = Line2D([0, 0], [0, 1], transform=ax.get_xaxis_transform(), color="#0f172a",
                      linewidth=2.0, linestyle="--", visible=False, zorder=100)
 cursor_dot = Line2D([], [], transform=ax.transData, linestyle="", marker="o", markersize=8,
-                    color="#1d4ed8", markeredgecolor="white", markeredgewidth=1.2,
+                    color=PV_COLOR, markeredgecolor="white", markeredgewidth=1.2,
                     visible=False, zorder=101)
 fig.add_artist(cursor_line)
 fig.add_artist(cursor_dot)
@@ -1329,7 +1332,7 @@ def draw_bilan():
     pv_positions = [position - 0.20 for position in positions]
     edf_positions = [position + 0.20 for position in positions]
     edf_bar_width = 0.38
-    bilan_ax.bar(pv_positions, production, width=edf_bar_width, color="#2563eb", label="Production PV")
+    bilan_ax.bar(pv_positions, production, width=edf_bar_width, color=PV_COLOR, label="Production PV")
     bilan_cost_ax.bar(
         edf_positions, subscription, width=edf_bar_width, align="center",
         facecolor="#eff6ff", edgecolor="#1d4ed8", linewidth=1.10, label="Abonnement EDF",
@@ -1488,7 +1491,7 @@ def draw_hoymiles_comparison():
     comparison_ax.set_facecolor((1, 1, 1, 0.40))
     positions = list(range(len(labels)))
     comparison_ax.bar([pos - 0.25 for pos in positions], production, width=0.22,
-        color="#2563eb", label="Production PV")
+        color=PV_COLOR, label="Production PV")
     comparison_ax.bar(positions, ddsu_import, width=0.22,
         color="#60a5fa", label="Estimation achat DDSU")
     comparison_ax.bar([pos + 0.25 for pos in positions], linky_import, width=0.22,
