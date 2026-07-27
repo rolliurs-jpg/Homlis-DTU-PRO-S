@@ -29,7 +29,7 @@ from matplotlib.lines import Line2D
 from matplotlib.widgets import Button
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.0"
+VERSION = "7.0.1"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -298,7 +298,7 @@ status_text = fig.text(0.08, 0.028, "Connexion au DTU...", ha="left", va="bottom
 live_cards = [fig.text(0, 0, "", visible=False) for _ in range(4)]
 
 # En-tête du suivi direct : il disparaît sur le bilan, qui possède son propre titre.
-dashboard_title = fig.text(0.08, 0.890, "Boîte noire Hoymiles", ha="left", va="center",
+dashboard_title = fig.text(0.08, 0.890, f"Boîte noire Hoymiles — v{VERSION}", ha="left", va="center",
                            fontsize=16, fontweight="bold", color="#0f172a")
 dashboard_subtitle = fig.text(0.08, 0.790, "Suivi de production · DTU Pro-S + Linky Dinky 4",
                                ha="left", va="center", fontsize=9, color="#475569")
@@ -1375,7 +1375,7 @@ def draw_bilan():
         borderaxespad=0.0, fontsize=9,
     )
     # Le titre est volontairement plus haut que la légende à deux lignes.
-    bilan_ax.set_title(title, loc="left", fontsize=14, pad=52)
+    bilan_ax.set_title(f"{title} — v{VERSION}", loc="left", fontsize=14, pad=52)
     total_pv = sum(production)
     chart_hc_total = sum(hc)
     chart_hp_total = sum(hp)
@@ -1503,7 +1503,7 @@ def draw_hoymiles_comparison():
     comparison_ax.spines["right"].set_visible(False)
     comparison_ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False, ncol=3,
                          borderaxespad=0.0, fontsize=9)
-    comparison_ax.set_title("Comparatif énergie — Hoymiles / Linky", loc="left", fontsize=14, pad=52)
+    comparison_ax.set_title(f"Comparatif énergie — Hoymiles / Linky — v{VERSION}", loc="left", fontsize=14, pad=52)
     total_ddsu = sum(ddsu_import)
     total_linky = real_linky_hc + real_linky_hp if real_reading is not None and bilan_period in ("mois", "annee") else sum(linky_import)
     difference = total_ddsu - total_linky
@@ -1899,8 +1899,8 @@ export_button = Button(export_ax, "Exporter CSV", color="#475569", hovercolor="#
 export_button.label.set_color("white")
 export_button.on_clicked(export_history)
 
-# Version finale : les actions gardent exactement les mêmes fonctions, avec un
-# style uniforme et lisible.
+# Version finale : les actions gardent exactement les mêmes fonctions,
+# avec une surface visuelle cohérente.
 style_final_button(tariffs_button)
 style_final_button(edf_reading_button)
 style_final_button(edf_cost_button)

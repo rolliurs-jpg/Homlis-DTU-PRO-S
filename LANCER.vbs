@@ -11,6 +11,5 @@ If Not fso.FileExists(scriptPath) Then
     WScript.Quit 1
 End If
 
-' pyw lance Python sans fenêtre de terminal.
-command = "pyw.exe -3 """ & scriptPath & """"
+command = "pyw.exe -3 " & Chr(34) & scriptPath & Chr(34)
 shell.Run command, 0, False

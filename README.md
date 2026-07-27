@@ -2,7 +2,7 @@
 
 Application Python locale sous Windows pour suivre une installation Hoymiles : production photovoltaïque, puissance DDSU, limite DTU et consommation réelle du Linky via Dinky/Denky compatible Tasmota.
 
-Version actuelle : **7.0.0**.
+Version actuelle : **7.0.1**.
 
 > Projet communautaire indépendant, non affilié à Hoymiles, Enedis ou EDF. Aucune commande de zéro-injection n'est envoyée par cette application : ce réglage reste géré par le DTU / S-Miles Cloud.
 
