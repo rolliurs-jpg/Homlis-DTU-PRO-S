@@ -35,3 +35,11 @@ python dtu_ddsu_probe.py --host IP_DU_DTU --watch 60 --dinky-host IP_DU_DINKY
 ```
 
 Envoyez ensuite le texte affiché par Terminal. Le prototype compare la variation du Dinky avec les registres non documentés du DTU pour rechercher la valeur DDSU.
+
+## Essai Wi-Fi direct (nouvelle piste)
+
+L'Ethernet et le Wi-Fi direct du DTU utilisent deux services différents. Le DDSU est bien relié physiquement au DTU en RS485, mais il reste à vérifier si le firmware l'expose de la même façon sur ces deux services.
+
+Sans toucher à l'application actuelle, double-cliquez sur `LANCER_WIFI_DDSU_PROTOTYPE.command` après avoir connecté le Mac au réseau `DTUP-…` du DTU. Le test envoie uniquement la requête de lecture `get-real-data-new`, puis affiche les champs qui évoquent le compteur, le réseau ou la puissance.
+
+Le Mac quittera temporairement le Wi-Fi de la box : c'est normal. Pour cet essai, ne lancez pas le logiciel principal en parallèle. Envoyez ensuite le texte affiché par Terminal, sans le publier sur GitHub.
