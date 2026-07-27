@@ -13,8 +13,8 @@ Les historiques et réglages sont conservés dans `~/Library/Application Support
 
 ## Réseau DTU
 
-- **DTU-LAN — recommandé** : DTU relié en Ethernet à la box. Le Dinky 4 et le DTU sont sur le réseau de la box ; saisissez l'adresse IP réellement donnée au DTU par la box. La production est lue localement par Modbus TCP (port 502).
-- **DTU-WIFI — expérimental** : le DTU utilise son propre Wi-Fi. Le Mac doit garder le Wi-Fi de la box pour le Dinky, et disposer d'un deuxième adaptateur Wi-Fi USB compatible macOS / Apple Silicon pour le DTU.
+- **DTU-WIFI DDSU — recommandé pour la comparaison** : le Wi-Fi interne du Mac se connecte au DTU et lit le DDSU. Une clé Wi-Fi USB compatible macOS / Apple Silicon reste connectée au Wi-Fi de la box pour le Dinky 4. C'est la même configuration que sur PC.
+- **DTU-LAN** : DTU relié en Ethernet à la box. Le Dinky 4 et le DTU sont sur le réseau de la box ; saisissez l'adresse IP réellement donnée au DTU par la box. La production est lue localement par Modbus TCP (port 502), mais le firmware peut ne pas y exposer le DDSU.
 
 ## Python
 

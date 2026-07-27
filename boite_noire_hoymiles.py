@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.3"
+VERSION = "7.0.4"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -73,6 +73,9 @@ DEFAULT_CONFIG = {
     # par Modbus. Cette valeur est la consigne réglée dans S-Miles et permet de
     # conserver la courbe bleue sans jamais envoyer de commande au DTU.
     "dtu_lan_limit_pct": 110.0,
+    # Le champ Wi-Fi powerLimit n'est pas une consigne en pourcentage fiable
+    # sur tous les firmwares. La limite affichée reste donc le réglage S-Miles.
+    "dtu_wifi_limit_pct": 110.0,
     "linky": {
         "enabled": True,
         "mode": "dinky_http",
@@ -436,8 +439,19 @@ def move_cursor(event):
 
 fig.canvas.mpl_connect("motion_notify_event", move_cursor)
 
+def local_address_for_dtu_wifi(host):
+    """Choisit l'interface qui atteint le Wi-Fi direct du DTU.
+
+    Avec deux cartes Wi-Fi, macOS et Windows choisissent ainsi l'adaptateur
+    connecté à DTUP-… ; la seconde carte peut rester sur la box et le Dinky.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.connect((host, 10081))
+        return probe.getsockname()[0]
+
+
 def read_dtu():
-    """Lecture DTU robuste : essaie l'adresse configurée puis les adresses connues."""
+    """Lit le DTU en Ethernet Modbus ou sur son Wi-Fi direct DDSU."""
     global HOST
     startupinfo = None
     creationflags = 0
@@ -469,10 +483,9 @@ def read_dtu():
     else:
         modbus_error = ""
 
-    hosts = []
-    for host in (HOST, "10.10.100.162", "10.10.100.254"):
-        if host and host not in hosts:
-            hosts.append(host)
+    # Une seule adresse évite les longues tentatives sur des passerelles DTU
+    # qui ne correspondent pas à l'installation configurée.
+    hosts = [HOST] if HOST else [DEFAULT_DTU_HOST]
 
     # Sous macOS l'application est lancée depuis un environnement Python privé.
     # Le programme hoymiles-wifi est donc dans le même dossier que Python, et
@@ -483,10 +496,19 @@ def read_dtu():
 
     errors = []
     for host in hosts:
-        cmd = [hoymiles_cli, "--host", host, "--as-json", "get-real-data-new"]
+        try:
+            local_addr = local_address_for_dtu_wifi(host)
+        except OSError as exc:
+            errors.append(f"{host}: interface Wi-Fi DTU introuvable ({exc})")
+            continue
+        cmd = [
+            hoymiles_cli, "--host", host, "--local_addr", local_addr,
+            "--timeout", "15", "--as-json", "--disable-interactive",
+            "get-real-data-new",
+        ]
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=12,
+                cmd, capture_output=True, text=True, timeout=22,
                 startupinfo=startupinfo, creationflags=creationflags
             )
             text = result.stdout.strip()
@@ -2039,11 +2061,13 @@ def update(_):
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
         if grid_raw is None:
             raise RuntimeError("puissance réseau absente de la réponse DTU")
-        grid = float(grid_raw) if source != "modbus_tcp" else float("nan")
-        limit_w = (
-            sgs["powerLimit"] / 10
+        # Valeur DDSU validée avec charges réelles : phaseTotalPower est en
+        # dizaines de watts (ex. -28 = -280 W), contrairement aux valeurs PV.
+        grid = float(grid_raw) * 10 if source != "modbus_tcp" else float("nan")
+        limit_w = float(
+            CONFIG.get("dtu_wifi_limit_pct", 110.0)
             if source != "modbus_tcp"
-            else float(data.get("_modbus_limit_pct", float("nan")))
+            else data.get("_modbus_limit_pct", float("nan"))
         )
         times.append(now)
         ac_power.append(ac)

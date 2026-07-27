@@ -23,33 +23,33 @@ $title.AutoSize = $true
 $form.Controls.Add($title)
 
 $hint = New-Object System.Windows.Forms.Label
-$hint.Text = "Cochez une seule option. En Ethernet, le DTU et le Dinky 4 restent tous les deux sur votre box."
+$hint.Text = "Pour lire le DDSU, utilisez DTU-WIFI avec deux cartes Wi-Fi : DTU et box/Dinky."
 $hint.Location = New-Object System.Drawing.Point(27, 53)
 $hint.AutoSize = $true
 $form.Controls.Add($hint)
 
 $wifi = New-Object System.Windows.Forms.CheckBox
-$wifi.Text = "DTU-WIFI"
+$wifi.Text = "DTU-WIFI DDSU (recommandé)"
 $wifi.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
 $wifi.Location = New-Object System.Drawing.Point(28, 95)
 $wifi.AutoSize = $true
 $form.Controls.Add($wifi)
 
 $wifiText = New-Object System.Windows.Forms.Label
-$wifiText.Text = "DTU sur son Wi-Fi propre (2 cartes Wi-Fi nécessaires : box/Dinky + DTU)."
+$wifiText.Text = "DTU sur son Wi-Fi propre : Wi-Fi principal vers DTU, clé Wi-Fi USB vers box/Dinky."
 $wifiText.Location = New-Object System.Drawing.Point(55, 125)
 $wifiText.AutoSize = $true
 $form.Controls.Add($wifiText)
 
 $lan = New-Object System.Windows.Forms.CheckBox
-$lan.Text = "Ethernet — DTU-LAN (recommandé)"
+$lan.Text = "Ethernet — DTU-LAN"
 $lan.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
 $lan.Location = New-Object System.Drawing.Point(28, 165)
 $lan.AutoSize = $true
 $form.Controls.Add($lan)
 
 $lanText = New-Object System.Windows.Forms.Label
-$lanText.Text = "DTU relié à la box par câble Ethernet : saisissez son IP attribuée par la box. Lecture locale Modbus TCP (port 502)."
+$lanText.Text = "DTU relié à la box : production PV par Modbus TCP. Le DDSU peut ne pas être exporté par le firmware."
 $lanText.Location = New-Object System.Drawing.Point(55, 195)
 $lanText.AutoSize = $true
 $form.Controls.Add($lanText)

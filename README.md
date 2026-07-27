@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.3-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.4-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -40,7 +40,7 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 
 1. Sur cette page, cliquez sur **Code → Download ZIP**, puis décompressez l’archive.
 2. Double-cliquez sur **`INSTALLER_WINDOWS.vbs`**.
-3. Cochez **DTU-WIFI** (deux cartes Wi-Fi) ou **DTU-LAN** (câble Ethernet, DTU et Dinky 4 sur la box).
+3. Cochez **DTU-WIFI DDSU** : le Wi-Fi du PC se connecte au DTU et une seconde clé Wi-Fi USB reste sur la box/Dinky. Choisissez **DTU-LAN** seulement pour la production PV Modbus, car le DDSU peut ne pas être disponible en Ethernet.
 4. Lancez le raccourci **Boîte noire Hoymiles** créé sur le Bureau.
 
 L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les dépendances, sauvegarde les réglages et historiques déjà présents, puis crée le raccourci.
@@ -50,10 +50,10 @@ L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les 
 L’édition macOS se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
 
 1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
-2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental).
+2. Choisissez **DTU-WIFI DDSU** : le Wi-Fi du Mac se connecte au DTU et une clé Wi-Fi USB compatible macOS reste sur la box/Dinky.
 3. Lancez ensuite l’application depuis le dossier **Applications**. Si macOS bloque le réseau local de l’application, double-cliquez plutôt sur `LANCER_MAC.command` dans le dossier téléchargé : c’est le même logiciel, lancé depuis Terminal.
 
-Le mode DTU-WIFI sur Mac demande un second adaptateur Wi-Fi USB réellement compatible macOS / Apple Silicon. Le mode DTU-LAN est à privilégier.
+La configuration DTU-WIFI DDSU est la même sur PC et Mac. Elle demande une seconde clé Wi-Fi USB réellement compatible avec le système. Le mode DTU-LAN conserve la lecture de production PV par Modbus, mais le DDSU peut ne pas être accessible.
 
 ### Prérequis
 
@@ -66,17 +66,16 @@ Le mode DTU-WIFI sur Mac demande un second adaptateur Wi-Fi USB réellement comp
 
 ### Configuration A — deux réseaux simultanés
 
-Le **Dinky 4** est relié à la box et l’ordinateur le consulte par le **Wi-Fi de la box**. Le **DTU Pro-S** diffuse son propre Wi-Fi. L’ordinateur doit donc disposer de deux connexions Wi-Fi actives : le Wi-Fi interne vers la box et le Dinky, puis un second adaptateur Wi-Fi USB vers le DTU.
+Le **Dinky 4** est relié à la box et l’ordinateur le consulte par une connexion Wi-Fi dédiée. Le **DTU Pro-S** diffuse son propre Wi-Fi, qui expose la mesure DDSU. Sur PC comme sur Mac, connectez le Wi-Fi interne au DTU et une seconde clé Wi-Fi USB à la box/Dinky.
 
 ```text
-Linky ── Téléinfo ──> Dinky 4 ── Wi-Fi de la box ──> PC
-                                                    │
-DTU Pro-S ─────────── Wi-Fi propre au DTU ── 2e Wi-Fi du PC
+DTU Pro-S ── Wi-Fi propre (DDSU) ──> Wi-Fi interne du PC / Mac
+Linky ── Téléinfo ──> Dinky 4 ── Wi-Fi de la box ──> clé Wi-Fi USB
 ```
 
 ### Configuration B — un réseau unique
 
-Si le DTU est raccordé à la box en **Ethernet**, le DTU et le Dinky peuvent être sur le même réseau local. L’installateur permet de saisir l’adresse IP réellement attribuée au DTU par la box. La production PV est alors lue en Modbus TCP (port 502) ; selon le firmware, DDSU et limite de puissance peuvent ne pas être exposés. Le DTU n’utilise pas le Wi-Fi de la box : son Wi-Fi reste son réseau propre.
+Si le DTU est raccordé à la box en **Ethernet**, le DTU et le Dinky peuvent être sur le même réseau local. L’installateur permet de saisir l’adresse IP réellement attribuée au DTU par la box. La production PV est alors lue en Modbus TCP (port 502) ; selon le firmware, DDSU et limite de puissance ne sont pas exposés. Le DTU n’utilise pas le Wi-Fi de la box : son Wi-Fi reste son réseau propre.
 
 > Si le Wi-Fi du DTU se coupe, le Dinky peut continuer à enregistrer le Linky mais la production PV ne sera plus relevée jusqu’à la reconnexion du DTU.
 
