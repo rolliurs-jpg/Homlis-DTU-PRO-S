@@ -45,6 +45,16 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 
 L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les dépendances, sauvegarde les réglages et historiques déjà présents, puis crée le raccourci.
 
+## Installation macOS Apple Silicon
+
+L’édition macOS se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
+
+1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
+2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental).
+3. Lancez ensuite l’application depuis le dossier **Applications**.
+
+Le mode DTU-WIFI sur Mac demande un second adaptateur Wi-Fi USB réellement compatible macOS / Apple Silicon. Le mode DTU-LAN est à privilégier.
+
 ### Prérequis
 
 - Windows 10 ou Windows 11 ;

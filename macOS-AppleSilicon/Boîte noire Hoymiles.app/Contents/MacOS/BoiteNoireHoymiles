@@ -1,0 +1,11 @@
+#!/bin/bash
+BASE="$HOME/Library/Application Support/BoiteNoireHoymiles"
+PYTHON="$BASE/venv/bin/python"
+PROGRAM="$BASE/boite_noire_hoymiles.py"
+
+if [ ! -x "$PYTHON" ] || [ ! -f "$PROGRAM" ]; then
+  /usr/bin/osascript -e 'display dialog "Le logiciel n’est pas encore installé. Ouvrez « Installer Boîte noire Hoymiles.app » depuis le dossier téléchargé." with title "Boîte noire Hoymiles" buttons {"OK"} default button "OK" with icon caution' >/dev/null
+  exit 1
+fi
+
+exec "$PYTHON" "$PROGRAM"
