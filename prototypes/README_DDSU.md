@@ -40,7 +40,7 @@ Envoyez ensuite le texte affiché par Terminal. Le prototype compare la variatio
 
 L'Ethernet et le Wi-Fi direct du DTU utilisent deux services différents. Le DDSU est bien relié physiquement au DTU en RS485, mais il reste à vérifier si le firmware l'expose de la même façon sur ces deux services.
 
-Sans toucher à l'application actuelle, double-cliquez sur `LANCER_WIFI_DDSU_PROTOTYPE.command` après avoir connecté le Mac au réseau `DTUP-…` du DTU. Le test envoie uniquement la requête de lecture `get-real-data-new`, puis affiche les champs qui évoquent le compteur, le réseau ou la puissance. La valeur `mesure_ddsu.puissance_reseau_w` provient de `meterData[0].phaseTotalPower` : c'est la piste pour la future courbe rouge.
+Sans toucher à l'application actuelle, double-cliquez sur `LANCER_WIFI_DDSU_PROTOTYPE.command` après avoir connecté le Mac au réseau `DTUP-…` du DTU. Le test envoie uniquement la requête de lecture `get-real-data-new`, puis affiche les champs qui évoquent le compteur, le réseau ou la puissance. La valeur `mesure_ddsu.puissance_reseau_w` provient de `meterData[0].phaseTotalPower × 10` : c'est la piste pour la future courbe rouge. Les essais ont aussi confirmé `voltagePhaseA ÷ 100`, `currentPhaseA ÷ 100` et `powerFactorTotal ÷ 1000`.
 
 Choisissez `60` secondes dans le lanceur et faites varier une charge pendant l'essai. Le rapport affichera alors une liste des puissances DDSU relevées, ce qui permettra de confirmer le signe et la dynamique de la mesure avant toute intégration dans le logiciel.
 

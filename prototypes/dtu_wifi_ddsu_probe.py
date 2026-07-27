@@ -64,17 +64,31 @@ def meter_related_fields(value: Any, path: str = "") -> dict[str, Any]:
 
 
 def decoded_meter(payload: Any) -> dict[str, Any]:
-    """Extrait les valeurs DDSU utiles sans supposer les unités inconnues."""
+    """Extrait les valeurs DDSU avec les échelles vérifiées sur l'installation."""
     meters = payload.get("meterData", []) if isinstance(payload, dict) else []
     if not meters or not isinstance(meters[0], dict):
         return {"error": "Aucune donnée compteur (meterData) dans la réponse Wi-Fi."}
     meter = meters[0]
+    network_power_raw = meter.get("phaseTotalPower")
+    phase_power_raw = meter.get("phaseAPower")
+    voltage_raw = meter.get("voltagePhaseA")
+    current_raw = meter.get("currentPhaseA")
+    power_factor_raw = meter.get("powerFactorTotal")
+
+    def scaled(value: Any, factor: float) -> float | int | None:
+        return value * factor if isinstance(value, (int, float)) else None
+
     return {
-        "puissance_reseau_w": meter.get("phaseTotalPower"),
-        "puissance_phase_a_w": meter.get("phaseAPower"),
-        "tension_phase_a_brute": meter.get("voltagePhaseA"),
-        "courant_phase_a_brut": meter.get("currentPhaseA"),
-        "facteur_puissance_brut": meter.get("powerFactorTotal"),
+        "puissance_reseau_brute": network_power_raw,
+        "puissance_reseau_w": scaled(network_power_raw, 10),
+        "puissance_phase_a_brute": phase_power_raw,
+        "puissance_phase_a_w": scaled(phase_power_raw, 10),
+        "tension_phase_a_brute": voltage_raw,
+        "tension_phase_a_v": scaled(voltage_raw, 0.01),
+        "courant_phase_a_brut": current_raw,
+        "courant_phase_a_a": scaled(current_raw, 0.01),
+        "facteur_puissance_brut": power_factor_raw,
+        "facteur_puissance": scaled(power_factor_raw, 0.001),
         "code_etat_compteur": meter.get("faultCode"),
     }
 
