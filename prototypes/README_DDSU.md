@@ -25,3 +25,13 @@ python dtu_ddsu_probe.py --host IP_DU_DTU --scan
 ```
 
 Si une plage de registres varie en même temps que la puissance affichée par le DDSU dans S-Miles, elle pourra être ajoutée plus tard au logiciel principal après validation. Aucune modification de la version actuelle n'est faite pendant cette phase.
+
+## Essai comparatif conseillé
+
+Lancez un essai de 60 secondes, puis allumez ou éteignez une charge connue (bouilloire, chauffage…) pendant l'essai. Le Dinky est utilisé seulement comme référence de variation, pas comme remplacement du DDSU :
+
+```bash
+python dtu_ddsu_probe.py --host IP_DU_DTU --watch 60 --dinky-host IP_DU_DINKY
+```
+
+Envoyez ensuite le texte affiché par Terminal. Le prototype compare la variation du Dinky avec les registres non documentés du DTU pour rechercher la valeur DDSU.

@@ -21,6 +21,15 @@ fi
 
 echo
 echo "Prototype en lecture seule : aucune commande ne sera envoyée au DTU."
-"$PYTHON" "$PROBE" --host "$HOST"
+read -r -p "IP du Dinky pour un essai comparatif (facultatif) : " DINKY_HOST
+read -r -p "Durée d'essai en secondes (0 = relevé simple, conseillé : 60) : " WATCH_SECONDS
+WATCH_SECONDS="${WATCH_SECONDS:-0}"
+
+ARGS=(--host "$HOST")
+if [[ "$WATCH_SECONDS" =~ ^[0-9]+$ ]] && [[ "$WATCH_SECONDS" -gt 0 ]]; then
+  ARGS+=(--watch "$WATCH_SECONDS")
+  [[ -n "$DINKY_HOST" ]] && ARGS+=(--dinky-host "$DINKY_HOST")
+fi
+"$PYTHON" "$PROBE" "${ARGS[@]}"
 echo
 read -r -p "Appuyez sur Entrée pour fermer…"

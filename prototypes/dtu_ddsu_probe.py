@@ -12,6 +12,8 @@ import argparse
 import json
 import time
 from datetime import datetime
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 from pymodbus.client import ModbusTcpClient
 
@@ -68,6 +70,42 @@ def sparse_scan(client: ModbusTcpClient, start: int, end: int, unit_id: int) -> 
     return findings
 
 
+def read_dinky_power(host: str) -> float | None:
+    """Lit la puissance Téléinfo du Dinky, uniquement pour comparer les variations."""
+    url = f"http://{host}/cm?{urlencode({'cmnd': 'Status 8'})}"
+    try:
+        with urlopen(url, timeout=3) as response:  # nosec B310 - hôte local saisi par l'utilisateur
+            payload = json.load(response)
+        sns = payload.get("StatusSNS", {})
+        energy = sns.get("ENERGY", {}) if isinstance(sns, dict) else {}
+        value = energy.get("Power", sns.get("Power"))
+        return float(value) if value is not None else None
+    except Exception:
+        return None
+
+
+def watch_unknown_zone(
+    client: ModbusTcpClient, seconds: int, interval: float, unit_id: int, dinky_host: str | None
+) -> list[dict]:
+    """Échantillonne les zones qui répondent, sans modifier le DTU."""
+    samples = []
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        pv = read_block(client, 0x1000, 20, unit_id)
+        unknown = read_block(client, 0x3000, 16, unit_id)
+        samples.append(
+            {
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "dinky_w": read_dinky_power(dinky_host) if dinky_host else None,
+                "pv_port_1_holding": [item["u16"] for item in pv.get("holding", [])],
+                "zone_3000_holding": [item["u16"] for item in unknown.get("holding", [])],
+                "zone_3000_input": [item["u16"] for item in unknown.get("input", [])],
+            }
+        )
+        time.sleep(interval)
+    return samples
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prototype DDSU DTU-Pro-S, lecture Modbus uniquement")
     parser.add_argument("--host", required=True, help="IP du DTU sur le réseau local")
@@ -77,6 +115,12 @@ def main() -> int:
         "--scan", action="store_true",
         help="Balaye lentement les registres 0x0000 à 0x3FFF, en lecture seule",
     )
+    parser.add_argument(
+        "--watch", type=int, default=0,
+        help="Durée en secondes d'un essai comparatif (par exemple : 60)",
+    )
+    parser.add_argument("--interval", type=float, default=3.0, help="Intervalle des relevés en secondes")
+    parser.add_argument("--dinky-host", help="IP optionnelle du Dinky, pour comparer la puissance Téléinfo")
     args = parser.parse_args()
 
     client = ModbusTcpClient(args.host, port=args.port, timeout=3)
@@ -95,6 +139,10 @@ def main() -> int:
         }
         if args.scan:
             report["scan_lecture_seule"] = sparse_scan(client, 0x0000, 0x3FFF, args.unit_id)
+        if args.watch:
+            report["essai_comparatif"] = watch_unknown_zone(
+                client, max(1, args.watch), max(1.0, args.interval), args.unit_id, args.dinky_host
+            )
         print(json.dumps(report, indent=2, ensure_ascii=False))
     finally:
         client.close()
