@@ -14,6 +14,7 @@ import json
 import socket
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,58 @@ def meter_related_fields(value: Any, path: str = "") -> dict[str, Any]:
     return found
 
 
+def decoded_meter(payload: Any) -> dict[str, Any]:
+    """Extrait les valeurs DDSU utiles sans supposer les unités inconnues."""
+    meters = payload.get("meterData", []) if isinstance(payload, dict) else []
+    if not meters or not isinstance(meters[0], dict):
+        return {"error": "Aucune donnée compteur (meterData) dans la réponse Wi-Fi."}
+    meter = meters[0]
+    return {
+        "puissance_reseau_w": meter.get("phaseTotalPower"),
+        "puissance_phase_a_w": meter.get("phaseAPower"),
+        "tension_phase_a_brute": meter.get("voltagePhaseA"),
+        "courant_phase_a_brut": meter.get("currentPhaseA"),
+        "facteur_puissance_brut": meter.get("powerFactorTotal"),
+        "code_etat_compteur": meter.get("faultCode"),
+    }
+
+
+def read_wifi_data(cli: Path, host: str, local_addr: str, timeout: int) -> Any:
+    """Effectue une seule lecture get-real-data-new, sans option de commande."""
+    command = [
+        str(cli), "--host", host, "--local_addr", local_addr,
+        "--timeout", str(max(1, timeout)), "--as-json", "--disable-interactive",
+        "get-real-data-new",
+    ]
+    result = subprocess.run(
+        command, text=True, capture_output=True, timeout=max(10, timeout + 5)
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "réponse inconnue").strip()
+        raise RuntimeError(detail)
+    return extract_json(result.stdout)
+
+
+def watch_meter(
+    cli: Path, host: str, local_addr: str, timeout: int, seconds: int, interval: float
+) -> list[dict[str, Any]]:
+    """Répète les lectures DDSU afin de prouver que la puissance varie."""
+    samples = []
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        payload = read_wifi_data(cli, host, local_addr, timeout)
+        samples.append(
+            {
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "ddsu": decoded_meter(payload),
+            }
+        )
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            time.sleep(min(max(1.0, interval), remaining))
+    return samples
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Prototype DDSU DTU-Pro-S Wi-Fi : lecture seule uniquement"
@@ -72,6 +125,11 @@ def main() -> int:
     parser.add_argument(
         "--timeout", type=int, default=8, help="Délai de réponse en secondes"
     )
+    parser.add_argument(
+        "--watch", type=int, default=0,
+        help="Durée d'un relevé DDSU répété (par exemple : 60)",
+    )
+    parser.add_argument("--interval", type=float, default=3.0, help="Intervalle entre les relevés")
     parser.add_argument("--cli", type=Path, default=DEFAULT_CLI, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
@@ -86,21 +144,13 @@ def main() -> int:
     except OSError as exc:
         raise SystemExit(f"Impossible de déterminer l'interface Wi-Fi du DTU : {exc}") from exc
 
-    command = [
-        str(args.cli), "--host", args.host, "--local_addr", local_addr,
-        "--timeout", str(max(1, args.timeout)), "--as-json", "--disable-interactive",
-        "get-real-data-new",
-    ]
-    result = subprocess.run(command, text=True, capture_output=True, timeout=max(10, args.timeout + 5))
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "réponse inconnue").strip()
+    try:
+        payload = read_wifi_data(args.cli, args.host, local_addr, args.timeout)
+    except (RuntimeError, subprocess.TimeoutExpired) as exc:
         raise SystemExit(
             "DTU Wi-Fi inaccessible. Vérifiez que le Mac est connecté au réseau "
-            f"DTUP-… puis relancez. Détail : {detail}"
-        )
-
-    try:
-        payload = extract_json(result.stdout)
+            f"DTUP-… puis relancez. Détail : {exc}"
+        ) from exc
     except (ValueError, json.JSONDecodeError) as exc:
         raise SystemExit(f"Réponse Wi-Fi illisible : {exc}") from exc
 
@@ -110,16 +160,25 @@ def main() -> int:
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "dtu_wifi_host": args.host,
         "local_interface": local_addr,
+        "mesure_ddsu": decoded_meter(payload),
         "champs_compteur_reseau_puissance": meter_related_fields(payload),
         "cles_principales_reponse": sorted(payload.keys()) if isinstance(payload, dict) else [],
     }
+    if args.watch:
+        try:
+            report["essai_variation_ddsu"] = watch_meter(
+                args.cli,
+                args.host,
+                local_addr,
+                args.timeout,
+                max(1, args.watch),
+                args.interval,
+            )
+        except (RuntimeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
+            report["essai_variation_ddsu_erreur"] = str(exc)
     print(json.dumps(report, indent=2, ensure_ascii=False))
     return 0
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except subprocess.TimeoutExpired:
-        print("Le DTU Wi-Fi ne répond pas dans le délai imparti.", file=sys.stderr)
-        raise SystemExit(1)
+    raise SystemExit(main())

@@ -19,6 +19,13 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 1
 fi
 
-"$PYTHON" "$PROBE"
+read -r -p "Durée du test (0 = une mesure, conseillé : 60 secondes) : " WATCH_SECONDS
+WATCH_SECONDS="${WATCH_SECONDS:-0}"
+ARGS=()
+if [[ "$WATCH_SECONDS" =~ ^[0-9]+$ ]] && [[ "$WATCH_SECONDS" -gt 0 ]]; then
+  ARGS+=(--watch "$WATCH_SECONDS")
+fi
+
+"$PYTHON" "$PROBE" "${ARGS[@]}"
 echo
 read -r -p "Appuyez sur Entrée pour fermer…"
