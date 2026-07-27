@@ -48,7 +48,7 @@ else
 fi
 
 if [ -n "$MODE" ]; then
-  selection=$(/usr/bin/osascript -e 'choose from list {"DTU-WIFI DDSU — Wi-Fi propre du DTU + 2e clé Wi-Fi USB sur la box/Dinky", "DTU-LAN — Ethernet vers la box : production PV par Modbus (DDSU non disponible selon firmware)"} with title "Connexion du DTU" with prompt "Pour afficher le DDSU, choisissez DTU-WIFI DDSU." default items {"DTU-WIFI DDSU — Wi-Fi propre du DTU + 2e clé Wi-Fi USB sur la box/Dinky"} OK button name "Continuer" Cancel button name "Annuler"') || exit 0
+  selection=$(/usr/bin/osascript -e 'choose from list {"DTU-LAN — recommandé : câble Ethernet vers la box, DTU et Dinky 4 sur la box", "DTU-WIFI — expérimental : Wi-Fi propre du DTU, adaptateur Wi-Fi USB compatible macOS requis"} with title "Connexion du DTU" with prompt "Choisissez une seule connexion pour le DTU Pro-S." default items {"DTU-LAN — recommandé : câble Ethernet vers la box, DTU et Dinky 4 sur la box"} OK button name "Continuer" Cancel button name "Annuler"') || exit 0
 
   if /usr/bin/printf '%s' "$selection" | /usr/bin/grep -q "DTU-LAN"; then
     DTU_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP réellement attribuée au DTU par votre box :" default answer "" with title "DTU-LAN sur la box" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0

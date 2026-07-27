@@ -11,7 +11,7 @@ appData = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\BoiteNoireHoymile
 backup = appData & "\sauvegarde_avant_mise_a_jour"
 configFile = appData & "\config_v5.json"
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.4 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.3 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dépendances sans fenêtre de terminal.
@@ -49,7 +49,7 @@ If (Not existingConfig) Or choice = vbYes Then
     If dtuMode = "WIFI" Then
         dtuHost = "10.10.100.254"
     ElseIf dtuMode = "LAN" Then
-        dtuHost = Trim(InputBox("Adresse IP reellement attribuee au DTU par la box :", "Ethernet — DTU-LAN sur la box"))
+        dtuHost = Trim(InputBox("Adresse IP du DTU attribuee par la box :", "DTU-LAN sur la box"))
         If dtuHost = "" Then
             MsgBox "Installation annulee : l'adresse IP du DTU est necessaire.", vbExclamation, "Boite noire Hoymiles"
             WScript.Quit 1
@@ -74,7 +74,6 @@ If (Not existingConfig) Or choice = vbYes Then
                q & "host" & q & ":" & q & dinkyHost & q & "," & _
                q & "port" & q & ":80," & q & "timeout_s" & q & ":2," & _
                q & "path" & q & ":" & q & "Status 8" & q & "}," & _
-               q & "dtu_lan_limit_pct" & q & ":110.0," & _
                q & "tarifs_edf" & q & ":{" & q & "hp_eur_kwh" & q & ":0.0," & _
                q & "hc_eur_kwh" & q & ":0.0," & q & "abonnement_mensuel_eur" & q & ":0.0," & _
                q & "abonnement_journalier_eur" & q & ":0.63," & q & "plages_hc" & q & ":" & q & q & "," & _
