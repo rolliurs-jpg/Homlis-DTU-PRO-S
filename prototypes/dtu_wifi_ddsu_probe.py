@@ -13,7 +13,6 @@ import argparse
 import json
 import socket
 import subprocess
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -110,22 +109,32 @@ def read_wifi_data(cli: Path, host: str, local_addr: str, timeout: int) -> Any:
 
 
 def watch_meter(
-    cli: Path, host: str, local_addr: str, timeout: int, seconds: int, interval: float
+    cli: Path,
+    host: str,
+    local_addr: str,
+    timeout: int,
+    seconds: int,
+    interval: float,
+    first_payload: Any,
 ) -> list[dict[str, Any]]:
-    """Répète les lectures DDSU afin de prouver que la puissance varie."""
-    samples = []
+    """Répète les lectures DDSU et conserve les erreurs transitoires du DTU."""
+    samples = [{
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "ddsu": decoded_meter(first_payload),
+    }]
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
-        payload = read_wifi_data(cli, host, local_addr, timeout)
-        samples.append(
-            {
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
-                "ddsu": decoded_meter(payload),
-            }
-        )
         remaining = deadline - time.monotonic()
         if remaining > 0:
             time.sleep(min(max(1.0, interval), remaining))
+        if time.monotonic() >= deadline:
+            break
+        timestamp = datetime.now().isoformat(timespec="seconds")
+        try:
+            payload = read_wifi_data(cli, host, local_addr, timeout)
+            samples.append({"timestamp": timestamp, "ddsu": decoded_meter(payload)})
+        except (RuntimeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
+            samples.append({"timestamp": timestamp, "erreur_lecture": str(exc)})
     return samples
 
 
@@ -137,13 +146,13 @@ def main() -> int:
         "--host", default=DEFAULT_DTU_WIFI_HOST, help="Passerelle du Wi-Fi DTU"
     )
     parser.add_argument(
-        "--timeout", type=int, default=8, help="Délai de réponse en secondes"
+        "--timeout", type=int, default=15, help="Délai de réponse en secondes"
     )
     parser.add_argument(
         "--watch", type=int, default=0,
         help="Durée d'un relevé DDSU répété (par exemple : 60)",
     )
-    parser.add_argument("--interval", type=float, default=3.0, help="Intervalle entre les relevés")
+    parser.add_argument("--interval", type=float, default=15.0, help="Intervalle entre les relevés")
     parser.add_argument("--cli", type=Path, default=DEFAULT_CLI, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
@@ -179,17 +188,15 @@ def main() -> int:
         "cles_principales_reponse": sorted(payload.keys()) if isinstance(payload, dict) else [],
     }
     if args.watch:
-        try:
-            report["essai_variation_ddsu"] = watch_meter(
-                args.cli,
-                args.host,
-                local_addr,
-                args.timeout,
-                max(1, args.watch),
-                args.interval,
-            )
-        except (RuntimeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
-            report["essai_variation_ddsu_erreur"] = str(exc)
+        report["essai_variation_ddsu"] = watch_meter(
+            args.cli,
+            args.host,
+            local_addr,
+            args.timeout,
+            max(1, args.watch),
+            args.interval,
+            payload,
+        )
     print(json.dumps(report, indent=2, ensure_ascii=False))
     return 0
 

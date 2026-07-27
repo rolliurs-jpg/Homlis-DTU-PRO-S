@@ -19,7 +19,7 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 1
 fi
 
-read -r -p "Durée du test (0 = une mesure, conseillé : 60 secondes) : " WATCH_SECONDS
+read -r -p "Durée du test (0 = une mesure, 60 = environ 3 relevés) : " WATCH_SECONDS
 WATCH_SECONDS="${WATCH_SECONDS:-0}"
 ARGS=()
 if [[ "$WATCH_SECONDS" =~ ^[0-9]+$ ]] && [[ "$WATCH_SECONDS" -gt 0 ]]; then
