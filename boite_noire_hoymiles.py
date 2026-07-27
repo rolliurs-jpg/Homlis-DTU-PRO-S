@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.3"
+VERSION = "7.0.4"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -71,6 +71,11 @@ LEGACY_EMPTY_LINKY_CONFIG = {
 
 DEFAULT_CONFIG = {
     "dtu_host": DEFAULT_DTU_HOST,
+    # Le firmware DTU ne fournit pas une valeur powerLimit stable en lecture.
+    # Ces limites sont des réglages d'affichage déclaratifs : elles ne sont
+    # jamais envoyées au DTU par l'application.
+    "dtu_wifi_limit_pct": DEFAULT_DTU_LIMIT_PCT,
+    "dtu_lan_limit_pct": DEFAULT_DTU_LIMIT_PCT,
     "linky": {
         "enabled": True,
         "mode": "dinky_http",
@@ -2042,31 +2047,18 @@ def update(_):
             raise RuntimeError("puissance réseau absente de la réponse DTU")
         if source == "modbus_tcp":
             grid = float("nan")
-            limit_w = float("nan")
-            limit_note = ""
+            limit_w = float(CONFIG.get("dtu_lan_limit_pct", DEFAULT_DTU_LIMIT_PCT))
         else:
             grid = float(grid_raw)
-            # Le DTU annonce normalement une limite en dixièmes de pourcentage
-            # (1100 = 110 %). Certains firmwares renvoient ponctuellement une
-            # valeur incohérente, par exemple 5000 = 500 %, qui ne doit pas
-            # déformer la courbe ni laisser croire à une modification réelle.
-            raw_limit = sgs.get("powerLimit")
-            if raw_limit is None:
-                raise RuntimeError("limite DTU absente de la réponse")
-            candidate_limit = float(raw_limit) / 10
-            limit_note = ""
-            if 0 <= candidate_limit <= MAX_DTU_LIMIT_PCT:
-                limit_w = candidate_limit
-            else:
-                previous_valid = next(
-                    (value for value in reversed(power_limit)
-                     if 0 <= value <= MAX_DTU_LIMIT_PCT),
-                    DEFAULT_DTU_LIMIT_PCT,
-                )
-                limit_w = previous_valid
-                limit_note = (
-                    f" — limite DTU incohérente ignorée : {candidate_limit:.0f} % reçu"
-                )
+            # Le champ Wi-Fi ``powerLimit`` fluctue suivant le firmware DTU
+            # et peut même reprendre une puissance PV (500 %, 800 %, etc.).
+            # Il ne s'agit pas d'une commande envoyée par ce programme. On
+            # affiche donc la limite explicitement configurée dans S-Miles,
+            # 110 % par défaut, comme le faisait la version macOS 7.0.4.
+            limit_w = float(CONFIG.get("dtu_wifi_limit_pct", DEFAULT_DTU_LIMIT_PCT))
+        if not 0 <= limit_w <= MAX_DTU_LIMIT_PCT:
+            limit_w = DEFAULT_DTU_LIMIT_PCT
+        limit_note = ""
         times.append(now)
         ac_power.append(ac)
         grid_power.append(grid)

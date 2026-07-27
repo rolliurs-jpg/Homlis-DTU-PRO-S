@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.3-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.4-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
