@@ -134,6 +134,10 @@ def main() -> int:
     parser.add_argument("--scan-end", type=lambda value: int(value, 0), default=0x3FFF)
     parser.add_argument("--scan-summary", action="store_true", help="N'affiche que les plages qui répondent")
     parser.add_argument(
+        "--inspect", type=lambda value: int(value, 0), action="append",
+        help="Affiche un bloc précis de 16 registres (exemple : --inspect 0x4000)",
+    )
+    parser.add_argument(
         "--watch", type=int, default=0,
         help="Durée en secondes d'un essai comparatif (par exemple : 60)",
     )
@@ -151,10 +155,15 @@ def main() -> int:
             "mode": "lecture_seule",
             "timestamp": datetime.now().isoformat(timespec="seconds"),
         }
-        if not args.scan_summary:
+        if not args.scan_summary and not args.inspect:
             report["blocks"] = {
                 name: read_block(client, address, count, args.unit_id)
                 for address, count, name in DEFAULT_BLOCKS
+            }
+        if args.inspect:
+            report["inspection"] = {
+                f"0x{address:04X}": read_block(client, address, 16, args.unit_id)
+                for address in args.inspect
             }
         if args.scan:
             start = max(0, min(args.scan_start, args.scan_end))
