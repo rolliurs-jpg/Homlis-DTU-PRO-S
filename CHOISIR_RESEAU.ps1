@@ -23,7 +23,7 @@ $title.AutoSize = $true
 $form.Controls.Add($title)
 
 $hint = New-Object System.Windows.Forms.Label
-$hint.Text = "Cochez une seule option. Le Dinky 4 reste connecté en Wi-Fi sur votre box."
+$hint.Text = "Cochez une seule option. En Ethernet, le DTU et le Dinky 4 restent tous les deux sur votre box."
 $hint.Location = New-Object System.Drawing.Point(27, 53)
 $hint.AutoSize = $true
 $form.Controls.Add($hint)
@@ -42,14 +42,14 @@ $wifiText.AutoSize = $true
 $form.Controls.Add($wifiText)
 
 $lan = New-Object System.Windows.Forms.CheckBox
-$lan.Text = "DTU-LAN"
+$lan.Text = "Ethernet — DTU-LAN (recommandé)"
 $lan.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
 $lan.Location = New-Object System.Drawing.Point(28, 165)
 $lan.AutoSize = $true
 $form.Controls.Add($lan)
 
 $lanText = New-Object System.Windows.Forms.Label
-$lanText.Text = "DTU relié à la box par câble Ethernet (une seule connexion réseau : DTU et Dinky 4 sur la box)."
+$lanText.Text = "DTU relié à la box par câble Ethernet : saisissez son IP attribuée par la box. Lecture locale Modbus TCP (port 502)."
 $lanText.Location = New-Object System.Drawing.Point(55, 195)
 $lanText.AutoSize = $true
 $form.Controls.Add($lanText)
