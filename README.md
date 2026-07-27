@@ -110,6 +110,10 @@ Vous pouvez ouvrir une [Issue GitHub](https://github.com/rolliurs-jpg/Homlis-DTU
 
 Pour rester utile à tous, indiquez la version du logiciel, le modèle DTU et le type de Dinky, mais masquez toute donnée personnelle et tout identifiant réseau.
 
+## Soutenir le projet
+
+Le logiciel reste gratuit et accessible à tous. Si son utilisation vous aide et que vous souhaitez soutenir les heures de développement et de tests, vous pouvez faire un don facultatif via [PayPal](https://paypal.me/RolliursHoymiles). Merci.
+
 ## Projet communautaire indépendant
 
 Ce projet est indépendant et non affilié à Hoymiles, Enedis, EDF, Tasmota ou S-Miles Cloud. Les valeurs affichées sont des aides de suivi ; elles ne remplacent pas les relevés contractuels d’Enedis ou d’EDF.
