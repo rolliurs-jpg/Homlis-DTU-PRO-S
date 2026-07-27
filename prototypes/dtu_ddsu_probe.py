@@ -70,6 +70,21 @@ def sparse_scan(client: ModbusTcpClient, start: int, end: int, unit_id: int) -> 
     return findings
 
 
+def compact_ranges(blocks: list[dict], key: str) -> list[str]:
+    """Regroupe les adresses qui répondent pour une sortie courte et partageable."""
+    addresses = [int(block["address_hex"], 16) for block in blocks if "error" not in block.get(key, {})]
+    if not addresses:
+        return []
+    ranges, start, previous = [], addresses[0], addresses[0]
+    for address in addresses[1:]:
+        if address != previous + 16:
+            ranges.append(f"0x{start:04X}-0x{previous:04X}")
+            start = address
+        previous = address
+    ranges.append(f"0x{start:04X}-0x{previous:04X}")
+    return ranges
+
+
 def read_dinky_power(host: str) -> float | None:
     """Lit la puissance Téléinfo du Dinky, uniquement pour comparer les variations."""
     url = f"http://{host}/cm?{urlencode({'cmnd': 'Status 8'})}"
@@ -115,6 +130,9 @@ def main() -> int:
         "--scan", action="store_true",
         help="Balaye lentement les registres 0x0000 à 0x3FFF, en lecture seule",
     )
+    parser.add_argument("--scan-start", type=lambda value: int(value, 0), default=0x0000)
+    parser.add_argument("--scan-end", type=lambda value: int(value, 0), default=0x3FFF)
+    parser.add_argument("--scan-summary", action="store_true", help="N'affiche que les plages qui répondent")
     parser.add_argument(
         "--watch", type=int, default=0,
         help="Durée en secondes d'un essai comparatif (par exemple : 60)",
@@ -132,13 +150,23 @@ def main() -> int:
             "prototype": "dtu_ddsu_probe",
             "mode": "lecture_seule",
             "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "blocks": {
+        }
+        if not args.scan_summary:
+            report["blocks"] = {
                 name: read_block(client, address, count, args.unit_id)
                 for address, count, name in DEFAULT_BLOCKS
-            },
-        }
+            }
         if args.scan:
-            report["scan_lecture_seule"] = sparse_scan(client, 0x0000, 0x3FFF, args.unit_id)
+            start = max(0, min(args.scan_start, args.scan_end))
+            end = min(0xBFFF, max(args.scan_start, args.scan_end))
+            scan = sparse_scan(client, start, end, args.unit_id)
+            if args.scan_summary:
+                report["scan_lecture_seule"] = {
+                    "holding_registers": compact_ranges(scan, "holding"),
+                    "input_registers": compact_ranges(scan, "input"),
+                }
+            else:
+                report["scan_lecture_seule"] = scan
         if args.watch:
             report["essai_comparatif"] = watch_unknown_zone(
                 client, max(1, args.watch), max(1.0, args.interval), args.unit_id, args.dinky_host
