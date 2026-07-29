@@ -32,8 +32,8 @@
       <h1>Vos données Hoymiles.<br><span>Enfin comparées au vrai compteur.</span></h1>
       <p class="lead">Une application locale pour suivre un DTU Pro-S, visualiser la production photovoltaïque et comparer le DDSU666 avec les mesures réelles du Linky via Dinky 4.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/857a63797779f2a449d718ce17ca6ee4f57c2759.zip">Télécharger et utiliser gratuitement — Windows</a>
-        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/857a63797779f2a449d718ce17ca6ee4f57c2759.zip">Télécharger et utiliser gratuitement — Mac</a>
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip">Télécharger et utiliser gratuitement — Windows</a>
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip">Télécharger et utiliser gratuitement — Mac</a>
         <a class="button secondary" href="#installation">Guide d’installation</a>
       </div>
       <ul class="trust-list" aria-label="Points essentiels">
@@ -41,6 +41,11 @@
         <li>✓ Linky/Dinky pour le coût EDF réel</li>
         <li>✓ Export CSV et captures datées</li>
       </ul>
+      <a class="github-stats" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S" aria-label="Voir les statistiques réelles du projet sur GitHub">
+        <span class="stats-title">Projet suivi sur GitHub</span>
+        <span>★ <strong id="github-stars">…</strong> étoiles</span>
+        <span>⑂ <strong id="github-forks">…</strong> forks</span>
+      </a>
     </div>
   </header>
 
@@ -107,5 +112,17 @@
     <div><strong>Boîte noire Hoymiles</strong><p>Projet communautaire indépendant, non affilié à Hoymiles, Enedis, EDF, Tasmota ou S-Miles Cloud.</p></div>
     <div class="footer-links"><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Dépôt GitHub</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues">Signaler un problème</a><a href="https://paypal.me/RolliursHoymiles">Soutenir le projet</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/LICENSE">Licence MIT</a></div>
   </footer>
+  <script>
+    fetch('https://api.github.com/repos/rolliurs-jpg/Homlis-DTU-PRO-S')
+      .then(response => response.ok ? response.json() : Promise.reject())
+      .then(repo => {
+        document.getElementById('github-stars').textContent = repo.stargazers_count;
+        document.getElementById('github-forks').textContent = repo.forks_count;
+      })
+      .catch(() => {
+        document.getElementById('github-stars').textContent = '0';
+        document.getElementById('github-forks').textContent = '0';
+      });
+  </script>
 </body>
 </html>
