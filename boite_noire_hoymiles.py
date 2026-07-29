@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.6"
+VERSION = "7.0.7"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -997,6 +997,47 @@ def summarize_dtu_links(payload):
     return lines
 
 
+def summarize_local_observations():
+    """Ajoute au rapport les seules observations locales vérifiables.
+
+    Cette synthèse n'interprète pas la régulation : elle donne au SAV le
+    dernier point connu et la cadence d'acquisition, utiles pour recouper
+    une anomalie avec l'historique CSV.
+    """
+    lines = ["", "SYNTHÈSE DES MESURES LOCALES (lecture de l'application)"]
+    if not times:
+        return lines + ["Aucune mesure locale enregistrée pendant cette session."]
+
+    index = len(times) - 1
+    last_time = times[index]
+    pv = ac_power[index] if index < len(ac_power) else float("nan")
+    ddsu = grid_power[index] if index < len(grid_power) else float("nan")
+    linky = linky_power[index] if index < len(linky_power) else float("nan")
+    lines.append(f"Dernière mesure locale : {last_time:%d/%m/%Y %H:%M:%S}")
+    lines.append(f"Production PV publiée par le DTU : {pv:.1f} W")
+    lines.append(f"Puissance réseau DDSU publiée par le DTU : {ddsu:+.1f} W")
+    if linky == linky:  # NaN n'est jamais égal à lui-même.
+        lines.append(f"Puissance Linky/Dinky indépendante : {linky:+.1f} W")
+        lines.append(f"Écart instantané DDSU ↔ Linky : {ddsu - linky:+.1f} W")
+    else:
+        lines.append("Puissance Linky/Dinky indépendante : indisponible pour ce point.")
+
+    recent_count = min(len(times), 20)
+    recent_times = times[-recent_count:]
+    if recent_count >= 2:
+        elapsed = (recent_times[-1] - recent_times[0]).total_seconds()
+        average_period = elapsed / (recent_count - 1)
+        lines.append(
+            f"Cadence locale récente : {recent_count} mesures sur {elapsed:.0f} s "
+            f"(moyenne {average_period:.1f} s entre deux mesures)."
+        )
+    lines.append(
+        "Note : l'écart DDSU ↔ Linky est un constat de mesure ; il ne permet pas, "
+        "à lui seul, d'identifier l'origine du défaut."
+    )
+    return lines
+
+
 def collect_dtu_diagnostic():
     """Collecte uniquement des réponses de lecture, sans écrire dans le DTU."""
     startupinfo = None
@@ -1023,8 +1064,9 @@ def collect_dtu_diagnostic():
         f"Référence limite Wi-Fi : {CONFIG.get('dtu_wifi_limit_pct', DEFAULT_DTU_LIMIT_PCT)} %",
         f"Référence limite LAN : {CONFIG.get('dtu_lan_limit_pct', DEFAULT_DTU_LIMIT_PCT)} %",
         "",
-        "RÉPONSES BRUTES DU DTU",
     ]
+    lines.extend(summarize_local_observations())
+    lines.extend(("", "RÉPONSES BRUTES DU DTU"))
 
     # Ces commandes commencent toutes par « get » : elles lisent les données
     # publiées par le DTU et n'appellent jamais les commandes set/restart.
