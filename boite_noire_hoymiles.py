@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.5"
+VERSION = "7.0.6"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -951,6 +951,52 @@ def hoymiles_cli_path():
     return next((str(candidate) for candidate in candidates if candidate.exists()), "hoymiles-wifi")
 
 
+def summarize_dtu_links(payload):
+    """Résume les liaisons observables sans inventer de qualité de signal."""
+    lines = ["", "ÉTAT DES LIAISONS OBSERVABLES"]
+    meter_data = payload.get("meterData")
+    if isinstance(meter_data, list) and meter_data and isinstance(meter_data[0], dict):
+        meter = meter_data[0]
+        grid = meter.get("phaseTotalPower", meter.get("phaseAPower"))
+        lines.append("DDSU ↔ DTU : réponse compteur reçue")
+        if grid is None:
+            lines.append("Puissance réseau DDSU : champ absent dans la réponse")
+        else:
+            lines.append(f"Puissance réseau mesurée par le DDSU : {grid} W")
+        lines.append("Qualité DDSU ↔ DTU : le DTU ne publie ni RSSI ni taux d'erreur RS485 ; seule la présence de la réponse est vérifiable.")
+    else:
+        lines.append("DDSU ↔ DTU : aucune réponse meterData reçue — liaison ou compteur à vérifier.")
+
+    sgs_data = payload.get("sgsData")
+    pv_data = payload.get("pvData")
+    if isinstance(sgs_data, list) and sgs_data:
+        lines.append(f"DTU ↔ micro-onduleurs : réponse passerelle reçue ({len(sgs_data)} groupe(s) de données).")
+        warnings = [entry.get("warningNumber") for entry in sgs_data if isinstance(entry, dict) and entry.get("warningNumber") not in (None, 0)]
+        if warnings:
+            lines.append("Avertissement(s) DTU brut(s) : " + ", ".join(str(value) for value in warnings))
+    else:
+        lines.append("DTU ↔ micro-onduleurs : aucune donnée passerelle reçue.")
+
+    if isinstance(pv_data, list) and pv_data:
+        lines.append(f"Micro-onduleurs / entrées PV répondants : {len(pv_data)}")
+        error_codes = []
+        for entry in pv_data:
+            if not isinstance(entry, dict):
+                continue
+            code = entry.get("errorCode")
+            if code not in (None, 0):
+                port = entry.get("portNumber", "?")
+                error_codes.append(f"port {port} : code {code}")
+        if error_codes:
+            lines.append("Codes bruts remontés par les micro-onduleurs : " + " ; ".join(error_codes))
+        else:
+            lines.append("Codes bruts remontés par les micro-onduleurs : aucun code non nul.")
+    else:
+        lines.append("Micro-onduleurs / entrées PV : données non publiées par le DTU.")
+    lines.append("Qualité DTU ↔ micro-onduleurs : le DTU ne fournit pas de niveau radio exploitable ; ce rapport indique uniquement les réponses, avertissements et codes publiés.")
+    return lines
+
+
 def collect_dtu_diagnostic():
     """Collecte uniquement des réponses de lecture, sans écrire dans le DTU."""
     startupinfo = None
@@ -1000,7 +1046,10 @@ def collect_dtu_diagnostic():
             )
             raw = (result.stdout or result.stderr or "Aucune réponse").strip()
             try:
-                lines.append(json.dumps(json.loads(raw), ensure_ascii=False, indent=2, sort_keys=True))
+                parsed = json.loads(raw)
+                if command == "get-real-data-new" and isinstance(parsed, dict):
+                    lines.extend(summarize_dtu_links(parsed))
+                lines.append(json.dumps(parsed, ensure_ascii=False, indent=2, sort_keys=True))
             except (json.JSONDecodeError, TypeError):
                 lines.append(raw)
         except Exception as exc:

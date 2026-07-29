@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.5-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.6-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -34,7 +34,7 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 - Comparatif énergie **Hoymiles / Linky** pour identifier les écarts DDSU ↔ Linky.
 - Export CSV filtrable par plage de dates.
 - Captures PNG datées et versionnées pour le support Hoymiles.
-- Page **Diagnostic DTU** en lecture seule : rapport technique exportable pour le SAV Hoymiles.
+- Page **Diagnostic DTU** en lecture seule : rapport technique exportable pour le SAV Hoymiles, état observable DDSU ↔ DTU et DTU ↔ micro-onduleurs.
 - Indicateurs de connexion DTU et Linky/Dinky.
 
 ## Installation rapide Windows
