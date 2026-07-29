@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.4"
+VERSION = "7.0.5"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -942,6 +942,131 @@ def capture_screen(event=None):
     finally:
         stamp.remove()
         fig.canvas.draw_idle()
+
+
+def hoymiles_cli_path():
+    """Retourne le client local Hoymiles, sous Windows comme sous macOS."""
+    executable_dir = Path(sys.executable).resolve().parent
+    candidates = (executable_dir / "hoymiles-wifi", executable_dir / "hoymiles-wifi.exe")
+    return next((str(candidate) for candidate in candidates if candidate.exists()), "hoymiles-wifi")
+
+
+def collect_dtu_diagnostic():
+    """Collecte uniquement des réponses de lecture, sans écrire dans le DTU."""
+    startupinfo = None
+    creationflags = 0
+    if hasattr(subprocess, "STARTUPINFO"):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+    collected_at = datetime.now()
+    lines = [
+        "RAPPORT DIAGNOSTIC DTU — LECTURE SEULE",
+        "À transmettre au SAV Hoymiles avec les captures d'écran et l'historique CSV.",
+        "Aucun réglage, aucune limite de puissance et aucun redémarrage ne sont envoyés par cette fonction.",
+        "",
+        f"Date / heure : {collected_at:%d/%m/%Y %H:%M:%S}",
+        f"Version Boîte noire Hoymiles : {VERSION}",
+        f"Hôte DTU interrogé : {HOST}",
+        f"Dernière réponse DTU : {last_success:%d/%m/%Y %H:%M:%S}" if last_success else "Dernière réponse DTU : aucune pendant cette session",
+        f"Échecs de lecture cumulés depuis le lancement : {dtu_failures}",
+        "",
+        "PARAMÈTRES LOCAUX D'AFFICHAGE (non envoyés au DTU)",
+        f"Référence limite Wi-Fi : {CONFIG.get('dtu_wifi_limit_pct', DEFAULT_DTU_LIMIT_PCT)} %",
+        f"Référence limite LAN : {CONFIG.get('dtu_lan_limit_pct', DEFAULT_DTU_LIMIT_PCT)} %",
+        "",
+        "RÉPONSES BRUTES DU DTU",
+    ]
+
+    # Ces commandes commencent toutes par « get » : elles lisent les données
+    # publiées par le DTU et n'appellent jamais les commandes set/restart.
+    commands = (
+        "get-real-data-new",
+        "get-version-info",
+        "get-information-data",
+        "get-alarm-list",
+        "get-config",
+    )
+    cli = hoymiles_cli_path()
+    for command in commands:
+        lines.extend(("", f"--- {command} (lecture seule) ---"))
+        cmd = [cli, "--host", HOST, "--as-json", "--disable-interactive", "--timeout", "5", command]
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=8,
+                startupinfo=startupinfo, creationflags=creationflags,
+            )
+            raw = (result.stdout or result.stderr or "Aucune réponse").strip()
+            try:
+                lines.append(json.dumps(json.loads(raw), ensure_ascii=False, indent=2, sort_keys=True))
+            except (json.JSONDecodeError, TypeError):
+                lines.append(raw)
+        except Exception as exc:
+            lines.append(f"Erreur de lecture : {exc}")
+    return "\n".join(lines) + "\n"
+
+
+def open_dtu_diagnostic(event=None):
+    """Ouvre la page de diagnostic et permet son export pour le SAV Hoymiles."""
+    parent = dialog_parent()
+    if parent is None:
+        messagebox.showwarning("Diagnostic DTU", "La fenêtre de diagnostic n'est pas disponible.")
+        return
+
+    dialog = tk.Toplevel(parent)
+    dialog.title("Diagnostic DTU — SAV Hoymiles")
+    dialog.geometry("820x620")
+    dialog.minsize(680, 460)
+    dialog.transient(parent)
+
+    header = tk.Label(
+        dialog,
+        text="Diagnostic DTU — lecture seule\nRapport destiné au SAV Hoymiles : aucune commande de réglage n'est envoyée.",
+        justify="left", anchor="w", padx=14, pady=12,
+        fg="#0f3b68", font=("Arial", 10, "bold"),
+    )
+    header.pack(fill="x")
+    text_area = tk.Text(dialog, wrap="word", font=("Consolas", 9), padx=12, pady=10)
+    text_area.pack(fill="both", expand=True, padx=14, pady=(0, 10))
+    footer = tk.Frame(dialog)
+    footer.pack(fill="x", padx=14, pady=(0, 14))
+    report = {"text": ""}
+
+    def refresh():
+        text_area.config(state="normal")
+        text_area.delete("1.0", "end")
+        text_area.insert("end", "Lecture des informations DTU en cours…\n")
+        text_area.config(state="disabled")
+        dialog.update_idletasks()
+        report["text"] = collect_dtu_diagnostic()
+        text_area.config(state="normal")
+        text_area.delete("1.0", "end")
+        text_area.insert("end", report["text"])
+        text_area.config(state="disabled")
+
+    def save_report():
+        if not report["text"]:
+            return
+        filename = f"diagnostic_dtu_sav_hoymiles_{datetime.now():%Y-%m-%d_%H-%M-%S}.txt"
+        destination = filedialog.asksaveasfilename(
+            title="Enregistrer le rapport diagnostic pour le SAV Hoymiles",
+            initialdir=str(Path.home() / "Desktop"), initialfile=filename,
+            defaultextension=".txt", filetypes=[("Rapport texte", "*.txt")], parent=dialog,
+        )
+        if not destination:
+            return
+        Path(destination).write_text(report["text"], encoding="utf-8")
+        messagebox.showinfo(
+            "Rapport enregistré",
+            f"Rapport prêt à joindre au SAV Hoymiles :\n{destination}", parent=dialog,
+        )
+
+    tk.Button(footer, text="Actualiser (lecture seule)", width=25, command=refresh).pack(side="left")
+    tk.Button(footer, text="Enregistrer rapport SAV", width=25, command=save_report).pack(side="left", padx=8)
+    tk.Button(footer, text="Fermer", width=12, command=dialog.destroy).pack(side="right")
+    refresh()
 
 showing_bilan = False
 showing_comparison = False
@@ -1902,6 +2027,13 @@ comparison_button.label.set_color("white")
 comparison_button.on_clicked(toggle_hoymiles_comparison)
 comparison_ax_button.set_visible(False)
 
+# Le diagnostic reste volontairement au même endroit sur toutes les pages :
+# il ouvre un rapport technique de lecture seule pour le SAV Hoymiles.
+diagnostic_ax = plt.axes([0.66, 0.89, 0.15, 0.042], zorder=30)
+diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
+diagnostic_button.label.set_color("white")
+diagnostic_button.on_clicked(open_dtu_diagnostic)
+
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
 capture_ax = plt.axes([0.84, 0.89, 0.12, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
@@ -1951,6 +2083,7 @@ style_final_button(edf_reading_button)
 style_final_button(edf_cost_button)
 style_final_button(comparison_details_button)
 style_final_button(comparison_button)
+style_final_button(diagnostic_button)
 style_final_button(capture_button)
 style_final_button(bilan_button, active=True)
 style_final_button(export_button)
