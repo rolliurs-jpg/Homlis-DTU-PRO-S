@@ -2120,13 +2120,15 @@ comparison_ax_button.set_visible(False)
 
 # Le diagnostic reste volontairement au même endroit sur toutes les pages :
 # il ouvre un rapport technique de lecture seule pour le SAV Hoymiles.
-diagnostic_ax = plt.axes([0.66, 0.89, 0.15, 0.042], zorder=30)
+# Les actions restent groupées, sous les cartes de statut : elles ne masquent
+# ni le titre ni l'infobulle du curseur quand la fenêtre est réduite.
+diagnostic_ax = plt.axes([0.61, 0.845, 0.15, 0.042], zorder=30)
 diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
 diagnostic_button.label.set_color("white")
 diagnostic_button.on_clicked(open_dtu_diagnostic)
 
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
-capture_ax = plt.axes([0.84, 0.89, 0.12, 0.042], zorder=30)
+capture_ax = plt.axes([0.79, 0.845, 0.12, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
 capture_button.label.set_color("white")
 capture_button.on_clicked(capture_screen)
