@@ -8,4 +8,7 @@ if [ ! -x "$PYTHON" ] || [ ! -f "$PROGRAM" ]; then
   exit 1
 fi
 
+export MPLCONFIGDIR="$BASE/.matplotlib"
+mkdir -p "$MPLCONFIGDIR"
+cd "$BASE"
 exec "$PYTHON" "$PROGRAM"

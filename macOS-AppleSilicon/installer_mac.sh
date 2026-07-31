@@ -18,7 +18,9 @@ choose_python() {
   for candidate in \
     "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" \
     "$(command -v python3 2>/dev/null || true)"; do
-    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -c "import sys, tkinter; raise SystemExit(sys.version_info >= (3, 14))" >/dev/null 2>&1; then
+    # Python provenant de python.org : 3.10 ou plus récent, avec Tkinter.
+    # Homebrew peut fournir Python sans le module _tkinter : il est refusé.
+    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -c "import sys, tkinter; raise SystemExit(not (sys.version_info >= (3, 10)))" >/dev/null 2>&1; then
       PYTHON_BIN="$candidate"
       return 0
     fi
@@ -27,7 +29,7 @@ choose_python() {
 }
 
 if ! choose_python; then
-  dialog "Python 3.10 à 3.13 avec Tkinter est nécessaire. Installez la version universelle macOS depuis python.org, puis relancez l'installation."
+  dialog "Python 3.10 ou plus récent avec Tkinter est nécessaire. Installez la version universelle macOS depuis python.org, puis relancez l'installation."
   exit 1
 fi
 
