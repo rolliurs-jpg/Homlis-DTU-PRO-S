@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.8"
+VERSION = "7.0.9"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -334,6 +334,11 @@ dashboard_title = fig.text(0.08, 0.890, f"Boîte noire Hoymiles — v{VERSION}",
                            fontsize=16, fontweight="bold", color="#0f172a")
 dashboard_subtitle = fig.text(0.08, 0.790, "Suivi de production · DTU Pro-S + Linky Dinky 4",
                                ha="left", va="center", fontsize=9, color="#475569")
+dashboard_independence_notice = fig.text(
+    0.08, 0.765,
+    "Logiciel libre, indépendant et non affilié à EDF, Hoymiles ou S-Miles Cloud.",
+    ha="left", va="center", fontsize=7.8, color="#64748b", style="italic",
+)
 
 footer_style = dict(boxstyle="round,pad=0.50", facecolor="#ffffff", edgecolor="#dbe3ef", alpha=0.92)
 end_labels = [
@@ -2092,6 +2097,7 @@ def toggle_bilan(event=None):
     comparison_ax.set_visible(showing_bilan and showing_comparison)
     dashboard_title.set_visible(not showing_bilan)
     dashboard_subtitle.set_visible(not showing_bilan)
+    dashboard_independence_notice.set_visible(not showing_bilan)
     main_chart_legend.set_visible(not showing_bilan)
     cursor_line.set_visible(False)
     cursor_dot.set_visible(False)
