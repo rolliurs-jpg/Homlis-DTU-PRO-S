@@ -37,13 +37,19 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.7"
+VERSION = "7.0.8"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
 DIRECT_WINDOW_HOURS = 4
 MAX_DTU_LIMIT_PCT = 120.0
 DEFAULT_DTU_LIMIT_PCT = 110.0
+SAV_CONFIRMATION_REQUEST = (
+    "DEMANDE AU SAV HOYMILES — Merci de confirmer la réception de ce fichier, "
+    "d'indiquer le résultat de votre analyse des mesures DTU / DDSU / Linky, "
+    "et de préciser toute correction, action ou réglage appliqué. "
+    "Réponse demandée à : rolli.urs@free.fr"
+)
 
 # Les mesures restent locales à chaque ordinateur. Windows et macOS utilisent
 # leurs emplacements standards, sans changer les noms de fichiers historiques.
@@ -895,11 +901,25 @@ def export_history(event=None):
                     "consommation_edf_w": row.get("linky_w", ""),
                 })
                 exported_count += 1
+        # Le CSV conserve volontairement ses colonnes de mesures, afin qu'il
+        # reste directement importable dans Excel et LibreOffice. La demande
+        # SAV est fournie dans un fichier compagnon daté, dans le même dossier.
+        sav_note = export_dir / f"{destination.stem}_demande_sav_hoymiles.txt"
+        sav_note.write_text(
+            "DEMANDE D'ANALYSE — BOÎTE NOIRE HOYMILES\n\n"
+            + SAV_CONFIRMATION_REQUEST + "\n\n"
+            + f"Période exportée : {start_date} au {end_date}\n"
+            + f"Nombre de mesures : {exported_count}\n"
+            + f"Export généré le : {datetime.now():%d/%m/%Y %H:%M:%S}\n"
+            + f"Version du logiciel : {VERSION}\n",
+            encoding="utf-8",
+        )
         status_text.set_text(f"Export {start_date} au {end_date} : {exported_count} mesures")
         messagebox.showinfo(
             "Export terminé",
             f"Historique exporté du {start_date} au {end_date}.\n"
-            f"{exported_count} mesure(s) exportée(s).\n\n{destination}",
+            f"{exported_count} mesure(s) exportée(s).\n"
+            f"Demande SAV jointe : {sav_note.name}\n\n{destination}",
             parent=parent,
         )
     except Exception as e:
@@ -1052,6 +1072,7 @@ def collect_dtu_diagnostic():
     lines = [
         "RAPPORT DIAGNOSTIC DTU — LECTURE SEULE",
         "À transmettre au SAV Hoymiles avec les captures d'écran et l'historique CSV.",
+        SAV_CONFIRMATION_REQUEST,
         "Aucun réglage, aucune limite de puissance et aucun redémarrage ne sont envoyés par cette fonction.",
         "",
         f"Date / heure : {collected_at:%d/%m/%Y %H:%M:%S}",
