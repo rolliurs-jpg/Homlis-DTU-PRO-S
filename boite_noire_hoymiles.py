@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.9"
+VERSION = "7.0.10"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -110,6 +110,21 @@ DEFAULT_CONFIG = {
     "releves_edf": {}
 }
 
+
+def safe_dtu_limit_pct(value, fallback=DEFAULT_DTU_LIMIT_PCT):
+    """Retourne uniquement une limite d'affichage plausible.
+
+    Certains firmwares DTU ont renvoyé une valeur ``powerLimit`` qui était en
+    réalité une puissance ou une donnée brute (par exemple 500 ou 676). Cette
+    application ne commande jamais le DTU : 110 % est ici une référence locale
+    d'affichage. Une valeur hors de 0–120 % est donc systématiquement ignorée.
+    """
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return float(fallback)
+    return value if 0.0 <= value <= MAX_DTU_LIMIT_PCT else float(fallback)
+
 def load_config():
     if not CONFIG_FILE.exists():
         CONFIG_FILE.write_text(json.dumps(DEFAULT_CONFIG, indent=2), encoding="utf-8")
@@ -138,6 +153,10 @@ def load_config():
         cfg["dtu_wifi_recovery"] = {**DEFAULT_CONFIG["dtu_wifi_recovery"], **saved_recovery}
         saved_readings = data.get("releves_edf", {})
         cfg["releves_edf"] = saved_readings if isinstance(saved_readings, dict) else {}
+        # Ne jamais conserver dans la configuration une ancienne valeur brute
+        # du firmware DTU comme si c'était un pourcentage de limite.
+        cfg["dtu_wifi_limit_pct"] = safe_dtu_limit_pct(cfg.get("dtu_wifi_limit_pct"))
+        cfg["dtu_lan_limit_pct"] = safe_dtu_limit_pct(cfg.get("dtu_lan_limit_pct"))
         # Première édition macOS : elle utilisait par erreur l'ancienne IP .162.
         # La migration ne touche qu'à ce réglage obsolète et garde les tarifs,
         # historiques et autres paramètres saisis sur le Mac.
@@ -214,10 +233,8 @@ def load_history():
     previous_limit = DEFAULT_DTU_LIMIT_PCT
     for t in sorted(merged):
         ac, grid, limit_w, lky = merged[t]
-        if 0 <= limit_w <= MAX_DTU_LIMIT_PCT:
-            previous_limit = limit_w
-        else:
-            limit_w = previous_limit
+        limit_w = safe_dtu_limit_pct(limit_w, previous_limit)
+        previous_limit = limit_w
         times.append(t)
         ac_power.append(ac)
         grid_power.append(grid)
@@ -401,7 +418,7 @@ def show_cursor(index):
     point_time = times[index]
     production = ac_power[index]
     grid = grid_power[index]
-    limit = power_limit[index]
+    limit = safe_dtu_limit_pct(power_limit[index])
     linky = linky_power[index]
     linky_text = "—" if linky != linky else f"{linky:.0f} W"
 
@@ -772,7 +789,7 @@ def update_end_labels():
         return
     linky = linky_power[-1]
     linky_txt = "—" if linky != linky else f"{linky:.0f} W"
-    end_labels[0].set_text(f"Limite DTU  {power_limit[-1]:.0f} %")
+    end_labels[0].set_text(f"Limite DTU  {safe_dtu_limit_pct(power_limit[-1]):.0f} %")
     end_labels[1].set_text(f"Production PV  {ac_power[-1]:.0f} W")
     end_labels[2].set_text(f"Réseau DDSU  {grid_power[-1]:+.0f} W")
     end_labels[3].set_text(f"Linky Dinky  {linky_txt}")
@@ -2309,8 +2326,7 @@ def update(_):
             # affiche donc la limite explicitement configurée dans S-Miles,
             # 110 % par défaut, comme le faisait la version macOS 7.0.4.
             limit_w = float(CONFIG.get("dtu_wifi_limit_pct", DEFAULT_DTU_LIMIT_PCT))
-        if not 0 <= limit_w <= MAX_DTU_LIMIT_PCT:
-            limit_w = DEFAULT_DTU_LIMIT_PCT
+        limit_w = safe_dtu_limit_pct(limit_w)
         limit_note = ""
         times.append(now)
         ac_power.append(ac)
