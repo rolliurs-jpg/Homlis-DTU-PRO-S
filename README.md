@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.11-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.12-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -30,6 +30,7 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 - Courbes de production PV, réseau DDSU, Linky/Dinky et limite DTU.
 - Vues **direct**, **24 h**, **hier** et **historique**.
 - Bilan automatique sur 24 h, 7 jours, mois et année.
+- Moyenne de production photovoltaïque par jour, calculée à partir des jours avec mesures locales.
 - Coût EDF calculé à partir du Linky : HP, HC et abonnement réglables.
 - Comparatif énergie **Hoymiles / Linky** pour identifier les écarts DDSU ↔ Linky.
 - Export CSV filtrable par plage de dates.

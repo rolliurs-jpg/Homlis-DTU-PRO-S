@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.11"
+VERSION = "7.0.12"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -1798,6 +1798,35 @@ def show_real_edf_cost(event=None):
     """Affiche le détail du coût sans surcharger la zone du graphique."""
     messagebox.showinfo("Coût EDF réel", edf_cost_details["message"], parent=dialog_parent())
 
+
+def show_average_pv_per_day(event=None):
+    """Affiche la moyenne journalière PV de la période du bilan.
+
+    La moyenne ne devine jamais les journées où le logiciel était arrêté :
+    elle s'appuie seulement sur les dates contenant des mesures locales.
+    """
+    now = datetime.now()
+    _, production, _, _, _, title, _, start = automatic_energy_series(bilan_period, now)
+    measured_days = {when.date() for when in times if start <= when <= now}
+    total = sum(production)
+    count = len(measured_days)
+    if count:
+        average = total / count
+        details = (
+            f"{title}\n\n"
+            f"Production PV cumulée : {total:.2f} kWh\n"
+            f"Jours avec mesures : {count}\n\n"
+            f"Moyenne produite : {average:.2f} kWh / jour\n\n"
+            "Calculée uniquement à partir de l'historique local disponible."
+        )
+    else:
+        details = (
+            f"{title}\n\n"
+            "Aucune mesure de production n'est encore disponible pour cette période."
+        )
+    messagebox.showinfo("Moyenne production PV", details, parent=dialog_parent())
+
+
 def draw_hoymiles_comparison():
     """Affiche côte à côte l'estimation DTU/DDSU et la mesure Linky/Dinky."""
     if not showing_bilan or not showing_comparison:
@@ -1936,12 +1965,15 @@ def toggle_hoymiles_comparison(event=None):
     bilan_cursor_box.set_visible(False)
     edf_reading_button.ax.set_visible(not showing_comparison)
     edf_cost_button.ax.set_visible(not showing_comparison)
+    average_pv_button.ax.set_visible(not showing_comparison)
     comparison_details_button.ax.set_visible(showing_comparison)
     if showing_comparison:
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
-        comparison_details_ax.set_position([0.75, 0.815, 0.16, 0.042])
+        average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
     else:
-        edf_cost_ax.set_position([0.75, 0.815, 0.16, 0.042])
+        edf_cost_ax.set_position([0.74, 0.805, 0.15, 0.042])
+        average_pv_ax.set_position([0.40, 0.805, 0.15, 0.042])
         comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
     comparison_button.label.set_text("Retour bilan EDF" if showing_comparison else "Estimation Hoymiles")
     if showing_comparison:
@@ -2159,6 +2191,7 @@ def toggle_bilan(event=None):
     refresh_history_buttons()
     edf_reading_button.ax.set_visible(showing_bilan)
     edf_cost_button.ax.set_visible(showing_bilan)
+    average_pv_button.ax.set_visible(showing_bilan and not showing_comparison)
     comparison_button.ax.set_visible(showing_bilan)
     comparison_details_button.ax.set_visible(False)
     comparison_button.label.set_text("Estimation Hoymiles")
@@ -2177,11 +2210,20 @@ edf_reading_button.label.set_color("white")
 edf_reading_button.on_clicked(open_real_edf_reading)
 edf_reading_ax.set_visible(False)
 
-edf_cost_ax = plt.axes([0.75, 0.815, 0.16, 0.042], zorder=25)
+# Les trois actions du bilan partagent une même ligne, sous les actions
+# Diagnostic / Capture : aucun bouton ne se recouvre à fenêtre réduite.
+edf_cost_ax = plt.axes([0.74, 0.805, 0.15, 0.042], zorder=25)
 edf_cost_button = Button(edf_cost_ax, "Coût EDF réel", color="#0f766e", hovercolor="#115e59")
 edf_cost_button.label.set_color("white")
 edf_cost_button.on_clicked(show_real_edf_cost)
 edf_cost_ax.set_visible(False)
+
+# Information synthétique : la moyenne est affichée à la demande, sans
+# alourdir le graphique ni masquer les valeurs instantanées.
+average_pv_ax = plt.axes([0.40, 0.805, 0.15, 0.042], zorder=25)
+average_pv_button = Button(average_pv_ax, "Moyenne PV / jour", color="#eff6ff", hovercolor="#dbeafe")
+average_pv_button.on_clicked(show_average_pv_per_day)
+average_pv_ax.set_visible(False)
 
 comparison_details_ax = plt.axes([0.75, 0.815, 0.16, 0.042], zorder=25)
 comparison_details_button = Button(comparison_details_ax, "Détail comparaison", color="#0f766e", hovercolor="#115e59")
@@ -2189,7 +2231,7 @@ comparison_details_button.label.set_color("white")
 comparison_details_button.on_clicked(show_comparison_details)
 comparison_details_ax.set_visible(False)
 
-comparison_ax_button = plt.axes([0.57, 0.815, 0.16, 0.042], zorder=25)
+comparison_ax_button = plt.axes([0.57, 0.805, 0.15, 0.042], zorder=25)
 comparison_button = Button(comparison_ax_button, "Estimation Hoymiles", color="#c2410c", hovercolor="#9a3412")
 comparison_button.label.set_color("white")
 comparison_button.on_clicked(toggle_hoymiles_comparison)
@@ -2199,13 +2241,13 @@ comparison_ax_button.set_visible(False)
 # il ouvre un rapport technique de lecture seule pour le SAV Hoymiles.
 # Les actions restent groupées, sous les cartes de statut : elles ne masquent
 # ni le titre ni l'infobulle du curseur quand la fenêtre est réduite.
-diagnostic_ax = plt.axes([0.61, 0.845, 0.15, 0.042], zorder=30)
+diagnostic_ax = plt.axes([0.61, 0.875, 0.15, 0.042], zorder=30)
 diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
 diagnostic_button.label.set_color("white")
 diagnostic_button.on_clicked(open_dtu_diagnostic)
 
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
-capture_ax = plt.axes([0.79, 0.845, 0.12, 0.042], zorder=30)
+capture_ax = plt.axes([0.79, 0.875, 0.12, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
 capture_button.label.set_color("white")
 capture_button.on_clicked(capture_screen)
@@ -2251,6 +2293,7 @@ export_button.on_clicked(export_history)
 style_final_button(tariffs_button)
 style_final_button(edf_reading_button)
 style_final_button(edf_cost_button)
+style_final_button(average_pv_button)
 style_final_button(comparison_details_button)
 style_final_button(comparison_button)
 style_final_button(diagnostic_button)
@@ -2265,12 +2308,14 @@ for view, button in history_buttons.items():
 def layout_bottom_actions():
     """Aligne les actions selon la page, sans laisser de vide inutile."""
     if showing_bilan:
-        comparison_ax_button.set_position([0.57, 0.815, 0.16, 0.042])
+        average_pv_ax.set_position([0.40, 0.805, 0.15, 0.042])
+        comparison_ax_button.set_position([0.57, 0.805, 0.15, 0.042])
         if showing_comparison:
+            average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
             edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
-            comparison_details_ax.set_position([0.75, 0.815, 0.16, 0.042])
+            comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
         else:
-            edf_cost_ax.set_position([0.75, 0.815, 0.16, 0.042])
+            edf_cost_ax.set_position([0.74, 0.805, 0.15, 0.042])
             comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
         edf_reading_ax.set_position([0.08, 0.145, 0.20, 0.048])
         tariffs_ax.set_position([0.31, 0.145, 0.18, 0.048])
@@ -2280,6 +2325,7 @@ def layout_bottom_actions():
         # Un axe masqué peut tout de même capter les clics Matplotlib : on le
         # retire physiquement du graphique de production.
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
         comparison_ax_button.set_position([0.001, 0.001, 0.001, 0.001])
         comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
         tariffs_ax.set_position([0.18, 0.145, 0.18, 0.048])

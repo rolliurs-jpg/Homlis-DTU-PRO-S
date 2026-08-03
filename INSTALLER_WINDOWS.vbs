@@ -11,7 +11,7 @@ appData = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\BoiteNoireHoymile
 backup = appData & "\sauvegarde_avant_mise_a_jour"
 configFile = appData & "\config_v5.json"
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.4 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.12 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dépendances sans fenêtre de terminal.
