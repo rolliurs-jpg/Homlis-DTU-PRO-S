@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.10"
+VERSION = "7.0.11"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -49,6 +49,11 @@ SAV_CONFIRMATION_REQUEST = (
     "d'indiquer le résultat de votre analyse des mesures DTU / DDSU / Linky, "
     "et de préciser toute correction, action ou réglage appliqué. "
     "Réponse demandée à : rolli.urs@free.fr"
+)
+SENSITIVE_DTU_FIELD = re.compile(
+    r"(?:pass(?:word|phrase)?|pwd|psk|wifi[_-]?(?:key|password|passphrase)|"
+    r"secret|token|api[_-]?key|credential)",
+    re.IGNORECASE,
 )
 
 # Les mesures restent locales à chaque ordinateur. Windows et macOS utilisent
@@ -993,6 +998,32 @@ def hoymiles_cli_path():
     return next((str(candidate) for candidate in candidates if candidate.exists()), "hoymiles-wifi")
 
 
+def redact_dtu_secrets(value):
+    """Supprime les secrets des réponses DTU avant affichage ou export SAV.
+
+    Le diagnostic reste utile (noms des paramètres et état du DTU), mais ne
+    doit jamais divulguer un mot de passe de box, une clé Wi-Fi ou un jeton.
+    """
+    if isinstance(value, dict):
+        safe = {}
+        for key, item in value.items():
+            safe[key] = "*** MASQUÉ POUR LA CONFIDENTIALITÉ ***" \
+                if SENSITIVE_DTU_FIELD.search(str(key)) else redact_dtu_secrets(item)
+        return safe
+    if isinstance(value, list):
+        return [redact_dtu_secrets(item) for item in value]
+    return value
+
+
+def redact_dtu_secrets_from_text(text):
+    """Filet de sécurité si le DTU renvoie du texte non JSON."""
+    pattern = re.compile(
+        r"(?im)(\b(?:pass(?:word|phrase)?|pwd|psk|wifi[_-]?(?:key|password|passphrase)|"
+        r"secret|token|api[_-]?key|credential)\b\s*[:=]\s*)([^\r\n,;}]+)"
+    )
+    return pattern.sub(r"\1*** MASQUÉ POUR LA CONFIDENTIALITÉ ***", text)
+
+
 def summarize_dtu_links(payload):
     """Résume les liaisons observables sans inventer de qualité de signal."""
     lines = ["", "ÉTAT DES LIAISONS OBSERVABLES"]
@@ -1134,9 +1165,11 @@ def collect_dtu_diagnostic():
                 parsed = json.loads(raw)
                 if command == "get-real-data-new" and isinstance(parsed, dict):
                     lines.extend(summarize_dtu_links(parsed))
-                lines.append(json.dumps(parsed, ensure_ascii=False, indent=2, sort_keys=True))
+                lines.append(json.dumps(
+                    redact_dtu_secrets(parsed), ensure_ascii=False, indent=2, sort_keys=True
+                ))
             except (json.JSONDecodeError, TypeError):
-                lines.append(raw)
+                lines.append(redact_dtu_secrets_from_text(raw))
         except Exception as exc:
             lines.append(f"Erreur de lecture : {exc}")
     return "\n".join(lines) + "\n"
