@@ -9,5 +9,6 @@
 
 - Les boutons du bilan sont maintenant répartis sur une ligne distincte : **Moyenne PV et conso réelle / jour**, **Estimation Hoymiles** et **Coût EDF réel**.
 - Les boutons **Diagnostic DTU** et **Capture écran** sont remontés afin de ne plus chevaucher les actions du bilan.
+- La fenêtre **Coût EDF réel** détaille maintenant les kWh et le montant en euros des heures pleines, heures creuses et de l'abonnement.
 
 Les historiques et les réglages locaux restent conservés lors d'une mise à jour.

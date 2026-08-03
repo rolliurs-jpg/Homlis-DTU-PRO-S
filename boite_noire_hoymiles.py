@@ -1716,6 +1716,10 @@ def draw_bilan():
     total_pv = sum(production)
     chart_hc_total = sum(hc)
     chart_hp_total = sum(hp)
+    displayed_hc_total = real_reading[0] if real_reading is not None and bilan_period in ("mois", "annee") else chart_hc_total
+    displayed_hp_total = real_reading[1] if real_reading is not None and bilan_period in ("mois", "annee") else chart_hp_total
+    displayed_hc_cost = displayed_hc_total * hc_price
+    displayed_hp_cost = displayed_hp_total * hp_price
     total_edf = chart_hc_total + chart_hp_total
     subscription_cost = sum(subscription)
     estimated_cost = sum(hp_cost) + sum(hc_cost) + subscription_cost
@@ -1748,8 +1752,8 @@ def draw_bilan():
     edf_cost_details["message"] = (
         f"{title}\n\n"
         f"Achat Linky : {total_edf:.2f} kWh\n"
-        f"• Heures creuses : {(real_reading[0] if real_reading is not None and bilan_period in ('mois', 'annee') else chart_hc_total):.2f} kWh\n"
-        f"• Heures pleines : {(real_reading[1] if real_reading is not None and bilan_period in ('mois', 'annee') else chart_hp_total):.2f} kWh\n"
+        f"• Heures creuses : {displayed_hc_total:.2f} kWh  →  {displayed_hc_cost:.2f} €\n"
+        f"• Heures pleines : {displayed_hp_total:.2f} kWh  →  {displayed_hp_cost:.2f} €\n"
         f"• Abonnement : {subscription_cost:.2f} €\n\n"
         f"Coût EDF : {estimated_cost:.2f} €\n\n"
         f"Source : {dinky_source}{real_note}\n{tariff_note}{manual_details}"
