@@ -1799,32 +1799,52 @@ def show_real_edf_cost(event=None):
     messagebox.showinfo("Coût EDF réel", edf_cost_details["message"], parent=dialog_parent())
 
 
-def show_average_pv_per_day(event=None):
-    """Affiche la moyenne journalière PV de la période du bilan.
+def show_daily_pv_and_consumption_average(event=None):
+    """Affiche les moyennes journalières PV et de consommation Linky réelle.
 
-    La moyenne ne devine jamais les journées où le logiciel était arrêté :
-    elle s'appuie seulement sur les dates contenant des mesures locales.
+    La consommation provient exclusivement du Dinky/Linky (HP + HC), jamais
+    du DDSU. Un relevé EDF manuel remplace le total du mois lorsqu'il existe.
     """
     now = datetime.now()
-    _, production, _, _, _, title, _, start = automatic_energy_series(bilan_period, now)
+    _, production, _, hc, hp, title, source, start = automatic_energy_series(bilan_period, now)
+    real_reading = real_edf_month_totals(now)
+
+    # Même règle que le graphique bilan : le relevé EDF déclaré est la
+    # référence pour le mois courant, et pour sa colonne dans l'année.
+    if real_reading is not None and bilan_period in ("mois", "annee"):
+        real_hc, real_hp, _, entered_at = real_reading
+        bucket = now.day - 1 if bilan_period == "mois" else now.month - 1
+        if 0 <= bucket < len(hc):
+            hc[bucket] = real_hc
+            hp[bucket] = real_hp
+        source = f"Relevé EDF manuel ({entered_at})"
+
     measured_days = {when.date() for when in times if start <= when <= now}
-    total = sum(production)
     count = len(measured_days)
+    total_pv = sum(production)
+    total_hc = sum(hc)
+    total_hp = sum(hp)
+    total_consumption = total_hc + total_hp
+
     if count:
-        average = total / count
         details = (
             f"{title}\n\n"
-            f"Production PV cumulée : {total:.2f} kWh\n"
-            f"Jours avec mesures : {count}\n\n"
-            f"Moyenne produite : {average:.2f} kWh / jour\n\n"
-            "Calculée uniquement à partir de l'historique local disponible."
+            f"Jours avec mesures PV : {count}\n\n"
+            f"Production PV cumulée : {total_pv:.2f} kWh\n"
+            f"Moyenne PV : {total_pv / count:.2f} kWh / jour\n\n"
+            f"Consommation réelle Linky : {total_consumption:.2f} kWh\n"
+            f"• Heures pleines : {total_hp:.2f} kWh\n"
+            f"• Heures creuses : {total_hc:.2f} kWh\n"
+            f"Moyenne consommation réelle : {total_consumption / count:.2f} kWh / jour\n\n"
+            f"Source consommation : {source}\n"
+            "La consommation ne contient jamais les données DDSU."
         )
     else:
         details = (
             f"{title}\n\n"
-            "Aucune mesure de production n'est encore disponible pour cette période."
+            "Aucune mesure PV locale n'est encore disponible pour calculer une moyenne fiable."
         )
-    messagebox.showinfo("Moyenne production PV", details, parent=dialog_parent())
+    messagebox.showinfo("Moyenne PV et consommation réelle / jour", details, parent=dialog_parent())
 
 
 def draw_hoymiles_comparison():
@@ -2221,8 +2241,8 @@ edf_cost_ax.set_visible(False)
 # Information synthétique : la moyenne est affichée à la demande, sans
 # alourdir le graphique ni masquer les valeurs instantanées.
 average_pv_ax = plt.axes([0.40, 0.805, 0.15, 0.042], zorder=25)
-average_pv_button = Button(average_pv_ax, "Moyenne PV / jour", color="#eff6ff", hovercolor="#dbeafe")
-average_pv_button.on_clicked(show_average_pv_per_day)
+average_pv_button = Button(average_pv_ax, "Moyenne PV et conso\nréelle / jour", color="#eff6ff", hovercolor="#dbeafe")
+average_pv_button.on_clicked(show_daily_pv_and_consumption_average)
 average_pv_ax.set_visible(False)
 
 comparison_details_ax = plt.axes([0.75, 0.815, 0.16, 0.042], zorder=25)
@@ -2294,6 +2314,9 @@ style_final_button(tariffs_button)
 style_final_button(edf_reading_button)
 style_final_button(edf_cost_button)
 style_final_button(average_pv_button)
+# Le libellé de ce bouton comporte deux lignes : on le descend légèrement
+# afin qu'il reste bien centré dans son cadre.
+average_pv_button.label.set_position((0.5, 0.43))
 style_final_button(comparison_details_button)
 style_final_button(comparison_button)
 style_final_button(diagnostic_button)

@@ -30,7 +30,7 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 - Courbes de production PV, réseau DDSU, Linky/Dinky et limite DTU.
 - Vues **direct**, **24 h**, **hier** et **historique**.
 - Bilan automatique sur 24 h, 7 jours, mois et année.
-- Moyenne de production photovoltaïque par jour, calculée à partir des jours avec mesures locales.
+- Moyenne quotidienne de production photovoltaïque et de consommation réelle Linky/Dinky (HP + HC), calculée à partir des jours avec mesures locales.
 - Coût EDF calculé à partir du Linky : HP, HC et abonnement réglables.
 - Comparatif énergie **Hoymiles / Linky** pour identifier les écarts DDSU ↔ Linky.
 - Export CSV filtrable par plage de dates.
