@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.12 — macOS
+# Boîte noire Hoymiles v7.0.13 — macOS
 
 Cette édition est testée en priorité sur macOS 13 ou plus récent avec Mac Apple Silicon (M1, M2, M3 et suivants). Elle peut aussi fonctionner sur Mac Intel avec une version universelle de Python et Tkinter ; cette configuration reste à tester par la communauté.
 
@@ -11,7 +11,7 @@ Cette édition est testée en priorité sur macOS 13 ou plus récent avec Mac Ap
 
 Les historiques et réglages sont conservés dans `~/Library/Application Support/BoiteNoireHoymiles`.
 
-## Fonctions incluses dans la version 7.0.12
+## Fonctions incluses dans la version 7.0.13
 
 - suivi direct, 24 h, hier et historique de la production PV, DDSU et Linky/Dinky ;
 - bilan EDF HP/HC et abonnement, basé sur les index Dinky 4 ;

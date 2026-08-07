@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.12"
+VERSION = "7.0.13"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -408,6 +408,8 @@ cursor_box = fig.text(
 )
 bilan_cursor_data = {"labels": [], "production": [], "hc": [], "hp": [], "subscription": []}
 comparison_cursor_data = {"labels": [], "production": [], "ddsu": [], "linky": []}
+last_main_cursor_index = None
+last_bilan_cursor_key = None
 bilan_cursor_box = fig.text(
     0, 0, "", transform=fig.transFigure, fontsize=9, ha="left", va="top", visible=False,
     bbox=dict(boxstyle="round,pad=0.45", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.76), zorder=103,
@@ -415,10 +417,14 @@ bilan_cursor_box = fig.text(
 
 
 def show_cursor(index):
+    global last_main_cursor_index
     """Place la barre pointillÃ©e et la boÃ®te de valeurs sur une mesure."""
     if not times:
         return
     index = max(0, min(index, len(times) - 1))
+    if (last_main_cursor_index == index and cursor_line.get_visible()
+            and cursor_dot.get_visible() and cursor_box.get_visible()):
+        return
     x_values = mdates.date2num(times)
     point_time = times[index]
     production = ac_power[index]
@@ -449,10 +455,12 @@ def show_cursor(index):
         f"Linky       {linky_text}"
     )
     cursor_box.set_visible(True)
+    last_main_cursor_index = index
     fig.canvas.draw_idle()
 
 
 def move_cursor(event):
+    global last_main_cursor_index
     """Affiche les mesures de la date la plus proche du curseur de la souris."""
     if showing_bilan:
         if showing_comparison:
@@ -463,10 +471,12 @@ def move_cursor(event):
     if not times or event.x is None or event.y is None:
         return
     if not ax.bbox.contains(event.x, event.y):
-        cursor_line.set_visible(False)
-        cursor_dot.set_visible(False)
-        cursor_box.set_visible(False)
-        fig.canvas.draw_idle()
+        if cursor_line.get_visible() or cursor_dot.get_visible() or cursor_box.get_visible():
+            cursor_line.set_visible(False)
+            cursor_dot.set_visible(False)
+            cursor_box.set_visible(False)
+            last_main_cursor_index = None
+            fig.canvas.draw_idle()
         return
     xdata = ax.transData.inverted().transform((event.x, event.y))[0]
     x_values = mdates.date2num(times)
@@ -1767,10 +1777,13 @@ def draw_bilan():
     })
 
 def move_bilan_cursor(x, y):
+    global last_bilan_cursor_key
     """Affiche les valeurs réelles d'une colonne du bilan au survol."""
     if not showing_bilan or showing_comparison or x is None or y is None or not bilan_ax.bbox.contains(x, y):
-        bilan_cursor_box.set_visible(False)
-        fig.canvas.draw_idle()
+        if bilan_cursor_box.get_visible():
+            bilan_cursor_box.set_visible(False)
+            last_bilan_cursor_key = None
+            fig.canvas.draw_idle()
         return
     labels = bilan_cursor_data["labels"]
     if not labels:
@@ -1778,8 +1791,13 @@ def move_bilan_cursor(x, y):
     xdata = bilan_ax.transData.inverted().transform((x, y))[0]
     index = int(round(xdata))
     if not 0 <= index < len(labels):
-        bilan_cursor_box.set_visible(False)
-        fig.canvas.draw_idle()
+        if bilan_cursor_box.get_visible():
+            bilan_cursor_box.set_visible(False)
+            last_bilan_cursor_key = None
+            fig.canvas.draw_idle()
+        return
+    cursor_key = ("bilan", index)
+    if last_bilan_cursor_key == cursor_key and bilan_cursor_box.get_visible():
         return
     xfig, _ = fig.transFigure.inverted().transform((x, y))
     if xfig > 0.65:
@@ -1796,6 +1814,7 @@ def move_bilan_cursor(x, y):
         f"Abonnement  {bilan_cursor_data['subscription'][index]:.2f} €"
     )
     bilan_cursor_box.set_visible(True)
+    last_bilan_cursor_key = cursor_key
     fig.canvas.draw_idle()
 
 def show_real_edf_cost(event=None):
@@ -1943,10 +1962,13 @@ def draw_hoymiles_comparison():
     })
 
 def move_comparison_cursor(x, y):
+    global last_bilan_cursor_key
     """Affiche les trois valeurs d'énergie de la période survolée."""
     if not showing_bilan or not showing_comparison or x is None or y is None or not comparison_ax.bbox.contains(x, y):
-        bilan_cursor_box.set_visible(False)
-        fig.canvas.draw_idle()
+        if bilan_cursor_box.get_visible():
+            bilan_cursor_box.set_visible(False)
+            last_bilan_cursor_key = None
+            fig.canvas.draw_idle()
         return
     labels = comparison_cursor_data["labels"]
     if not labels:
@@ -1954,8 +1976,13 @@ def move_comparison_cursor(x, y):
     xdata = comparison_ax.transData.inverted().transform((x, y))[0]
     index = int(round(xdata))
     if not 0 <= index < len(labels):
-        bilan_cursor_box.set_visible(False)
-        fig.canvas.draw_idle()
+        if bilan_cursor_box.get_visible():
+            bilan_cursor_box.set_visible(False)
+            last_bilan_cursor_key = None
+            fig.canvas.draw_idle()
+        return
+    cursor_key = ("comparison", index)
+    if last_bilan_cursor_key == cursor_key and bilan_cursor_box.get_visible():
         return
     xfig, _ = fig.transFigure.inverted().transform((x, y))
     if xfig > 0.65:
@@ -1971,6 +1998,7 @@ def move_comparison_cursor(x, y):
         f"Linky/Dinky réel {comparison_cursor_data['linky'][index]:.2f} kWh"
     )
     bilan_cursor_box.set_visible(True)
+    last_bilan_cursor_key = cursor_key
     fig.canvas.draw_idle()
 
 def show_comparison_details(event=None):
