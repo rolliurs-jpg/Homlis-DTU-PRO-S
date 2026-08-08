@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.13"
+VERSION = "7.0.14"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -1476,10 +1476,32 @@ def automatic_energy_series(period, now):
             continue
 
     # Achat EDF : seule la Téléinfo du Linky (Dinky 4) fait foi, jamais le DDSU.
+    # Certains firmwares Dinky n'affichent qu'une des deux series HC/HP dans
+    # l'historique SVG. On calcule toujours un secours avec les index locaux.
+    index_hc, index_hp = [0.0] * len(labels), [0.0] * len(labels)
+    index_samples = list(zip(linky_hc_index, linky_hp_index))
+    index_samples = [(when_hc, value_hc, value_hp) for ((when_hc, value_hc), (when_hp, value_hp)) in index_samples
+                     if when_hc == when_hp]
+    for previous, current in zip(index_samples, index_samples[1:]):
+        _, previous_hc, previous_hp = previous
+        current_when, current_hc, current_hp = current
+        if current_when < start or current_when > now:
+            continue
+        try:
+            bucket = index_for(current_when)
+            if not 0 <= bucket < len(labels):
+                continue
+            index_hc[bucket] += max(0.0, float(current_hc) - float(previous_hc))
+            index_hp[bucket] += max(0.0, float(current_hp) - float(previous_hp))
+        except (IndexError, TypeError, ValueError):
+            continue
+
     historic = read_dinky_history(period, labels)
     if historic is not None and sum(historic[0]) + sum(historic[1]) > 0:
-        hc, hp = historic
-        source = "Historique Dinky 4 / Linky"
+        historic_hc, historic_hp = historic
+        hc = historic_hc if sum(historic_hc) > 0 else index_hc
+        hp = historic_hp if sum(historic_hp) > 0 else index_hp
+        source = "Historique Dinky 4 / Linky + index HC/HP"
     else:
         hc, hp = [0.0] * len(labels), [0.0] * len(labels)
         samples = list(zip(linky_hc_index, linky_hp_index))
