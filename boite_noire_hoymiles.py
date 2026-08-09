@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.14"
+VERSION = "7.0.15"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -188,6 +188,7 @@ last_success = None
 dtu_failures = 0
 dtu_failure_since = None
 last_dtu_wifi_recovery = None
+dtu_maintenance_paused = False
 
 def history_files():
     """V6.2 : un seul historique interne. Aucun fichier du Bureau n'est lu."""
@@ -2273,6 +2274,36 @@ def toggle_bilan(event=None):
         draw_hoymiles_comparison() if showing_comparison else draw_bilan()
     fig.canvas.draw_idle()
 
+def toggle_dtu_maintenance_pause(event=None):
+    """Suspend/reprend uniquement les requetes de lecture vers le DTU.
+
+    Le Dinky continue d'etre lu a chaque cycle : l'utilisateur peut donc
+    verifier la puissance Linky et ses index pendant une operation de
+    maintenance executee depuis S-Miles Cloud.
+    """
+    global dtu_maintenance_paused
+    dtu_maintenance_paused = not dtu_maintenance_paused
+    if dtu_maintenance_paused:
+        maintenance_pause_button.label.set_text("Reprendre le DTU")
+        maintenance_pause_button.ax.set_facecolor("#15803d")
+        maintenance_pause_button.color = "#15803d"
+        maintenance_pause_button.hovercolor = "#166534"
+        set_connection_badge(connection_badges[0], "delayed", "● DTU pause maintenance")
+        status_text.set_text(
+            "Pause maintenance Hoymiles active — aucune lecture ni relance locale du DTU.\n"
+            "Le Linky/Dinky reste lu normalement ; cliquez sur « Reprendre le DTU » apres la maintenance."
+        )
+    else:
+        maintenance_pause_button.label.set_text("Pause maintenance")
+        maintenance_pause_button.ax.set_facecolor("#b45309")
+        maintenance_pause_button.color = "#b45309"
+        maintenance_pause_button.hovercolor = "#92400e"
+        set_connection_badge(connection_badges[0], "delayed", "● DTU reprise demandee")
+        status_text.set_text("Reprise du suivi DTU demandee — prochaine lecture au cycle suivant.")
+    maintenance_pause_button.label.set_color("white")
+    fig.canvas.draw_idle()
+
+
 tariffs_ax = plt.axes([0.31, 0.145, 0.18, 0.048])
 tariffs_button = Button(tariffs_ax, "Tarifs EDF", color="#64748b", hovercolor="#475569")
 tariffs_button.label.set_color("white")
@@ -2315,6 +2346,11 @@ comparison_ax_button.set_visible(False)
 # il ouvre un rapport technique de lecture seule pour le SAV Hoymiles.
 # Les actions restent groupées, sous les cartes de statut : elles ne masquent
 # ni le titre ni l'infobulle du curseur quand la fenêtre est réduite.
+maintenance_pause_ax = plt.axes([0.44, 0.875, 0.15, 0.042], zorder=30)
+maintenance_pause_button = Button(maintenance_pause_ax, "Pause maintenance", color="#b45309", hovercolor="#92400e")
+maintenance_pause_button.label.set_color("white")
+maintenance_pause_button.on_clicked(toggle_dtu_maintenance_pause)
+
 diagnostic_ax = plt.axes([0.61, 0.875, 0.15, 0.042], zorder=30)
 diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
 diagnostic_button.label.set_color("white")
@@ -2441,6 +2477,27 @@ def update(_):
                 append_linky_energy_indexes(datetime.now(), dinky_indexes)
         except Exception as exc:
             dinky_index_status = f"index Dinky indisponible ({exc})"
+
+    # Mode reserve a la maintenance Hoymiles : aucune requete, aucun essai de
+    # reconnexion Wi-Fi et aucune ecriture de mesure DTU ne sont executes.
+    # Les index Dinky ont deja ete lus et sauvegardes juste au-dessus.
+    if dtu_maintenance_paused:
+        set_connection_badge(connection_badges[0], "delayed", "● DTU pause maintenance")
+        if lky is None:
+            linky_card_txt = "LINKY DINKY\nEN ATTENTE"
+            end_labels[3].set_text("Linky Dinky en attente")
+        else:
+            linky_card_txt = f"LINKY DINKY\n{lky:.0f} W (TIC)"
+            end_labels[3].set_text(f"Linky Dinky {lky:.0f} W")
+        live_cards[3].set_text(linky_card_txt)
+        status_text.set_text(
+            "Pause maintenance Hoymiles active — DTU non interroge, aucune relance automatique.\n"
+            f"Linky : {linky_status} — {dinky_index_status} — index Dinky conserve."
+        )
+        return (
+            line_ac, line_grid, line_limit, line_linky, cursor_line, cursor_dot, cursor_box,
+            *live_cards, status_text, *end_labels, *connection_badges,
+        )
 
     dtu_started = monotonic()
     try:
