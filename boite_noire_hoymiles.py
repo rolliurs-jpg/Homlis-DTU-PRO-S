@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.15"
+VERSION = "7.0.16"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -2350,6 +2350,38 @@ maintenance_pause_ax = plt.axes([0.44, 0.875, 0.15, 0.042], zorder=30)
 maintenance_pause_button = Button(maintenance_pause_ax, "Pause maintenance", color="#b45309", hovercolor="#92400e")
 maintenance_pause_button.label.set_color("white")
 maintenance_pause_button.on_clicked(toggle_dtu_maintenance_pause)
+
+# Aide volontairement discrète : elle n'apparaît qu'au survol du bouton et
+# rappelle que seule la lecture DTU est suspendue. Le Linky/Dinky reste suivi.
+maintenance_tooltip = maintenance_pause_ax.annotate(
+    "Pause les lectures et reconnexions du DTU.\n"
+    "Le Linky/Dinky continue d'être lu.\n"
+    "À utiliser uniquement pendant une maintenance S-Miles.",
+    xy=(0.5, 0.0), xycoords="axes fraction",
+    xytext=(0, -10), textcoords="offset points",
+    ha="center", va="top", fontsize=7.6, color="#334155",
+    bbox=dict(boxstyle="round,pad=0.35", facecolor="#f8fafc", edgecolor="#94a3b8", alpha=0.96),
+    annotation_clip=False, zorder=80,
+)
+maintenance_tooltip.set_visible(False)
+
+
+def update_maintenance_tooltip(event):
+    """Affiche l'aide de pause seulement quand la souris survole son bouton."""
+    show = event.inaxes is maintenance_pause_ax
+    if maintenance_tooltip.get_visible() != show:
+        maintenance_tooltip.set_visible(show)
+        fig.canvas.draw_idle()
+
+
+def hide_maintenance_tooltip(event):
+    if maintenance_tooltip.get_visible():
+        maintenance_tooltip.set_visible(False)
+        fig.canvas.draw_idle()
+
+
+fig.canvas.mpl_connect("motion_notify_event", update_maintenance_tooltip)
+fig.canvas.mpl_connect("figure_leave_event", hide_maintenance_tooltip)
 
 diagnostic_ax = plt.axes([0.61, 0.875, 0.15, 0.042], zorder=30)
 diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
