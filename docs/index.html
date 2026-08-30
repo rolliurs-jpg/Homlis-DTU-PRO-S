@@ -95,6 +95,10 @@
         <article><h3>Deux réseaux Wi-Fi simultanés</h3><p>Le Dinky est sur la box et le PC / Mac le consulte par le Wi-Fi de la box. Le DTU diffuse son propre Wi-Fi : utilisez une seconde carte Wi-Fi (souvent USB) pour le DTU. Cette configuration est expérimentale sur Mac.</p><div class="diagram">Linky → Dinky 4 → Wi-Fi de la box → PC / Mac<br>DTU Pro-S → Wi-Fi dédié → 2e Wi-Fi du PC / Mac</div></article>
         <article><h3>Un seul réseau local — recommandé</h3><p>Le DTU rejoint la box en Ethernet direct ou par une passerelle en mode pont Wi-Fi ; Dinky et Shelly restent sur le même LAN. Le pont ne doit créer ni second réseau ni double NAT.</p><div class="diagram topology">Linky → Dinky 4 → Box ← Shelly Pro EM<br>DTU Pro-S → Ethernet → pont Wi-Fi → Box → PC / Mac</div></article>
       </div>
+      <div class="network-grid">
+        <article><h3>Passerelle économique conseillée</h3><p>Le <a href="https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr802n/">TP-Link TL-WR802N</a> suffit largement pour le faible débit du DTU : mode Client/Pont, un port Ethernet et alimentation USB. Son prix se situe généralement autour de 25 à 35 €. Choisissez <strong>Client</strong> puis <strong>Smart IP (DHCP)</strong> afin de laisser la box attribuer les adresses.</p><div class="diagram topology">DTU Ethernet → TL-WR802N en mode Client → Wi-Fi 2,4 GHz de la box</div></article>
+        <article><h3>Alternative bi-bande</h3><p>Le <a href="https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr902ac/">TP-Link TL-WR902AC</a> ajoute le Wi-Fi 5 GHz, mais il est plus cher et n’apporte aucun gain nécessaire au DTU. Il peut être choisi si le réseau 2,4 GHz est très encombré.</p><p>Ces modèles sont des suggestions techniques indépendantes : le projet n’est pas affilié à TP-Link et ne reçoit aucune commission.</p></article>
+      </div>
     </section>
 
     <section class="section screenshot-section">

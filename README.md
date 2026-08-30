@@ -97,6 +97,14 @@ Cette architecture sur un seul LAN est recommandée, notamment sur Mac : tous le
 
 Réservez si possible les adresses IP du DTU, du Dinky et du Shelly dans la box afin qu’elles ne changent pas après un redémarrage.
 
+### Petite passerelle économique
+
+Le **[TP-Link TL-WR802N](https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr802n/)** convient à cette installation : mode Client/Pont, un port Ethernet 10/100 et alimentation USB. Son débit Wi-Fi 2,4 GHz est très largement suffisant pour le DTU. Il se trouve généralement autour de 25 à 35 €.
+
+Configuration conseillée : **mode Client**, connexion au Wi-Fi 2,4 GHz de la box, puis **Smart IP (DHCP)**. Le DTU se branche sur son port Ethernet et la box reste l’unique serveur DHCP. Le **[TL-WR902AC](https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr902ac/)** est une alternative bi-bande plus chère, utile seulement si le 2,4 GHz est très encombré.
+
+Cette recommandation est indépendante et sans affiliation commerciale.
+
 > Si le Wi-Fi du DTU se coupe, le Dinky peut continuer à enregistrer le Linky mais la production PV ne sera plus relevée jusqu’à la reconnexion du DTU.
 
 ## Paramétrage et données locales
