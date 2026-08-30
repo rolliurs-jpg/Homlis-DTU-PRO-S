@@ -13,8 +13,10 @@
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>7.0.14</string>
+  <string>7.0.21</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Configuration locale du DTU Hoymiles, du Dinky et du Shelly Pro EM.</string>
 </dict>
 </plist>

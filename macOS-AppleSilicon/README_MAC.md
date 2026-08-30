@@ -1,31 +1,53 @@
-# Boîte noire Hoymiles v7.0.14 — macOS
+# Boîte noire Hoymiles v7.0.21 — macOS
 
-Cette édition est testée en priorité sur macOS 13 ou plus récent avec Mac Apple Silicon (M1, M2, M3 et suivants). Elle peut aussi fonctionner sur Mac Intel avec une version universelle de Python et Tkinter ; cette configuration reste à tester par la communauté.
+Cette édition utilise le même moteur que la version Windows 7.0.21. Elle est prévue en priorité pour macOS 13 ou plus récent sur Mac Apple Silicon (M1, M2, M3 et suivants). Un Mac Intel peut fonctionner avec une version compatible de Python et Tkinter, mais reste à tester par la communauté.
 
 ## Installation sans Terminal
 
-1. Téléchargez et décompressez le ZIP GitHub.
+1. Téléchargez puis décompressez le ZIP GitHub.
 2. Ouvrez le dossier `macOS-AppleSilicon`.
-3. Clic droit sur `Installer Boîte noire Hoymiles.app`, puis **Ouvrir** lors de la première utilisation.
-4. Lancez ensuite `Boîte noire Hoymiles` depuis le dossier **Applications**. Si l'interface ne lit pas le réseau local, double-cliquez sur `LANCER_MAC.command` dans ce dossier : il lance la même application depuis Terminal.
+3. Faites un clic droit sur `Installer Boîte noire Hoymiles.app`, puis choisissez **Ouvrir** lors de la première utilisation.
+4. Autorisez l’accès au réseau local si macOS le demande.
+5. Lancez ensuite `Boîte noire Hoymiles` depuis le dossier **Applications**.
 
-Les historiques et réglages sont conservés dans `~/Library/Application Support/BoiteNoireHoymiles`.
+Si l’application ne lit pas le réseau local, ouvrez **Réglages Système → Confidentialité et sécurité → Réseau local** et autorisez-la. Le fichier `LANCER_MAC.command` permet aussi de lancer le même logiciel depuis Terminal pour le diagnostic.
 
-## Fonctions incluses dans la version 7.0.14
+Les mises à jour conservent les historiques et réglages dans :
 
-- suivi direct, 24 h, hier et historique de la production PV, DDSU et Linky/Dinky ;
-- bilan EDF HP/HC et abonnement, basé sur les index Dinky 4 ;
-- moyenne de production photovoltaïque par jour, calculée avec les jours disposant de mesures locales ;
-- export CSV par période avec fichier compagnon de demande d'analyse au SAV ;
-- captures d'écran datées et versionnées ;
-- **Diagnostic DTU** en lecture seule : état observable du DDSU, des micro-onduleurs, données brutes et rapport exportable pour le SAV Hoymiles ; les mots de passe, clés Wi-Fi et jetons sont automatiquement masqués avant affichage ou export ;
-- logiciel libre, indépendant et non affilié à EDF, Hoymiles ou S-Miles Cloud.
+`~/Library/Application Support/BoiteNoireHoymiles`
 
-## Réseau DTU
+## Réseau recommandé : un seul LAN
 
-- **DTU-LAN — recommandé** : DTU relié en Ethernet à la box. Le Dinky 4 et le DTU sont sur le réseau de la box ; saisissez l'adresse IP réellement donnée au DTU par la box. La production est lue localement par Modbus TCP (port 502).
-- **DTU-WIFI — expérimental** : le DTU utilise son propre Wi-Fi. Le Mac doit garder le Wi-Fi de la box pour le Dinky, et disposer d'un deuxième adaptateur Wi-Fi USB compatible macOS / Apple Silicon pour le DTU.
+Le DTU Pro-S peut être relié directement à la box en Ethernet, ou à une petite passerelle configurée en **pont Wi-Fi / client bridge**. Le pont rejoint le Wi-Fi de la box sans créer un second routeur ni un autre sous-réseau.
+
+```text
+DTU Pro-S ── Ethernet ──> pont Wi-Fi ──> box
+Linky ──> Dinky 4 ── Wi-Fi ───────────> box ──> Mac
+Shelly Pro EM ─────── Wi-Fi/LAN ──────> box
+```
+
+Tous les appareils doivent recevoir une adresse dans le même réseau local que le Mac. Il est conseillé de réserver leurs adresses IP dans la box.
+
+- **DTU-LAN — recommandé** : lecture locale de la production par Modbus TCP, port 502.
+- **DTU-WIFI — expérimental** : connexion au Wi-Fi propre du DTU ; le Mac doit conserver l’accès à la box et utiliser un second adaptateur Wi-Fi compatible macOS.
+- **Dinky 4 — facultatif** : mesure Linky réelle et index HP/HC.
+- **Shelly Pro EM — facultatif** : deux mesures indépendantes, strictement en lecture seule.
+
+Lors d’une mise à jour, l’installateur propose séparément de **conserver**, **modifier** ou **désactiver** le Dinky et le Shelly. Le choix « conserver » ne réinitialise pas l’ancienne configuration.
+
+## Fonctions v7.0.21
+
+- suivi direct, 24 h, hier et historique de la production PV, du DDSU et du Linky/Dinky ;
+- lecture des deux voies du Shelly Pro EM avec libellés production panneaux et réseau EDF ;
+- flux réseau signé : achat EDF positif, injection négative ;
+- alerte d’injection persistante, cumul des Wh/kWh injectés et journal de preuves exportable ;
+- bilan EDF HP/HC et abonnement basé sur les index réels du Dinky ;
+- comparatif Hoymiles / Linky et moyenne quotidienne production-consommation ;
+- export CSV, note SAV, captures datées et diagnostic DTU en lecture seule ;
+- affichage automatique uniquement des sources activées et disponibles.
+
+Le logiciel n’envoie aucune commande au Shelly, au relais ou au réglage zéro injection Hoymiles.
 
 ## Python
 
-L'installateur vérifie que Python 3.10 ou plus récent possède Tkinter. Si nécessaire, installez une version universelle macOS compatible depuis [python.org](https://www.python.org/downloads/macos/), puis relancez l'installateur.
+L’installateur recherche Python 3.10 ou plus récent avec Tkinter. Si nécessaire, installez une version universelle macOS depuis [python.org](https://www.python.org/downloads/macos/), puis relancez l’installateur.

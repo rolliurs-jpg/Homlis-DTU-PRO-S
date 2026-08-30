@@ -6,7 +6,7 @@
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**Boîte noire Hoymiles** est une application Python locale pour Windows qui réunit, selon les équipements disponibles, un **DTU Pro-S Hoymiles**, le **DDSU666**, un **Linky Téléinfo via Dinky 4 / Tasmota** et les deux pinces d’un **Shelly Pro EM**. Chaque source est facultative selon la configuration, et les données restent sur votre ordinateur.
+**Boîte noire Hoymiles** est une application Python locale pour Windows et macOS qui réunit, selon les équipements disponibles, un **DTU Pro-S Hoymiles**, le **DDSU666**, un **Linky Téléinfo via Dinky 4 / Tasmota** et les deux pinces d’un **Shelly Pro EM**. Chaque source est facultative selon la configuration, et les données restent sur votre ordinateur.
 
 🌐 **Présentation et guide visuel :** activez GitHub Pages sur le dossier `docs` pour publier la vitrine du projet.
 
@@ -56,11 +56,11 @@ L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les 
 
 ## Installation macOS Apple Silicon
 
-L’édition macOS se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
+L’édition macOS 7.0.21 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
 
 1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
-2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental).
-3. Lancez ensuite l’application depuis le dossier **Applications**. Si macOS bloque le réseau local de l’application, double-cliquez plutôt sur `LANCER_MAC.command` dans le dossier téléchargé : c’est le même logiciel, lancé depuis Terminal.
+2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental), puis configurez séparément les équipements facultatifs Dinky et Shelly.
+3. Lancez ensuite l’application depuis le dossier **Applications** et autorisez son accès au réseau local. En dépannage, `LANCER_MAC.command` lance le même logiciel depuis Terminal.
 
 Le mode DTU-WIFI sur Mac demande un second adaptateur Wi-Fi USB réellement compatible macOS / Apple Silicon. Le mode DTU-LAN est à privilégier.
 
@@ -85,15 +85,17 @@ DTU Pro-S ─────────── Wi-Fi propre au DTU ── 2e Wi-Fi 
 
 ### Configuration B — un réseau unique
 
-Si le DTU est raccordé à la box en **Ethernet**, le DTU, le Dinky et le Shelly peuvent être sur le même réseau local. L’installateur permet de saisir les adresses IP attribuées par la box. La production PV est alors lue en Modbus TCP (port 502) ; selon le firmware, DDSU et limite de puissance peuvent ne pas être exposés. Le DTU n’utilise pas le Wi-Fi de la box : son Wi-Fi reste son réseau propre.
+Si le DTU est raccordé à la box en **Ethernet direct**, ou à une **passerelle configurée en pont Wi-Fi**, le DTU, le Dinky et le Shelly peuvent être sur le même réseau local. L’installateur permet de saisir les adresses IP attribuées par la box. La production PV est alors lue en Modbus TCP (port 502) ; selon le firmware, DDSU et limite de puissance peuvent ne pas être exposés. La passerelle doit fonctionner en pont/client Wi-Fi, sans second serveur DHCP ni double NAT.
 
 ```text
-Linky ──> Dinky 4 ──┐
-Shelly Pro EM ──────┼── Réseau LAN / Wi-Fi de la box ──> PC ou Mac
-DTU Pro-S ─ Ethernet┘
+Linky ──> Dinky 4 ───────────┐
+Shelly Pro EM ───────────────┼── Réseau LAN / Wi-Fi de la box ──> PC ou Mac
+DTU Pro-S ─ Ethernet ─ pont Wi-Fi ┘
 ```
 
 Cette architecture sur un seul LAN est recommandée, notamment sur Mac : tous les appareils restent accessibles sans changer de réseau Wi-Fi.
+
+Réservez si possible les adresses IP du DTU, du Dinky et du Shelly dans la box afin qu’elles ne changent pas après un redémarrage.
 
 > Si le Wi-Fi du DTU se coupe, le Dinky peut continuer à enregistrer le Linky mais la production PV ne sera plus relevée jusqu’à la reconnexion du DTU.
 
@@ -113,6 +115,8 @@ Les données restent sur votre PC :
 | Index Linky/Dinky | `%LOCALAPPDATA%\BoiteNoireHoymiles\linky_index_log.csv` |
 | Preuves d’injection Shelly | `%LOCALAPPDATA%\BoiteNoireHoymiles\shelly_injection_log.csv` |
 | Réglages | `%LOCALAPPDATA%\BoiteNoireHoymiles\config_v5.json` |
+
+Sur macOS, les mêmes fichiers se trouvent dans `~/Library/Application Support/BoiteNoireHoymiles`.
 
 Ne publiez jamais votre `config_v5.json`, vos adresses IP, numéros de série ou mots de passe.
 
@@ -150,4 +154,3 @@ Ce projet est indépendant et non affilié à Hoymiles, Enedis, EDF, Tasmota ou 
 ## Licence
 
 Licence [MIT](LICENSE).
-
