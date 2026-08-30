@@ -1,16 +1,16 @@
-# Boîte noire Hoymiles — DTU Pro-S, DDSU666, Linky et Dinky 4
+# Boîte noire Hoymiles — DTU Pro-S, DDSU666, Linky, Dinky 4 et Shelly Pro EM
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.16-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.21-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**Boîte noire Hoymiles** est une application Python locale pour Windows qui lit directement un **DTU Pro-S Hoymiles**, un **Linky Téléinfo** via **Dinky 4 / Tasmota**, et met en évidence les écarts éventuels avec le **DDSU666**. Les données restent sur votre ordinateur.
+**Boîte noire Hoymiles** est une application Python locale pour Windows qui réunit, selon les équipements disponibles, un **DTU Pro-S Hoymiles**, le **DDSU666**, un **Linky Téléinfo via Dinky 4 / Tasmota** et les deux pinces d’un **Shelly Pro EM**. Chaque source est facultative selon la configuration, et les données restent sur votre ordinateur.
 
 🌐 **Présentation et guide visuel :** activez GitHub Pages sur le dossier `docs` pour publier la vitrine du projet.
 
-![Suivi production photovoltaïque Hoymiles, DTU Pro-S et Linky Dinky](docs/assets/suivi-production-v7.png)
+![Suivi v7.0.21 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
 
 ## Pourquoi ce logiciel ?
 
@@ -33,18 +33,24 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 - Moyenne quotidienne de production photovoltaïque et de consommation réelle Linky/Dinky (HP + HC), calculée à partir des jours avec mesures locales.
 - Coût EDF calculé à partir du Linky : HP, HC et abonnement réglables.
 - Comparatif énergie **Hoymiles / Linky** pour identifier les écarts DDSU ↔ Linky.
+- Lecture locale et strictement en lecture seule des deux voies d’un **Shelly Pro EM**.
+- Identification indépendante de la production photovoltaïque et du flux réseau signé : achat EDF positif, injection négative.
+- Alerte après une injection supérieure à 100 W pendant trois minutes, sans commander le relais Shelly.
+- Historique indépendant des injections : puissance, durée, Wh/kWh perdus et cumul persistant.
+- Export d’un journal CSV et d’un résumé texte utilisables comme preuves auprès du SAV Hoymiles.
 - Export CSV filtrable par plage de dates.
 - Captures PNG datées et versionnées pour le support Hoymiles.
 - Page **Diagnostic DTU** en lecture seule : rapport technique exportable pour le SAV Hoymiles, état observable DDSU ↔ DTU et DTU ↔ micro-onduleurs, dernière mesure locale, écart DDSU ↔ Linky et cadence de lecture récente.
 - Chaque export CSV crée aussi une note SAV datée demandant confirmation de réception, résultat de l'analyse et détail des éventuelles corrections appliquées, sans modifier les colonnes du CSV.
-- Indicateurs de connexion DTU et Linky/Dinky.
+- Indicateurs de connexion DTU, Linky/Dinky et Shelly Pro EM.
 
 ## Installation rapide Windows
 
 1. Sur cette page, cliquez sur **Code → Download ZIP**, puis décompressez l’archive.
 2. Double-cliquez sur **`INSTALLER_WINDOWS.vbs`**.
-3. Cochez **DTU-WIFI** (deux cartes Wi-Fi) ou **DTU-LAN** (câble Ethernet, DTU et Dinky 4 sur la box).
-4. Lancez le raccourci **Boîte noire Hoymiles** créé sur le Bureau.
+3. Cochez **DTU-WIFI** (deux cartes Wi-Fi) ou **DTU-LAN** (câble Ethernet, DTU et appareils locaux sur la box).
+4. Si un Shelly Pro EM est présent, saisissez son adresse IP. Lors d’une mise à jour, **Non** conserve intégralement sa configuration actuelle.
+5. Lancez le raccourci **Boîte noire Hoymiles** créé sur le Bureau.
 
 L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les dépendances, sauvegarde les réglages et historiques déjà présents, puis crée le raccourci.
 
@@ -79,7 +85,15 @@ DTU Pro-S ─────────── Wi-Fi propre au DTU ── 2e Wi-Fi 
 
 ### Configuration B — un réseau unique
 
-Si le DTU est raccordé à la box en **Ethernet**, le DTU et le Dinky peuvent être sur le même réseau local. L’installateur permet de saisir l’adresse IP réellement attribuée au DTU par la box. La production PV est alors lue en Modbus TCP (port 502) ; selon le firmware, DDSU et limite de puissance peuvent ne pas être exposés. Le DTU n’utilise pas le Wi-Fi de la box : son Wi-Fi reste son réseau propre.
+Si le DTU est raccordé à la box en **Ethernet**, le DTU, le Dinky et le Shelly peuvent être sur le même réseau local. L’installateur permet de saisir les adresses IP attribuées par la box. La production PV est alors lue en Modbus TCP (port 502) ; selon le firmware, DDSU et limite de puissance peuvent ne pas être exposés. Le DTU n’utilise pas le Wi-Fi de la box : son Wi-Fi reste son réseau propre.
+
+```text
+Linky ──> Dinky 4 ──┐
+Shelly Pro EM ──────┼── Réseau LAN / Wi-Fi de la box ──> PC ou Mac
+DTU Pro-S ─ Ethernet┘
+```
+
+Cette architecture sur un seul LAN est recommandée, notamment sur Mac : tous les appareils restent accessibles sans changer de réseau Wi-Fi.
 
 > Si le Wi-Fi du DTU se coupe, le Dinky peut continuer à enregistrer le Linky mais la production PV ne sera plus relevée jusqu’à la reconnexion du DTU.
 
@@ -97,6 +111,7 @@ Les données restent sur votre PC :
 | --- | --- |
 | Historique production | `%LOCALAPPDATA%\BoiteNoireHoymiles\hoymiles_log.csv` |
 | Index Linky/Dinky | `%LOCALAPPDATA%\BoiteNoireHoymiles\linky_index_log.csv` |
+| Preuves d’injection Shelly | `%LOCALAPPDATA%\BoiteNoireHoymiles\shelly_injection_log.csv` |
 | Réglages | `%LOCALAPPDATA%\BoiteNoireHoymiles\config_v5.json` |
 
 Ne publiez jamais votre `config_v5.json`, vos adresses IP, numéros de série ou mots de passe.
@@ -114,8 +129,9 @@ Le comparatif distingue volontairement :
 | Production PV du DTU | Suivi de la génération solaire |
 | DDSU666 | Indicateur Hoymiles, comparaison technique |
 | Linky/Dinky | Référence pour la consommation et le coût EDF |
+| Shelly Pro EM | Mesure indépendante de la production et du flux réseau achat/injection |
 
-Ce projet n’envoie **aucune commande de zéro-injection**. Cette fonction reste gérée par le DTU et/ou S-Miles Cloud.
+Ce projet n’envoie **aucune commande de zéro-injection**. Cette fonction reste gérée par le DTU et/ou S-Miles Cloud. Le Shelly sert de témoin indépendant : le logiciel alerte, cumule et exporte les injections observées, mais ne commande jamais son relais.
 
 ## Support et contribution
 
@@ -134,3 +150,4 @@ Ce projet est indépendant et non affilié à Hoymiles, Enedis, EDF, Tasmota ou 
 ## Licence
 
 Licence [MIT](LICENSE).
+

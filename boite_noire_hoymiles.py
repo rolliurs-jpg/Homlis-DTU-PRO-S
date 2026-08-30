@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.16"
+VERSION = "7.0.21"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -65,6 +65,7 @@ else:
 BASE.mkdir(parents=True, exist_ok=True)
 CSV_FILE = BASE / "hoymiles_log.csv"
 LINKY_INDEX_FILE = BASE / "linky_index_log.csv"
+SHELLY_INJECTION_FILE = BASE / "shelly_injection_log.csv"
 DTU_WIFI_RECOVERY_LOG = BASE / "dtu_wifi_recovery.log"
 CONFIG_FILE = BASE / "config_v5.json"
 IMPORT_DIR = BASE / "Historiques_importes"
@@ -94,6 +95,21 @@ DEFAULT_CONFIG = {
         "port": 80,
         "timeout_s": 2,
         "path": "Status 8"
+    },
+    # Le Shelly Pro EM est lu exclusivement par son API RPC locale. Cette
+    # application n'envoie aucune commande au relais, ni aucune modification
+    # de configuration du Shelly.
+    "shelly": {
+        "enabled": sys.platform != "darwin",
+        "host": "",
+        "port": 80,
+        "timeout_s": 2,
+        "channel_a_label": "Production panneaux Shelly",
+        "channel_b_label": "Réseau EDF — mesure Shelly",
+        # Sur cette installation, la pince B est positive lors de l'injection
+        # vers le réseau. Ce réglage rend le calcul du surplus explicite et
+        # peut être changé sans retourner physiquement une pince.
+        "grid_export_positive": False,
     },
     "tarifs_edf": {
         "hp_eur_kwh": 0.0,
@@ -148,6 +164,10 @@ def load_config():
         if saved_linky == LEGACY_EMPTY_LINKY_CONFIG:
             saved_linky = DEFAULT_CONFIG["linky"]
         cfg["linky"] = {**DEFAULT_CONFIG["linky"], **saved_linky}
+        saved_shelly = data.get("shelly", {})
+        if not isinstance(saved_shelly, dict):
+            saved_shelly = {}
+        cfg["shelly"] = {**DEFAULT_CONFIG["shelly"], **saved_shelly}
         saved_tariffs = data.get("tarifs_edf", {})
         if not isinstance(saved_tariffs, dict):
             saved_tariffs = {}
@@ -173,6 +193,8 @@ def load_config():
 
 CONFIG = load_config()
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
+SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
+SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
 
 # Bleu ciel pour la production PV : distinct du bleu foncé utilisé pour les HP EDF.
 PV_COLOR = "#0ea5e9"
@@ -181,7 +203,7 @@ def save_config():
     CONFIG_FILE.write_text(json.dumps(CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
 
 times, ac_power, grid_power, power_limit = [], [], [], []
-linky_power = []
+linky_power, shelly_a_power, shelly_b_power = [], [], []
 linky_hc_index, linky_hp_index = [], []
 follow_now = True
 last_success = None
@@ -189,10 +211,153 @@ dtu_failures = 0
 dtu_failure_since = None
 last_dtu_wifi_recovery = None
 dtu_maintenance_paused = False
+last_injection_sample_time = None
+last_injection_power_w = 0.0
+injection_cumulative_wh = 0.0
+injection_above_since = None
+injection_alert_latched = False
+injection_clear_since = None
+injection_alert_message = ""
+
+INJECTION_ALERT_THRESHOLD_W = 100.0
+INJECTION_ALERT_DELAY_S = 180
+INJECTION_CLEAR_DELAY_S = 120
+INJECTION_FIELDS = [
+    "date_heure", "reseau_shelly_w", "injection_w", "intervalle_s",
+    "energie_injectee_wh", "cumul_injecte_kwh", "alerte_active",
+]
+
+
+def load_injection_cumulative_wh():
+    """Récupère le dernier cumul sans recalculer ni modifier l'historique."""
+    if not SHELLY_INJECTION_FILE.exists():
+        return 0.0
+    try:
+        with SHELLY_INJECTION_FILE.open("r", newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        if not rows:
+            return 0.0
+        return max(0.0, float(rows[-1].get("cumul_injecte_kwh", 0) or 0) * 1000.0)
+    except (OSError, ValueError, TypeError):
+        return 0.0
+
+
+injection_cumulative_wh = load_injection_cumulative_wh()
+
+
+def signed_shelly_injection_w(grid_power_w):
+    """Retourne uniquement l'export réel, indépendamment du sens de la pince."""
+    export_positive = bool(CONFIG.get("shelly", {}).get("grid_export_positive", False))
+    signed_export = float(grid_power_w) if export_positive else -float(grid_power_w)
+    return max(0.0, signed_export)
+
+
+def record_shelly_injection(measured_at, grid_power_w):
+    """Cumule l'injection Shelly et déclenche une seule alerte par épisode."""
+    global last_injection_sample_time, last_injection_power_w
+    global injection_cumulative_wh, injection_above_since
+    global injection_alert_latched, injection_clear_since, injection_alert_message
+
+    injection_w = signed_shelly_injection_w(grid_power_w)
+    interval_s = 0.0
+    energy_wh = 0.0
+    if last_injection_sample_time is not None:
+        interval_s = min(max((measured_at - last_injection_sample_time).total_seconds(), 0.0), 180.0)
+        energy_wh = ((last_injection_power_w + injection_w) / 2.0) * interval_s / 3600.0
+        injection_cumulative_wh += max(0.0, energy_wh)
+
+    if injection_w >= INJECTION_ALERT_THRESHOLD_W:
+        injection_clear_since = None
+        if injection_above_since is None:
+            injection_above_since = measured_at
+        sustained_s = (measured_at - injection_above_since).total_seconds()
+        injection_alert_message = f"ALERTE : injection Shelly {injection_w:.0f} W"
+        if sustained_s >= INJECTION_ALERT_DELAY_S and not injection_alert_latched:
+            injection_alert_latched = True
+            parent = dialog_parent()
+            if parent is not None:
+                try:
+                    parent.bell()
+                except Exception:
+                    pass
+            messagebox.showwarning(
+                "Injection réseau détectée",
+                f"Le Shelly mesure {injection_w:.0f} W injectés depuis au moins "
+                f"{INJECTION_ALERT_DELAY_S // 60} minutes.\n\n"
+                f"Cumul enregistré : {injection_cumulative_wh / 1000.0:.3f} kWh.\n"
+                "Cette mesure est enregistrée comme preuve pour Hoymiles.",
+                parent=parent,
+            )
+    else:
+        injection_above_since = None
+        injection_alert_message = ""
+        if injection_alert_latched:
+            if injection_clear_since is None:
+                injection_clear_since = measured_at
+            elif (measured_at - injection_clear_since).total_seconds() >= INJECTION_CLEAR_DELAY_S:
+                injection_alert_latched = False
+                injection_clear_since = None
+
+    new_file = not SHELLY_INJECTION_FILE.exists() or SHELLY_INJECTION_FILE.stat().st_size == 0
+    with SHELLY_INJECTION_FILE.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=INJECTION_FIELDS)
+        if new_file:
+            writer.writeheader()
+        writer.writerow({
+            "date_heure": measured_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "reseau_shelly_w": round(float(grid_power_w), 1),
+            "injection_w": round(injection_w, 1),
+            "intervalle_s": round(interval_s, 1),
+            "energie_injectee_wh": round(max(0.0, energy_wh), 4),
+            "cumul_injecte_kwh": round(injection_cumulative_wh / 1000.0, 6),
+            "alerte_active": "oui" if injection_alert_latched else "non",
+        })
+    last_injection_sample_time = measured_at
+    last_injection_power_w = injection_w
+    return injection_w
 
 def history_files():
     """V6.2 : un seul historique interne. Aucun fichier du Bureau n'est lu."""
     return [CSV_FILE] if CSV_FILE.exists() else []
+
+CSV_FIELDS = [
+    "date_heure", "production_ac_w", "reseau_ddsu_w", "consigne_w", "linky_w",
+    "shelly_a_w", "shelly_b_w",
+]
+
+
+def optional_float(row, key):
+    value = row.get(key, "")
+    return float(value) if value not in ("", None) else float("nan")
+
+
+def ensure_csv_schema():
+    """Ajoute les colonnes Shelly sans perdre l'historique déjà présent."""
+    if not CSV_FILE.exists():
+        with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
+            csv.DictWriter(f, fieldnames=CSV_FIELDS).writeheader()
+        return
+    try:
+        with CSV_FILE.open("r", newline="", encoding="utf-8-sig") as source:
+            reader = csv.DictReader(source)
+            if reader.fieldnames and all(field in reader.fieldnames for field in CSV_FIELDS):
+                return
+            rows = list(reader)
+        temporary = CSV_FILE.with_suffix(".migration.tmp")
+        with temporary.open("w", newline="", encoding="utf-8") as target:
+            writer = csv.DictWriter(target, fieldnames=CSV_FIELDS)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow({field: row.get(field, "") for field in CSV_FIELDS})
+        temporary.replace(CSV_FILE)
+    except OSError:
+        # Le programme poursuit avec l'historique existant : la prochaine
+        # exécution réessaiera la migration si un antivirus le verrouille.
+        pass
+
+
+ensure_csv_schema()
+
 
 def parse_history_row(row):
     t = datetime.strptime(row["date_heure"], "%Y-%m-%d %H:%M:%S")
@@ -207,9 +372,8 @@ def parse_history_row(row):
         limit_w = float(row["consigne_brute"]) / 10
     else:
         limit_w = 0.0
-    lky = row.get("linky_w", "")
-    lky_value = float(lky) if lky not in ("", None) else float("nan")
-    return t, ac, grid, limit_w, lky_value
+    lky_value = optional_float(row, "linky_w")
+    return t, ac, grid, limit_w, lky_value, optional_float(row, "shelly_a_w"), optional_float(row, "shelly_b_w")
 
 def load_history():
     """Fusionne tous les CSV, supprime les doublons et trie par date."""
@@ -221,10 +385,10 @@ def load_history():
             with path.open("r", newline="", encoding="utf-8-sig") as f:
                 for row in csv.DictReader(f):
                     try:
-                        t, ac, grid, limit_w, lky = parse_history_row(row)
+                        t, ac, grid, limit_w, lky, shelly_a, shelly_b = parse_history_row(row)
                         # Une seule mesure par seconde. Le fichier principal V5 est prioritaire.
                         if t not in merged or path == CSV_FILE:
-                            merged[t] = (ac, grid, limit_w, lky)
+                            merged[t] = (ac, grid, limit_w, lky, shelly_a, shelly_b)
                         count += 1
                     except Exception:
                         pass
@@ -238,7 +402,7 @@ def load_history():
     # mais l'affichage retrouve la dernière limite réaliste.
     previous_limit = DEFAULT_DTU_LIMIT_PCT
     for t in sorted(merged):
-        ac, grid, limit_w, lky = merged[t]
+        ac, grid, limit_w, lky, shelly_a, shelly_b = merged[t]
         limit_w = safe_dtu_limit_pct(limit_w, previous_limit)
         previous_limit = limit_w
         times.append(t)
@@ -246,6 +410,8 @@ def load_history():
         grid_power.append(grid)
         power_limit.append(limit_w)
         linky_power.append(lky)
+        shelly_a_power.append(shelly_a)
+        shelly_b_power.append(shelly_b)
 
     return loaded_files
 
@@ -273,12 +439,6 @@ def load_linky_indexes():
     return count
 
 LOADED_LINKY_INDEXES = load_linky_indexes()
-
-if not CSV_FILE.exists():
-    with CSV_FILE.open("w", newline="", encoding="utf-8") as f:
-        csv.writer(f).writerow(
-            ["date_heure", "production_ac_w", "reseau_ddsu_w", "consigne_w", "linky_w"]
-        )
 
 if not LINKY_INDEX_FILE.exists():
     with LINKY_INDEX_FILE.open("w", newline="", encoding="utf-8") as f:
@@ -323,14 +483,16 @@ plt.subplots_adjust(left=0.08, bottom=0.34, right=0.91, top=0.75)
 line_ac, = ax.plot([], [], linewidth=2.15, color=PV_COLOR, label="Production PV")
 line_grid, = ax.plot([], [], linewidth=1.45, color="#dc2626", label="Réseau DDSU")
 line_linky, = ax.plot([], [], linewidth=1.40, color="#93c5fd", linestyle="--", label="Linky Dinky")
+line_shelly_a, = ax.plot([], [], linewidth=1.35, color="#7c3aed", linestyle="-.", label=SHELLY_A_LABEL)
+line_shelly_b, = ax.plot([], [], linewidth=1.35, color="#d97706", linestyle=":", label=SHELLY_B_LABEL)
 limit_ax = ax.twinx()
 line_limit, = limit_ax.plot([], [], linewidth=1.40, color="#2563eb", label="Limite DTU")
 # Légende permanente, hors du graphique, comme sur la page Bilan.
 main_chart_legend = ax.legend(
-    [line_limit, line_ac, line_grid, line_linky],
-    ["Limite DTU (%)", "Production PV", "Réseau DDSU", "Linky Dinky"],
+    [line_limit, line_ac, line_grid, line_linky, line_shelly_a, line_shelly_b],
+    ["Limite DTU (%)", "Production PV", "Réseau DDSU", "Linky Dinky", SHELLY_A_LABEL, SHELLY_B_LABEL],
     loc="upper left", bbox_to_anchor=(0.08, 0.866), bbox_transform=fig.transFigure,
-    ncol=2, frameon=False, borderaxespad=0.0, fontsize=9, handlelength=2.6,
+    ncol=3, frameon=False, borderaxespad=0.0, fontsize=8.5, handlelength=2.6,
 )
 
 ax.set_xlabel("Date / heure")
@@ -355,7 +517,7 @@ live_cards = [fig.text(0, 0, "", visible=False) for _ in range(4)]
 # En-tête du suivi direct : il disparaît sur le bilan, qui possède son propre titre.
 dashboard_title = fig.text(0.08, 0.890, f"Boîte noire Hoymiles — v{VERSION}", ha="left", va="center",
                            fontsize=16, fontweight="bold", color="#0f172a")
-dashboard_subtitle = fig.text(0.08, 0.790, "Suivi de production · DTU Pro-S + Linky Dinky 4",
+dashboard_subtitle = fig.text(0.08, 0.790, "Suivi de production · DTU Pro-S + Linky Dinky 4 + Shelly Pro EM",
                                ha="left", va="center", fontsize=9, color="#475569")
 dashboard_independence_notice = fig.text(
     0.08, 0.765,
@@ -384,6 +546,7 @@ STATUS_COLORS = {
 connection_badges = [
     fig.text(0.08, 0.105, "● DTU en attente", ha="left", va="center", fontsize=8, color="white"),
     fig.text(0.34, 0.105, "● Linky/Dinky en attente", ha="left", va="center", fontsize=8, color="white"),
+    fig.text(0.62, 0.105, "● Shelly en attente", ha="left", va="center", fontsize=8, color="white"),
 ]
 
 def set_connection_badge(badge, state, text):
@@ -393,6 +556,7 @@ def set_connection_badge(badge, state, text):
 
 set_connection_badge(connection_badges[0], "delayed", "● DTU en attente")
 set_connection_badge(connection_badges[1], "delayed", "● Linky/Dinky en attente")
+set_connection_badge(connection_badges[2], "delayed", "● Shelly en attente")
 
 # Calque indÃ©pendant : le curseur reste au-dessus du fond et de l'axe secondaire.
 # Curseur de lecture ajoutÃ© directement Ã  la figure : il reste toujours au premier plan.
@@ -432,7 +596,11 @@ def show_cursor(index):
     grid = grid_power[index]
     limit = safe_dtu_limit_pct(power_limit[index])
     linky = linky_power[index]
+    shelly_a = shelly_a_power[index]
+    shelly_b = shelly_b_power[index]
     linky_text = "—" if linky != linky else f"{linky:.0f} W"
+    shelly_a_text = "—" if shelly_a != shelly_a else f"{shelly_a:+.0f} W"
+    shelly_b_text = "—" if shelly_b != shelly_b else f"{shelly_b:+.0f} W"
 
     point_x = mdates.date2num(point_time)
     cursor_line.set_xdata([point_x, point_x])
@@ -453,7 +621,10 @@ def show_cursor(index):
         f"Production PV  {production:.0f} W\n"
         f"Réseau DTU  {grid:+.0f} W\n"
         f"Limite DTU  {limit:.0f} %\n"
-        f"Linky       {linky_text}"
+        f"Réseau EDF — mesure Dinky   {linky_text}\n"
+        f"{SHELLY_A_LABEL}  {shelly_a_text}\n"
+        f"{SHELLY_B_LABEL}  {shelly_b_text}\n"
+        "Dinky et Shelly mesurent le même achat/injection : ne pas additionner."
     )
     cursor_box.set_visible(True)
     last_main_cursor_index = index
@@ -757,6 +928,36 @@ def read_linky():
         return read_linky_tcp()
     return None, f"mode Linky inconnu ({mode})"
 
+
+def read_shelly_pro_em():
+    """Lit les deux canaux du Shelly Pro EM via l'API RPC Gen2, sans écriture.
+
+    ``EM1.GetStatus`` contient la puissance instantanée signée ``act_power``.
+    Une valeur négative est conservée telle quelle : elle est utile pour
+    diagnostiquer le sens d'une pince, et ne doit jamais être corrigée par le
+    logiciel sans validation physique de l'installation.
+    """
+    cfg = CONFIG.get("shelly", {})
+    if not cfg.get("enabled"):
+        return None, "Shelly désactivé"
+    host = str(cfg.get("host", "")).strip()
+    port = int(cfg.get("port", 80) or 80)
+    if not host:
+        return None, "configuration Shelly incomplète"
+    timeout_s = float(cfg.get("timeout_s", 2) or 2)
+    values = []
+    try:
+        for channel in (0, 1):
+            url = f"http://{host}:{port}/rpc/EM1.GetStatus?id={channel}"
+            with urlopen(url, timeout=timeout_s) as response:
+                status = json.loads(response.read().decode("utf-8"))
+            if "act_power" not in status:
+                raise RuntimeError(f"puissance absente pour la pince {channel + 1}")
+            values.append(float(status["act_power"]))
+        return tuple(values), "Shelly Pro EM connecté"
+    except (OSError, URLError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
+        return None, f"Shelly hors ligne ({exc})"
+
 def visible_plot_indexes():
     """Limite le nombre de points dessinés, sans supprimer une mesure de l'historique."""
     count = len(times)
@@ -791,6 +992,8 @@ def redraw():
     line_grid.set_data(plotted_times, [grid_power[index] for index in indexes])
     line_limit.set_data(plotted_times, [power_limit[index] for index in indexes])
     line_linky.set_data(plotted_times, [linky_power[index] for index in indexes])
+    line_shelly_a.set_data(plotted_times, [shelly_a_power[index] for index in indexes])
+    line_shelly_b.set_data(plotted_times, [shelly_b_power[index] for index in indexes])
     if times and not showing_bilan:
         show_cursor(len(times) - 1)
     if showing_bilan:
@@ -921,7 +1124,10 @@ def export_history(event=None):
         with CSV_FILE.open("r", newline="", encoding="utf-8") as source, \
                 destination.open("w", newline="", encoding="utf-8-sig") as target:
             reader = csv.DictReader(source)
-            fields = ["date", "heure", "production_ac_w", "reseau_ddsu_w", "consigne_w", "consommation_edf_w"]
+            fields = [
+                "date", "heure", "production_ac_w", "reseau_ddsu_w", "consigne_w",
+                "consommation_edf_w", "shelly_a_w", "shelly_b_w",
+            ]
             writer = csv.DictWriter(target, fieldnames=fields, delimiter=";")
             writer.writeheader()
             exported_count = 0
@@ -937,6 +1143,8 @@ def export_history(event=None):
                     "reseau_ddsu_w": row.get("reseau_ddsu_w", ""),
                     "consigne_w": row.get("consigne_w", ""),
                     "consommation_edf_w": row.get("linky_w", ""),
+                    "shelly_a_w": row.get("shelly_a_w", ""),
+                    "shelly_b_w": row.get("shelly_b_w", ""),
                 })
                 exported_count += 1
         # Le CSV conserve volontairement ses colonnes de mesures, afin qu'il
@@ -1893,6 +2101,134 @@ def show_daily_pv_and_consumption_average(event=None):
     messagebox.showinfo("Moyenne PV et consommation réelle / jour", details, parent=dialog_parent())
 
 
+def calculate_daily_shelly_surplus():
+    """Intègre l'injection mesurée par la pince Shelly B, jour par jour.
+
+    Les valeurs sont échantillonnées toutes les minutes. Chaque segment est
+    plafonné à trois minutes, afin qu'une coupure du programme n'invente pas
+    de l'énergie. Le résultat est une énergie exportée mesurée : une batterie
+    ne pourra en récupérer qu'une partie selon sa capacité et son rendement.
+    """
+    direction = 1 if CONFIG.get("shelly", {}).get("grid_export_positive", False) else -1
+    now = datetime.now()
+    daily = {}
+    coverage_s = {}
+    for index, when in enumerate(times):
+        if index >= len(shelly_b_power):
+            break
+        try:
+            power = float(shelly_b_power[index])
+        except (TypeError, ValueError):
+            continue
+        if power != power:
+            continue
+        next_when = times[index + 1] if index + 1 < len(times) else now
+        seconds = min((next_when - when).total_seconds(), 180)
+        if seconds <= 0:
+            continue
+        injected_w = max(0.0, direction * power)
+        day = when.date()
+        daily[day] = daily.get(day, 0.0) + injected_w * seconds / 3_600_000
+        coverage_s[day] = coverage_s.get(day, 0.0) + seconds
+    return daily, coverage_s
+
+
+def export_injection_evidence():
+    """Exporte le journal brut et un résumé lisible destiné au SAV Hoymiles."""
+    if not SHELLY_INJECTION_FILE.exists() or SHELLY_INJECTION_FILE.stat().st_size == 0:
+        raise RuntimeError("aucun historique d'injection Shelly disponible")
+    target = filedialog.asksaveasfilename(
+        title="Exporter les preuves d'injection Hoymiles",
+        defaultextension=".csv",
+        initialfile=f"preuves_injection_hoymiles_{datetime.now():%Y%m%d_%H%M}.csv",
+        filetypes=[("Fichier CSV", "*.csv")],
+        parent=dialog_parent(),
+    )
+    if not target:
+        return None
+    target_path = Path(target)
+    shutil.copyfile(SHELLY_INJECTION_FILE, target_path)
+
+    with SHELLY_INJECTION_FILE.open("r", newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    injection_rows = [row for row in rows if float(row.get("injection_w", 0) or 0) > 0]
+    maximum_w = max((float(row.get("injection_w", 0) or 0) for row in rows), default=0.0)
+    total_kwh = float(rows[-1].get("cumul_injecte_kwh", 0) or 0) if rows else 0.0
+    first_at = rows[0].get("date_heure", "—") if rows else "—"
+    last_at = rows[-1].get("date_heure", "—") if rows else "—"
+    alert_starts = 0
+    previous_alert = False
+    for row in rows:
+        active = str(row.get("alerte_active", "")).lower() == "oui"
+        if active and not previous_alert:
+            alert_starts += 1
+        previous_alert = active
+
+    summary_path = target_path.with_name(target_path.stem + "_resume.txt")
+    summary_path.write_text(
+        "PREUVES D'INJECTION RÉSEAU — BOÎTE NOIRE HOYMILES\n"
+        f"Version du logiciel : {VERSION}\n"
+        f"Période enregistrée : {first_at} au {last_at}\n"
+        f"Nombre total de mesures : {len(rows)}\n"
+        f"Mesures avec injection : {len(injection_rows)}\n"
+        f"Puissance maximale injectée : {maximum_w:.1f} W\n"
+        f"Énergie injectée cumulée : {total_kwh:.6f} kWh\n"
+        f"Épisodes ayant déclenché une alerte : {alert_starts}\n\n"
+        "Source : pince réseau Shelly Pro EM indépendante du DDSU666 et de S-Miles Cloud.\n"
+        "Convention : injection_w > 0 signifie une énergie envoyée vers le réseau EDF.\n"
+        "Chaque intervalle est plafonné à 180 secondes afin de ne pas inventer d'énergie pendant une coupure.\n",
+        encoding="utf-8",
+    )
+    return target_path, summary_path
+
+
+def show_daily_shelly_surplus(event=None):
+    """Présente le surplus journalier pour estimer l'intérêt d'une batterie."""
+    daily, coverage_s = calculate_daily_shelly_surplus()
+    if not daily:
+        messagebox.showinfo(
+            "Surplus solaire / jour",
+            "Aucune mesure Shelly B n'est encore disponible.\n\n"
+            "Le calcul commencera après les premiers relevés de la pince Réseau Linky.",
+            parent=dialog_parent(),
+        )
+        return
+    days = sorted(daily)[-31:]
+    total = sum(daily[day] for day in days)
+    lines = []
+    for day in days:
+        minutes = coverage_s.get(day, 0.0) / 60
+        lines.append(f"• {day:%d/%m/%Y} : {daily[day]:.2f} kWh injectés  ({minutes:.0f} min mesurées)")
+    average = total / len(days)
+    details = (
+        "Surplus solaire mesuré — pince Réseau Linky\n\n"
+        + "\n".join(lines)
+        + f"\n\nTotal sur {len(days)} jour(s) mesuré(s) : {total:.2f} kWh"
+        + f"\nMoyenne d'injection : {average:.2f} kWh / jour"
+        + "\n\nPotentiel batterie : ces kWh sont l'énergie envoyée au réseau. "
+          "Une batterie ne récupérera qu'une partie de ce total selon sa capacité, "
+          "sa puissance de charge et ses pertes."
+    )
+    parent = dialog_parent()
+    messagebox.showinfo("Surplus solaire / jour", details, parent=parent)
+    if messagebox.askyesno(
+        "Exporter les preuves d'injection",
+        "Voulez-vous exporter le journal détaillé et son résumé pour Hoymiles ?",
+        parent=parent,
+    ):
+        try:
+            exported = export_injection_evidence()
+            if exported is not None:
+                csv_path, summary_path = exported
+                messagebox.showinfo(
+                    "Export terminé",
+                    f"Journal CSV :\n{csv_path}\n\nRésumé :\n{summary_path}",
+                    parent=parent,
+                )
+        except Exception as exc:
+            messagebox.showerror("Export impossible", str(exc), parent=parent)
+
+
 def draw_hoymiles_comparison():
     """Affiche côte à côte l'estimation DTU/DDSU et la mesure Linky/Dinky."""
     if not showing_bilan or not showing_comparison:
@@ -2041,14 +2377,17 @@ def toggle_hoymiles_comparison(event=None):
     edf_reading_button.ax.set_visible(not showing_comparison)
     edf_cost_button.ax.set_visible(not showing_comparison)
     average_pv_button.ax.set_visible(not showing_comparison)
+    surplus_button.ax.set_visible(not showing_comparison)
     comparison_details_button.ax.set_visible(showing_comparison)
     if showing_comparison:
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
         average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
         comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
     else:
-        edf_cost_ax.set_position([0.74, 0.805, 0.15, 0.042])
-        average_pv_ax.set_position([0.40, 0.805, 0.15, 0.042])
+        edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
+        average_pv_ax.set_position([0.25, 0.145, 0.18, 0.048])
+        surplus_ax.set_position([0.06, 0.145, 0.17, 0.048])
         comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
     comparison_button.label.set_text("Retour bilan EDF" if showing_comparison else "Estimation Hoymiles")
     if showing_comparison:
@@ -2267,6 +2606,7 @@ def toggle_bilan(event=None):
     edf_reading_button.ax.set_visible(showing_bilan)
     edf_cost_button.ax.set_visible(showing_bilan)
     average_pv_button.ax.set_visible(showing_bilan and not showing_comparison)
+    surplus_button.ax.set_visible(showing_bilan and not showing_comparison)
     comparison_button.ax.set_visible(showing_bilan)
     comparison_details_button.ax.set_visible(False)
     comparison_button.label.set_text("Estimation Hoymiles")
@@ -2317,7 +2657,7 @@ edf_reading_ax.set_visible(False)
 
 # Les trois actions du bilan partagent une même ligne, sous les actions
 # Diagnostic / Capture : aucun bouton ne se recouvre à fenêtre réduite.
-edf_cost_ax = plt.axes([0.74, 0.805, 0.15, 0.042], zorder=25)
+edf_cost_ax = plt.axes([0.63, 0.805, 0.18, 0.042], zorder=25)
 edf_cost_button = Button(edf_cost_ax, "Coût EDF réel", color="#0f766e", hovercolor="#115e59")
 edf_cost_button.label.set_color("white")
 edf_cost_button.on_clicked(show_real_edf_cost)
@@ -2325,10 +2665,18 @@ edf_cost_ax.set_visible(False)
 
 # Information synthétique : la moyenne est affichée à la demande, sans
 # alourdir le graphique ni masquer les valeurs instantanées.
-average_pv_ax = plt.axes([0.40, 0.805, 0.15, 0.042], zorder=25)
+average_pv_ax = plt.axes([0.25, 0.145, 0.18, 0.048], zorder=25)
 average_pv_button = Button(average_pv_ax, "Moyenne PV et conso\nréelle / jour", color="#eff6ff", hovercolor="#dbeafe")
 average_pv_button.on_clicked(show_daily_pv_and_consumption_average)
 average_pv_ax.set_visible(False)
+
+# Le surplus Shelly est volontairement séparé du bilan EDF : il représente
+# l'énergie injectée, utile pour dimensionner une batterie, pas une économie
+# déjà réalisée.
+surplus_ax = plt.axes([0.06, 0.145, 0.17, 0.048], zorder=25)
+surplus_button = Button(surplus_ax, "Surplus solaire / jour", color="#eff6ff", hovercolor="#dbeafe")
+surplus_button.on_clicked(show_daily_shelly_surplus)
+surplus_ax.set_visible(False)
 
 comparison_details_ax = plt.axes([0.75, 0.815, 0.16, 0.042], zorder=25)
 comparison_details_button = Button(comparison_details_ax, "Détail comparaison", color="#0f766e", hovercolor="#115e59")
@@ -2336,7 +2684,7 @@ comparison_details_button.label.set_color("white")
 comparison_details_button.on_clicked(show_comparison_details)
 comparison_details_ax.set_visible(False)
 
-comparison_ax_button = plt.axes([0.57, 0.805, 0.15, 0.042], zorder=25)
+comparison_ax_button = plt.axes([0.45, 0.145, 0.16, 0.048], zorder=25)
 comparison_button = Button(comparison_ax_button, "Estimation Hoymiles", color="#c2410c", hovercolor="#9a3412")
 comparison_button.label.set_color("white")
 comparison_button.on_clicked(toggle_hoymiles_comparison)
@@ -2439,6 +2787,8 @@ style_final_button(average_pv_button)
 # Le libellé de ce bouton comporte deux lignes : on le descend légèrement
 # afin qu'il reste bien centré dans son cadre.
 average_pv_button.label.set_position((0.5, 0.43))
+style_final_button(surplus_button)
+surplus_button.label.set_position((0.5, 0.5))
 style_final_button(comparison_details_button)
 style_final_button(comparison_button)
 style_final_button(diagnostic_button)
@@ -2453,24 +2803,30 @@ for view, button in history_buttons.items():
 def layout_bottom_actions():
     """Aligne les actions selon la page, sans laisser de vide inutile."""
     if showing_bilan:
-        average_pv_ax.set_position([0.40, 0.805, 0.15, 0.042])
-        comparison_ax_button.set_position([0.57, 0.805, 0.15, 0.042])
+        # Ligne haute : uniquement les actions liées à EDF.
+        edf_reading_ax.set_position([0.18, 0.805, 0.21, 0.042])
+        tariffs_ax.set_position([0.42, 0.805, 0.18, 0.042])
+        edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
+        # Ligne basse : analyse et navigation.
+        surplus_ax.set_position([0.04, 0.145, 0.18, 0.048])
+        average_pv_ax.set_position([0.24, 0.145, 0.18, 0.048])
+        comparison_ax_button.set_position([0.44, 0.145, 0.16, 0.048])
         if showing_comparison:
+            surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
             average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
             edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
-            comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
+            comparison_details_ax.set_position([0.63, 0.805, 0.18, 0.042])
         else:
-            edf_cost_ax.set_position([0.74, 0.805, 0.15, 0.042])
+            edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
             comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
-        edf_reading_ax.set_position([0.08, 0.145, 0.20, 0.048])
-        tariffs_ax.set_position([0.31, 0.145, 0.18, 0.048])
-        bilan_button_ax.set_position([0.52, 0.145, 0.22, 0.048])
-        export_ax.set_position([0.77, 0.145, 0.16, 0.048])
+        bilan_button_ax.set_position([0.62, 0.145, 0.18, 0.048])
+        export_ax.set_position([0.82, 0.145, 0.14, 0.048])
     else:
         # Un axe masqué peut tout de même capter les clics Matplotlib : on le
         # retire physiquement du graphique de production.
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
         average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
         comparison_ax_button.set_position([0.001, 0.001, 0.001, 0.001])
         comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
         tariffs_ax.set_position([0.18, 0.145, 0.18, 0.048])
@@ -2499,6 +2855,26 @@ def update(_):
     else:
         set_connection_badge(connection_badges[1], "offline", "● Linky/Dinky hors ligne")
 
+    shelly_started = monotonic()
+    try:
+        shelly_values, shelly_status = read_shelly_pro_em()
+    except Exception as exc:
+        shelly_values, shelly_status = None, f"erreur Shelly ({exc})"
+    shelly_delay = monotonic() - shelly_started
+    if shelly_values is not None:
+        set_connection_badge(
+            connection_badges[2], "delayed" if shelly_delay > 3 else "online",
+            "● Shelly délai important" if shelly_delay > 3 else "● Shelly Pro EM connecté",
+        )
+        try:
+            record_shelly_injection(datetime.now(), shelly_values[1])
+        except Exception as exc:
+            shelly_status = f"{shelly_status}; journal injection indisponible ({exc})"
+    elif "désactivé" in shelly_status.lower() or "incomplète" in shelly_status.lower():
+        set_connection_badge(connection_badges[2], "delayed", "● Shelly en attente")
+    else:
+        set_connection_badge(connection_badges[2], "offline", "● Shelly hors ligne")
+
     dinky_indexes = None
     dinky_index_status = "index non lu"
     linky_cfg = CONFIG.get("linky", {})
@@ -2524,10 +2900,11 @@ def update(_):
         live_cards[3].set_text(linky_card_txt)
         status_text.set_text(
             "Pause maintenance Hoymiles active — DTU non interroge, aucune relance automatique.\n"
-            f"Linky : {linky_status} — {dinky_index_status} — index Dinky conserve."
+            f"Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status} — index Dinky conserve."
+            + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
         return (
-            line_ac, line_grid, line_limit, line_linky, cursor_line, cursor_dot, cursor_box,
+            line_ac, line_grid, line_limit, line_linky, line_shelly_a, line_shelly_b, cursor_line, cursor_dot, cursor_box,
             *live_cards, status_text, *end_labels, *connection_badges,
         )
 
@@ -2578,13 +2955,20 @@ def update(_):
         grid_power.append(grid)
         power_limit.append(limit_w)
         linky_power.append(float(lky) if lky is not None else float("nan"))
+        shelly_a_power.append(float(shelly_values[0]) if shelly_values is not None else float("nan"))
+        shelly_b_power.append(float(shelly_values[1]) if shelly_values is not None else float("nan"))
 
         with CSV_FILE.open("a", newline="", encoding="utf-8") as f:
-            csv.writer(f).writerow([
-                now.strftime("%Y-%m-%d %H:%M:%S"),
-                round(ac, 1), grid, round(limit_w, 1),
-                "" if lky is None else round(lky, 1)
-            ])
+            writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
+            writer.writerow({
+                "date_heure": now.strftime("%Y-%m-%d %H:%M:%S"),
+                "production_ac_w": round(ac, 1),
+                "reseau_ddsu_w": grid,
+                "consigne_w": round(limit_w, 1),
+                "linky_w": "" if lky is None else round(lky, 1),
+                "shelly_a_w": "" if shelly_values is None else round(shelly_values[0], 1),
+                "shelly_b_w": "" if shelly_values is None else round(shelly_values[1], 1),
+            })
 
         redraw()
         update_end_labels()
@@ -2608,7 +2992,8 @@ def update(_):
         mode = "suivi direct" if follow_now else "historique"
         status_text.set_text(
             f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté ({'Modbus TCP' if source == 'modbus_tcp' else 'Wi-Fi direct'}) — réponse : 0 s — échecs DTU : {dtu_failures}\n"
-            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status}{limit_note}"
+            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status}{limit_note}"
+            + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
     except Exception as e:
         dtu_failures += 1
@@ -2637,12 +3022,13 @@ def update(_):
         last_update = last_success.strftime("%d/%m/%Y %H:%M:%S") if last_success else "jamais"
         status_text.set_text(
             f"Dernière mise à jour : {last_update} — DTU sans réponse depuis {age} — échecs DTU : {dtu_failures}\n"
-            f"Linky : {linky_status} — {dinky_index_status} — erreur DTU : {str(e)[:110]}"
+            f"Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status} — erreur DTU : {str(e)[:110]}"
+            + (f" — {injection_alert_message}" if injection_alert_message else "")
             + (f" — {recovery_note}" if recovery_note else "")
         )
 
     return (
-        line_ac, line_grid, line_limit, line_linky, cursor_line, cursor_dot, cursor_box,
+        line_ac, line_grid, line_limit, line_linky, line_shelly_a, line_shelly_b, cursor_line, cursor_dot, cursor_box,
         *live_cards, status_text, *end_labels, *connection_badges,
     )
 
@@ -2728,3 +3114,4 @@ def enable_full_window_resize():
 
 enable_full_window_resize()
 plt.show()
+

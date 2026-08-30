@@ -1,7 +1,7 @@
 Option Explicit
 
 Dim shell, fso, folder, appData, backup, configFile, choice
-Dim dtuHost, dinkyHost, json, outputFile, inputFile, shortcut, desktop, result, q, modeFile, dtuMode, chooser, re, existingConfig
+Dim dtuHost, dinkyHost, shellyHost, shellyChoice, shellyJson, json, outputFile, inputFile, shortcut, desktop, result, q, modeFile, dtuMode, chooser, re, existingConfig
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -11,7 +11,7 @@ appData = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\BoiteNoireHoymile
 backup = appData & "\sauvegarde_avant_mise_a_jour"
 configFile = appData & "\config_v5.json"
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.16 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.21 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dépendances sans fenêtre de terminal.
@@ -87,6 +87,40 @@ If (Not existingConfig) Or choice = vbYes Then
     outputFile.Close
 End If
 
+' Le Shelly Pro EM est facultatif et reste exclusivement en lecture seule.
+shellyChoice = MsgBox("Souhaitez-vous configurer ou modifier le Shelly Pro EM ?" & vbCrLf & vbCrLf & _
+                      "Oui : saisir ou modifier son adresse IP." & vbCrLf & _
+                      "Non : conserver la configuration Shelly actuelle sans aucun changement." & vbCrLf & vbCrLf & _
+                      "Le logiciel lit uniquement les deux pinces et ne commande jamais le relais.", _
+                      vbYesNo + vbQuestion, "Shelly Pro EM")
+If shellyChoice = vbYes Then
+    shellyHost = Trim(InputBox("Adresse IP du Shelly Pro EM :", "Shelly Pro EM sur la box"))
+    If shellyHost <> "" Then
+        If json = "" And fso.FileExists(configFile) Then
+            Set inputFile = fso.OpenTextFile(configFile, 1, False)
+            json = inputFile.ReadAll
+            inputFile.Close
+        End If
+        shellyJson = q & "shelly" & q & ":{" & q & "enabled" & q & ":true," & _
+                     q & "host" & q & ":" & q & shellyHost & q & "," & _
+                     q & "port" & q & ":80," & q & "timeout_s" & q & ":2," & _
+                     q & "channel_a_label" & q & ":" & q & "Production panneaux Shelly" & q & "," & _
+                     q & "channel_b_label" & q & ":" & q & "Reseau EDF - mesure Shelly" & q & "," & _
+                     q & "grid_export_positive" & q & ":false}"
+        Set re = New RegExp
+        re.Global = False
+        re.Pattern = q & "shelly" & q & "\s*:\s*\{[^}]*\}"
+        If re.Test(json) Then
+            json = re.Replace(json, shellyJson)
+        Else
+            json = Left(Trim(json), Len(Trim(json)) - 1) & "," & shellyJson & "}"
+        End If
+        Set outputFile = fso.CreateTextFile(configFile, True, False)
+        outputFile.Write json
+        outputFile.Close
+    End If
+End If
+
 fso.CopyFile folder & "\boite_noire_hoymiles.py", appData & "\boite_noire_hoymiles.py", True
 fso.CopyFile folder & "\fond_solaire.png", appData & "\fond_solaire.png", True
 fso.CopyFile folder & "\icone_panneau_solaire.ico", appData & "\icone_panneau_solaire.ico", True
@@ -100,3 +134,4 @@ shortcut.WorkingDirectory = appData
 shortcut.IconLocation = appData & "\icone_panneau_solaire.ico,0"
 shortcut.Save
 MsgBox "Installation terminee." & vbCrLf & "Un raccourci Boite noire Hoymiles a ete cree sur le Bureau." & vbCrLf & vbCrLf & "Les historiques et reglages existants sont conserves.", vbInformation, "Boite noire Hoymiles"
+

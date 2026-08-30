@@ -8,6 +8,15 @@
     "timeout_s": 2,
     "path": "Status 8"
   },
+  "shelly": {
+    "enabled": true,
+    "host": "192.168.x.x",
+    "port": 80,
+    "timeout_s": 2,
+    "channel_a_label": "Production panneaux Shelly",
+    "channel_b_label": "Réseau EDF — mesure Shelly",
+    "grid_export_positive": false
+  },
   "tarifs_edf": {
     "hp_eur_kwh": 0.0,
     "hc_eur_kwh": 0.0,
@@ -16,3 +25,4 @@
     "ddsu_import_positif": true
   }
 }
+

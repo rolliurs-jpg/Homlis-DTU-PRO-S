@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Boîte noire Hoymiles | DTU Pro-S, DDSU666, Linky et Dinky 4</title>
-  <meta name="description" content="Application locale gratuite pour suivre un DTU Pro-S Hoymiles, comparer le DDSU666 au Linky et calculer les achats EDF avec Dinky 4.">
+  <title>Boîte noire Hoymiles | DTU Pro-S, DDSU666, Linky, Dinky 4 et Shelly</title>
+  <meta name="description" content="Application locale pour réunir DTU Pro-S, DDSU666, Linky/Dinky et Shelly Pro EM, détecter les injections et exporter des preuves.">
   <meta name="keywords" content="Hoymiles, DTU Pro-S, DDSU666, Linky, Dinky 4, Teleinfo, photovoltaïque, autoconsommation, zéro injection, S-Miles">
   <meta name="author" content="Communauté Boîte noire Hoymiles">
   <meta name="robots" content="index,follow">
@@ -28,9 +28,9 @@
       </div>
     </nav>
     <div id="accueil" class="hero-content">
-<p class="eyebrow">VERSION 7.0.16 · WINDOWS · macOS · OPEN SOURCE</p>
+<p class="eyebrow">VERSION 7.0.21 · WINDOWS · macOS · OPEN SOURCE</p>
       <h1>Vos données Hoymiles.<br><span>Enfin comparées au vrai compteur.</span></h1>
-      <p class="lead">Une application locale pour suivre un DTU Pro-S, visualiser la production photovoltaïque et comparer le DDSU666 avec les mesures réelles du Linky via Dinky 4.</p>
+      <p class="lead">Une application locale pour réunir DTU Pro-S, DDSU666, Linky/Dinky et Shelly Pro EM, comparer leurs mesures et conserver les preuves d’injection.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip">Télécharger et utiliser gratuitement — Windows</a>
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip">Télécharger et utiliser gratuitement — Mac</a>
@@ -39,7 +39,8 @@
       <ul class="trust-list" aria-label="Points essentiels">
         <li>✓ Données conservées sur votre PC</li>
         <li>✓ Linky/Dinky pour le coût EDF réel</li>
-        <li>✓ Export CSV et captures datées</li>
+        <li>✓ Injection Shelly cumulée en Wh/kWh</li>
+        <li>✓ Export CSV, rapport SAV et captures datées</li>
 <li>✓ Pause maintenance DTU avec aide au survol : le Dinky reste surveillé</li>
       </ul>
       <a class="github-stats" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S" aria-label="Voir les statistiques réelles du projet sur GitHub">
@@ -54,18 +55,18 @@
     <section id="fonctionnalites" class="section intro">
       <p class="eyebrow blue">UNE VUE FIABLE DE L’INSTALLATION</p>
       <h2>Production PV, consommation réelle et écart DDSU.</h2>
-      <p>Le logiciel rend lisibles les données qui comptent : la production remontée par le DTU, l’indication réseau du DDSU666 et la puissance réellement mesurée par votre Linky.</p>
+      <p>Le logiciel rend lisibles les données qui comptent : production DTU, indication DDSU666, soutirage Linky/Dinky et flux réseau signé mesuré indépendamment par le Shelly.</p>
       <div class="cards">
         <article class="card"><span>01</span><h3>Suivi local DTU Pro-S</h3><p>Lecture de la production PV par Wi-Fi direct ou Modbus TCP lorsque le DTU est relié en Ethernet.</p></article>
         <article class="card"><span>02</span><h3>Linky & Dinky 4</h3><p>Puissance instantanée et index heures pleines / heures creuses par Téléinfo.</p></article>
-        <article class="card"><span>03</span><h3>Preuves exportables</h3><p>Historique CSV par période et captures datées pour dialoguer avec le support Hoymiles.</p></article>
-        <article class="card"><span>04</span><h3>Pause maintenance DTU</h3><p>Suspend les lectures et reconnexions locales du DTU pendant une intervention S-Miles, tout en gardant le Linky/Dinky actif.</p></article>
+        <article class="card"><span>03</span><h3>Shelly Pro EM indépendant</h3><p>Deux voies optionnelles pour comparer la production et mesurer l’achat ou l’injection au réseau.</p></article>
+        <article class="card"><span>04</span><h3>Preuves d’injection</h3><p>Alerte temporisée, cumul Wh/kWh, journal CSV et résumé texte pour le support Hoymiles.</p></article>
       </div>
     </section>
 
     <section class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky/Dinky et limite DTU possèdent leurs propres couleurs et une légende permanente.</p></div>
-      <figure class="app-shot"><img src="assets/suivi-production-v7.png" alt="Interface Boîte noire Hoymiles : suivi de production PV, DDSU, Linky et limite DTU"><figcaption>Suivi instantané et historique de la production photovoltaïque.</figcaption></figure>
+      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky/Dinky, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
+      <figure class="app-shot"><img src="assets/suivi-production-v7.png" alt="Interface v7.0.21 : production Hoymiles, réseau DDSU, Linky Dinky et deux mesures Shelly Pro EM"><figcaption>Version 7.0.21 : comparaison indépendante de la production, du DDSU, du Linky et du Shelly Pro EM.</figcaption></figure>
     </section>
 
     <section id="installation" class="section split-section">
@@ -73,9 +74,10 @@
       <ol class="steps">
         <li><strong>1. Téléchargez</strong><span>Récupérez le ZIP du projet depuis GitHub et décompressez-le.</span></li>
         <li><strong>2. Installez</strong><span>Double-cliquez sur <code>INSTALLER_WINDOWS.vbs</code>.</span></li>
-        <li><strong>3. Cochez</strong><span><strong>DTU-WIFI</strong> pour deux cartes Wi-Fi, ou <strong>DTU-LAN</strong> si le DTU est relié à la box par câble Ethernet avec le Dinky 4.</span></li>
-        <li><strong>4. Lancez</strong><span>Utilisez le raccourci Boîte noire Hoymiles créé sur le Bureau.</span></li>
-        <li><strong>5. Mac Apple Silicon</strong><span>Ouvrez <code>macOS-AppleSilicon/Installer Boîte noire Hoymiles.app</code>. Le mode DTU-LAN est recommandé ; si macOS bloque le réseau local du paquet, utilisez <code>LANCER_MAC.command</code>.<br>DTU-WIFI est expérimental et demande un second adaptateur Wi-Fi compatible macOS.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
+        <li><strong>3. Choisissez</strong><span><strong>DTU-WIFI</strong> pour deux cartes Wi-Fi, ou <strong>DTU-LAN</strong> pour placer les appareils sur le réseau de la box.</span></li>
+        <li><strong>4. Shelly facultatif</strong><span>Saisissez son IP si présent. Lors d’une mise à jour, « Non » conserve ses réglages actuels.</span></li>
+        <li><strong>5. Lancez</strong><span>Utilisez le raccourci Boîte noire Hoymiles créé sur le Bureau.</span></li>
+        <li><strong>6. Mac Apple Silicon</strong><span>Ouvrez <code>macOS-AppleSilicon/Installer Boîte noire Hoymiles.app</code>. Le mode DTU-LAN est recommandé ; si macOS bloque le réseau local du paquet, utilisez <code>LANCER_MAC.command</code>.<br>DTU-WIFI est expérimental et demande un second adaptateur Wi-Fi compatible macOS.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
       </ol>
     </section>
 
@@ -87,11 +89,11 @@
     </section>
 
     <section id="reseau" class="section network">
-      <p class="eyebrow blue">DTU + DINKY : DEUX OPTIONS RÉSEAU</p>
+      <p class="eyebrow blue">DTU + DINKY + SHELLY : DEUX OPTIONS RÉSEAU</p>
       <h2>La bonne connexion pour chaque équipement.</h2>
       <div class="network-grid">
         <article><h3>Deux réseaux Wi-Fi simultanés</h3><p>Le Dinky est sur la box et le PC / Mac le consulte par le Wi-Fi de la box. Le DTU diffuse son propre Wi-Fi : utilisez une seconde carte Wi-Fi (souvent USB) pour le DTU. Cette configuration est expérimentale sur Mac.</p><div class="diagram">Linky → Dinky 4 → Wi-Fi de la box → PC / Mac<br>DTU Pro-S → Wi-Fi dédié → 2e Wi-Fi du PC / Mac</div></article>
-        <article><h3>Un seul réseau local</h3><p>Le DTU peut être relié à la box uniquement par Ethernet. Il devient alors accessible depuis le même réseau que le Dinky, sur PC comme sur Mac. Son Wi-Fi reste son réseau propre et ne se connecte pas au Wi-Fi de la box.</p><div class="diagram topology">Linky → Dinky 4 → Box ← Ethernet ← DTU Pro-S · Box → PC / Mac</div></article>
+        <article><h3>Un seul réseau local — recommandé</h3><p>Le DTU est relié à la box en Ethernet ; Dinky et Shelly rejoignent le même LAN. PC et Mac consultent alors tous les appareils sans changer de Wi-Fi.</p><div class="diagram topology">Linky → Dinky 4 → Box ← Shelly Pro EM<br>DTU Pro-S → Ethernet → Box → PC / Mac</div></article>
       </div>
     </section>
 
@@ -103,7 +105,7 @@
     <section class="section faq">
       <p class="eyebrow blue">QUESTIONS ESSENTIELLES</p>
       <h2>Ce que fait — et ne fait pas — le logiciel.</h2>
-      <details open><summary>Le logiciel pilote-t-il le zéro injection ?</summary><p>Non. Le zéro injection reste configuré et piloté par le DTU / S-Miles Cloud. L’application observe et compare les données.</p></details>
+      <details open><summary>Le logiciel pilote-t-il le zéro injection ?</summary><p>Non. Le zéro injection reste configuré et piloté par le DTU / S-Miles Cloud. L’application observe le Shelly, alerte après une injection durable, cumule les pertes en Wh/kWh et exporte les preuves.</p></details>
       <details><summary>Pourquoi comparer le DDSU au Linky ?</summary><p>Le DDSU est utile pour le système Hoymiles mais peut différer du compteur. Le Linky/Dinky est la référence retenue pour suivre les achats EDF.</p></details>
       <details><summary>Mes données partent-elles sur Internet ?</summary><p>Non. Les historiques, réglages et exports restent locaux sur votre ordinateur. GitHub sert uniquement à diffuser le logiciel.</p></details>
     </section>
@@ -128,3 +130,4 @@
   </script>
 </body>
 </html>
+
