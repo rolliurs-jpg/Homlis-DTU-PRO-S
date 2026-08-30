@@ -1459,11 +1459,13 @@ showing_comparison = False
 bilan_period = "24h"
 edf_cost_details = {"message": "Aucun bilan EDF n'est encore disponible."}
 comparison_details = {"message": "Aucune comparaison n'est encore disponible."}
-bilan_ax = fig.add_axes([0.08, 0.34, 0.83, 0.46])
+# Le haut du graphique est volontairement abaissé : la légende dispose ainsi
+# d'une bande dédiée entre le tracé et les boutons EDF, sans chevauchement.
+bilan_ax = fig.add_axes([0.08, 0.34, 0.83, 0.40])
 bilan_ax.set_visible(False)
 bilan_cost_ax = bilan_ax.twinx()
 bilan_cost_ax.set_visible(False)
-comparison_ax = fig.add_axes([0.08, 0.34, 0.83, 0.46])
+comparison_ax = fig.add_axes([0.08, 0.34, 0.83, 0.40])
 comparison_ax.set_visible(False)
 
 def float_from_user(value, label):
@@ -1952,8 +1954,9 @@ def draw_bilan():
         loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False, ncol=2,
         borderaxespad=0.0, fontsize=9,
     )
-    # Le titre est volontairement plus haut que la légende à deux lignes.
-    bilan_ax.set_title(f"{title} — v{VERSION}", loc="left", fontsize=14, pad=52)
+    # Le titre reste au-dessus de la ligne des boutons ; la légende occupe
+    # seule la bande située juste au-dessus du graphique.
+    bilan_ax.set_title(f"{title} — v{VERSION}", loc="left", fontsize=14, pad=82)
     total_pv = sum(production)
     chart_hc_total = sum(hc)
     chart_hp_total = sum(hp)
@@ -2271,7 +2274,7 @@ def draw_hoymiles_comparison():
     comparison_ax.spines["right"].set_visible(False)
     comparison_ax.legend(loc="lower left", bbox_to_anchor=(0.0, 1.01), frameon=False, ncol=3,
                          borderaxespad=0.0, fontsize=9)
-    comparison_ax.set_title(f"Comparatif énergie — Hoymiles / Linky — v{VERSION}", loc="left", fontsize=14, pad=52)
+    comparison_ax.set_title(f"Comparatif énergie — Hoymiles / Linky — v{VERSION}", loc="left", fontsize=14, pad=82)
     total_ddsu = sum(ddsu_import)
     total_linky = real_linky_hc + real_linky_hp if real_reading is not None and bilan_period in ("mois", "annee") else sum(linky_import)
     difference = total_ddsu - total_linky
