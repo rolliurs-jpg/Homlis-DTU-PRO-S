@@ -2386,14 +2386,22 @@ def toggle_hoymiles_comparison(event=None):
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
         average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
         surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
-        tariffs_ax.set_position([0.54, 0.805, 0.18, 0.042])
-        comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
+        # Deuxième ligne calée exactement sous Diagnostic et Capture.
+        tariffs_ax.set_position([0.61, 0.805, 0.15, 0.042])
+        comparison_details_ax.set_position([0.78, 0.805, 0.15, 0.042])
+        # Trois actions basses de largeur identique et régulièrement espacées.
+        comparison_ax_button.set_position([0.42, 0.145, 0.17, 0.048])
+        bilan_button_ax.set_position([0.61, 0.145, 0.17, 0.048])
+        export_ax.set_position([0.80, 0.145, 0.17, 0.048])
     else:
         tariffs_ax.set_position([0.42, 0.805, 0.18, 0.042])
         edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
         average_pv_ax.set_position([0.25, 0.145, 0.18, 0.048])
         surplus_ax.set_position([0.06, 0.145, 0.17, 0.048])
         comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        comparison_ax_button.set_position([0.44, 0.145, 0.16, 0.048])
+        bilan_button_ax.set_position([0.62, 0.145, 0.18, 0.048])
+        export_ax.set_position([0.82, 0.145, 0.14, 0.048])
     comparison_button.label.set_text("Retour bilan EDF" if showing_comparison else "Estimation Hoymiles")
     if showing_comparison:
         draw_hoymiles_comparison()
@@ -2742,7 +2750,7 @@ diagnostic_button.label.set_color("white")
 diagnostic_button.on_clicked(open_dtu_diagnostic)
 
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
-capture_ax = plt.axes([0.79, 0.875, 0.12, 0.042], zorder=30)
+capture_ax = plt.axes([0.78, 0.875, 0.15, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
 capture_button.label.set_color("white")
 capture_button.on_clicked(capture_screen)
@@ -2820,13 +2828,16 @@ def layout_bottom_actions():
             surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
             average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
             edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
-            tariffs_ax.set_position([0.54, 0.805, 0.18, 0.042])
-            comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
+            tariffs_ax.set_position([0.61, 0.805, 0.15, 0.042])
+            comparison_details_ax.set_position([0.78, 0.805, 0.15, 0.042])
+            comparison_ax_button.set_position([0.42, 0.145, 0.17, 0.048])
+            bilan_button_ax.set_position([0.61, 0.145, 0.17, 0.048])
+            export_ax.set_position([0.80, 0.145, 0.17, 0.048])
         else:
             edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
             comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
-        bilan_button_ax.set_position([0.62, 0.145, 0.18, 0.048])
-        export_ax.set_position([0.82, 0.145, 0.14, 0.048])
+            bilan_button_ax.set_position([0.62, 0.145, 0.18, 0.048])
+            export_ax.set_position([0.82, 0.145, 0.14, 0.048])
     else:
         # Un axe masqué peut tout de même capter les clics Matplotlib : on le
         # retire physiquement du graphique de production.
