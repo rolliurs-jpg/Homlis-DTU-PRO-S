@@ -2386,8 +2386,10 @@ def toggle_hoymiles_comparison(event=None):
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
         average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
         surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        tariffs_ax.set_position([0.54, 0.805, 0.18, 0.042])
         comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
     else:
+        tariffs_ax.set_position([0.42, 0.805, 0.18, 0.042])
         edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
         average_pv_ax.set_position([0.25, 0.145, 0.18, 0.048])
         surplus_ax.set_position([0.06, 0.145, 0.17, 0.048])
@@ -2818,7 +2820,8 @@ def layout_bottom_actions():
             surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
             average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
             edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
-            comparison_details_ax.set_position([0.63, 0.805, 0.18, 0.042])
+            tariffs_ax.set_position([0.54, 0.805, 0.18, 0.042])
+            comparison_details_ax.set_position([0.74, 0.805, 0.15, 0.042])
         else:
             edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
             comparison_details_ax.set_position([0.001, 0.001, 0.001, 0.001])
