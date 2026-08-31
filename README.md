@@ -63,9 +63,12 @@ L’édition macOS 7.0.22 se trouve dans le dossier [`macOS-AppleSilicon`](macOS
 
 1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
 2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental), puis configurez séparément les équipements facultatifs Dinky et Shelly.
-3. Lancez ensuite l’application depuis le dossier **Applications** et autorisez son accès au réseau local. En dépannage, `LANCER_MAC.command` lance le même logiciel depuis Terminal.
+3. À la fin, choisissez **Lancer maintenant**. L’installateur place l’application dans `~/Applications` et crée également un lanceur visible sur le **Bureau**.
+4. Autorisez une première fois l’accès au réseau local. En dépannage, `LANCER_MAC.command` lance le même logiciel depuis Terminal.
 
 Le mode DTU-WIFI sur Mac demande un second adaptateur Wi-Fi USB réellement compatible macOS / Apple Silicon. Le mode DTU-LAN est à privilégier.
+
+L’application communautaire n’est pas notarisée par Apple : la première ouverture de l’installateur demande donc **clic droit → Ouvrir**. Une fois cette validation faite, l’installateur retire la quarantaine et applique une signature locale au lanceur installé afin d’éviter les demandes répétées. Une mise à jour importante de macOS ou du logiciel peut toutefois provoquer une nouvelle demande unique.
 
 ### Prérequis
 

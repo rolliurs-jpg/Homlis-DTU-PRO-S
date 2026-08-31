@@ -8,6 +8,8 @@
   <string>BoiteNoireHoymiles</string>
   <key>CFBundleIdentifier</key>
   <string>fr.boitenoirehoymiles.app</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleName</key>
   <string>Boîte noire Hoymiles</string>
   <key>CFBundlePackageType</key>

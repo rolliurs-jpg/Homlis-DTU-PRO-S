@@ -8,9 +8,14 @@ Cette édition utilise le même moteur que la version Windows 7.0.22. Elle est p
 2. Ouvrez le dossier `macOS-AppleSilicon`.
 3. Faites un clic droit sur `Installer Boîte noire Hoymiles.app`, puis choisissez **Ouvrir** lors de la première utilisation.
 4. Autorisez l’accès au réseau local si macOS le demande.
-5. Lancez ensuite `Boîte noire Hoymiles` depuis le dossier **Applications**.
+5. L’installateur crée `Boîte noire Hoymiles` dans votre dossier personnel `~/Applications`, ainsi qu’un lanceur directement visible sur le **Bureau**.
+6. Choisissez **Lancer maintenant** à la fin de l’installation, ou utilisez ensuite le lanceur du Bureau.
+
+Le lanceur utilise le logo des panneaux solaires du projet. Dans l’application macOS, les commandes reprennent également une forme arrondie adaptée à l’interface récente de macOS, sans modifier la présentation Windows.
 
 Si l’application ne lit pas le réseau local, ouvrez **Réglages Système → Confidentialité et sécurité → Réseau local** et autorisez-la. Le fichier `LANCER_MAC.command` permet aussi de lancer le même logiciel depuis Terminal pour le diagnostic.
+
+Le paquet communautaire n’est pas notarisé avec un compte Apple Developer payant. La toute première ouverture de l’installateur peut donc nécessiter **clic droit → Ouvrir**. Après cette validation, l’installateur retire la quarantaine du dossier téléchargé, signe localement le lanceur installé et macOS ne devrait plus répéter l’avertissement à chaque lancement. Une nouvelle version peut néanmoins redemander une autorisation unique.
 
 Les mises à jour conservent les historiques et réglages dans :
 
