@@ -26,7 +26,6 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
-from matplotlib.patches import FancyBboxPatch
 from matplotlib.widgets import Button
 
 try:
@@ -38,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.22"
+VERSION = "7.0.23"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -2598,26 +2597,6 @@ def set_final_button_state(button, active):
     button.label.set_color("#111827")
 
 
-def make_macos_button_rounded(button):
-    """Donne aux boutons Matplotlib la forme arrondie native attendue sur Mac."""
-    if sys.platform != "darwin" or getattr(button, "_macos_rounded", False):
-        return
-    original = button.ax.patch
-    rounded = FancyBboxPatch(
-        (0, 0), 1, 1,
-        boxstyle="round,pad=0.015,rounding_size=0.18",
-        transform=button.ax.transAxes,
-        facecolor=original.get_facecolor(),
-        edgecolor=original.get_edgecolor(),
-        linewidth=original.get_linewidth(),
-        clip_on=False,
-    )
-    rounded.set_figure(fig)
-    rounded.axes = button.ax
-    button.ax.patch = rounded
-    button._macos_rounded = True
-
-
 period_buttons = {}
 period_caption = fig.text(0.20, 0.285, "Période du bilan", ha="left", va="center", fontsize=9,
                           color="#334155", visible=False,
@@ -2903,14 +2882,6 @@ for period, button in period_buttons.items():
     style_final_button(button, active=period == bilan_period)
 for view, button in history_buttons.items():
     style_final_button(button, active=view == history_view)
-
-for button in (
-    tariffs_button, edf_reading_button, edf_cost_button, average_pv_button,
-    surplus_button, comparison_details_button, comparison_button,
-    maintenance_pause_button, diagnostic_button, capture_button,
-    bilan_button, export_button, *period_buttons.values(), *history_buttons.values(),
-):
-    make_macos_button_rounded(button)
 
 def layout_bottom_actions():
     """Aligne les actions selon la page, sans laisser de vide inutile."""

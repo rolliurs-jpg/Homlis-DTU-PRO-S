@@ -1,6 +1,6 @@
-# Boîte noire Hoymiles v7.0.22 — macOS
+# Boîte noire Hoymiles v7.0.23 — macOS
 
-Cette édition utilise le même moteur que la version Windows 7.0.22. Elle est prévue en priorité pour macOS 13 ou plus récent sur Mac Apple Silicon (M1, M2, M3 et suivants). Un Mac Intel peut fonctionner avec une version compatible de Python et Tkinter, mais reste à tester par la communauté.
+Cette édition utilise le même moteur que la version Windows 7.0.23. Elle est prévue en priorité pour macOS 13 ou plus récent sur Mac Apple Silicon (M1, M2, M3 et suivants). Un Mac Intel peut fonctionner avec une version compatible de Python et Tkinter, mais reste à tester par la communauté.
 
 ## Installation sans Terminal
 
@@ -8,10 +8,12 @@ Cette édition utilise le même moteur que la version Windows 7.0.22. Elle est p
 2. Ouvrez le dossier `macOS-AppleSilicon`.
 3. Faites un clic droit sur `Installer Boîte noire Hoymiles.app`, puis choisissez **Ouvrir** lors de la première utilisation.
 4. Autorisez l’accès au réseau local si macOS le demande.
-5. L’installateur crée `Boîte noire Hoymiles` dans votre dossier personnel `~/Applications`, ainsi qu’un lanceur directement visible sur le **Bureau**.
+5. L’installateur crée un seul lanceur `Boîte noire Hoymiles` dans le dossier Finder standard `/Applications`, ainsi qu’un raccourci directement visible sur le **Bureau**. Le mot de passe administrateur est demandé pour cette copie.
 6. Choisissez **Lancer maintenant** à la fin de l’installation, ou utilisez ensuite le lanceur du Bureau.
 
-Le lanceur utilise le logo des panneaux solaires du projet. Dans l’application macOS, les commandes reprennent également une forme arrondie adaptée à l’interface récente de macOS, sans modifier la présentation Windows.
+Le lanceur utilise le logo des panneaux solaires du projet. Les boutons de l’application macOS utilisent la même forme rectangulaire que la version Windows, afin d’éviter la superposition de deux contours.
+
+Si Launchpad contient plusieurs anciennes icônes, mettez à la corbeille les anciens dossiers téléchargés qui contiennent `Installer Boîte noire Hoymiles.app` ou `Boîte noire Hoymiles.app`, puis supprimez l’ancienne copie éventuelle dans `~/Applications`. Gardez uniquement `/Applications/Boîte noire Hoymiles.app`. Le dossier `~/Library/Application Support/BoiteNoireHoymiles` doit être conservé : il contient les réglages et historiques.
 
 Si l’application ne lit pas le réseau local, ouvrez **Réglages Système → Confidentialité et sécurité → Réseau local** et autorisez-la. Le fichier `LANCER_MAC.command` permet aussi de lancer le même logiciel depuis Terminal pour le diagnostic.
 
@@ -40,7 +42,7 @@ Tous les appareils doivent recevoir une adresse dans le même réseau local que 
 
 Lors d’une mise à jour, l’installateur propose séparément de **conserver**, **modifier** ou **désactiver** le Dinky et le Shelly. Le choix « conserver » ne réinitialise pas l’ancienne configuration.
 
-## Fonctions v7.0.22
+## Fonctions v7.0.23
 
 - suivi direct, 24 h, hier et historique de la production PV, du DDSU et du Linky/Dinky ;
 - lecture des deux voies du Shelly Pro EM avec libellés production panneaux et réseau EDF ;

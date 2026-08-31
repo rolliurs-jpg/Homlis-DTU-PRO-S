@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.22-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.23-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -10,7 +10,7 @@
 
 🌐 **Présentation et guide visuel :** activez GitHub Pages sur le dossier `docs` pour publier la vitrine du projet.
 
-![Suivi v7.0.22 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
+![Suivi v7.0.23 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
 
 ## Pourquoi ce logiciel ?
 
@@ -59,11 +59,13 @@ L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les 
 
 ## Installation macOS Apple Silicon
 
-L’édition macOS 7.0.22 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
+L’édition macOS 7.0.23 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
 
 1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
 2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental), puis configurez séparément les équipements facultatifs Dinky et Shelly.
-3. À la fin, choisissez **Lancer maintenant**. L’installateur place l’application dans `~/Applications` et crée également un lanceur visible sur le **Bureau**.
+3. À la fin, choisissez **Lancer maintenant**. L’installateur place un unique lanceur dans le dossier Finder standard `/Applications` et crée également un raccourci visible sur le **Bureau**. Le moteur, les réglages et les historiques restent rangés dans `~/Library/Application Support/BoiteNoireHoymiles`.
+
+Si Launchpad montre d’anciennes icônes en double, supprimez les anciens dossiers téléchargés contenant une application ou un installateur, ainsi que l’ancienne copie éventuelle dans `~/Applications`. Conservez uniquement `/Applications/Boîte noire Hoymiles.app`. Ne supprimez pas le dossier `Application Support/BoiteNoireHoymiles`.
 4. Autorisez une première fois l’accès au réseau local. En dépannage, `LANCER_MAC.command` lance le même logiciel depuis Terminal.
 
 Le mode DTU-WIFI sur Mac demande un second adaptateur Wi-Fi USB réellement compatible macOS / Apple Silicon. Le mode DTU-LAN est à privilégier.

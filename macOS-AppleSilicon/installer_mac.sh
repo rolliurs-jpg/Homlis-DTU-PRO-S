@@ -6,7 +6,8 @@ set -u
 PACKAGE_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_DIR="$(cd "$PACKAGE_DIR/.." && pwd)"
 BASE="$HOME/Library/Application Support/BoiteNoireHoymiles"
-APP_DEST="$HOME/Applications/Boîte noire Hoymiles.app"
+APP_DEST="/Applications/Boîte noire Hoymiles.app"
+OLD_USER_APP="$HOME/Applications/Boîte noire Hoymiles.app"
 DESKTOP_LINK="$HOME/Desktop/Boîte noire Hoymiles.app"
 LAUNCH_APP="$PACKAGE_DIR/Boîte noire Hoymiles.app"
 PYTHON_BIN=""
@@ -34,11 +35,11 @@ if ! choose_python; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.22 pour macOS ?\n\nLes historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.23 pour macOS ?\n\nLes historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
-mkdir -p "$BASE" "$HOME/Applications"
+mkdir -p "$BASE"
 # Après la première ouverture autorisée par l'utilisateur, les relances de ce
 # dossier téléchargé ne doivent plus redemander l'autorisation Gatekeeper.
 /usr/bin/xattr -dr com.apple.quarantine "$SOURCE_DIR" >/dev/null 2>&1 || true
@@ -161,12 +162,26 @@ fi
 
 /usr/bin/ditto "$SOURCE_DIR/boite_noire_hoymiles.py" "$BASE/boite_noire_hoymiles.py"
 /usr/bin/ditto "$SOURCE_DIR/fond_solaire.png" "$BASE/fond_solaire.png"
-/usr/bin/ditto "$LAUNCH_APP" "$APP_DEST"
-/bin/chmod +x "$APP_DEST/Contents/MacOS/BoiteNoireHoymiles" >/dev/null 2>&1 || true
-/usr/bin/xattr -dr com.apple.quarantine "$APP_DEST" >/dev/null 2>&1 || true
-# Une signature locale ad hoc ne remplace pas la notarisation Apple, mais elle
-# donne une identité stable au lanceur installé et évite des demandes répétées.
-/usr/bin/codesign --force --deep --sign - "$APP_DEST" >/dev/null 2>&1 || true
+# Installation dans le véritable dossier Applications de Finder. AppleScript
+# demande le mot de passe administrateur uniquement pour cette copie système.
+if ! /usr/bin/osascript - "$LAUNCH_APP" "$APP_DEST" <<'APPLESCRIPT'
+on run argv
+  set sourceApp to item 1 of argv
+  set destinationApp to item 2 of argv
+  set installCommand to "/bin/rm -rf " & quoted form of destinationApp & " && /usr/bin/ditto " & quoted form of sourceApp & " " & quoted form of destinationApp & " && /bin/chmod +x " & quoted form of (destinationApp & "/Contents/MacOS/BoiteNoireHoymiles") & " && /usr/bin/xattr -dr com.apple.quarantine " & quoted form of destinationApp & " && /usr/bin/codesign --force --deep --sign - " & quoted form of destinationApp
+  do shell script installCommand with administrator privileges
+end run
+APPLESCRIPT
+then
+  dialog "L'installation dans le dossier Applications a été annulée ou a échoué."
+  exit 1
+fi
+
+# Supprime uniquement l'ancien lanceur créé par les versions précédentes dans
+# ~/Applications. Les historiques et réglages, stockés dans BASE, sont intacts.
+if [ -e "$OLD_USER_APP" ] || [ -L "$OLD_USER_APP" ]; then
+  /bin/rm -rf "$OLD_USER_APP"
+fi
 
 # Le dossier ~/Applications n'est pas toujours celui ouvert par Finder.
 # Un lien visible sur le Bureau donne donc un lanceur immédiatement accessible.
@@ -177,6 +192,6 @@ if [ ! -e "$DESKTOP_LINK" ]; then
   /bin/ln -s "$APP_DEST" "$DESKTOP_LINK"
 fi
 
-if /usr/bin/osascript -e 'display dialog "Installation terminée.\n\nUn lanceur « Boîte noire Hoymiles » est disponible sur le Bureau et dans votre dossier Applications personnel.\n\nAu premier lancement seulement, macOS peut encore demander l’autorisation d’accéder au réseau local." with title "Boîte noire Hoymiles" buttons {"Fermer", "Lancer maintenant"} default button "Lancer maintenant" with icon note' | /usr/bin/grep -q "Lancer maintenant"; then
+if /usr/bin/osascript -e 'display dialog "Installation terminée.\n\nUn seul lanceur « Boîte noire Hoymiles » est installé dans le dossier Applications de Finder. Un raccourci est également disponible sur le Bureau.\n\nAu premier lancement seulement, macOS peut encore demander l’autorisation d’accéder au réseau local." with title "Boîte noire Hoymiles" buttons {"Fermer", "Lancer maintenant"} default button "Lancer maintenant" with icon note' | /usr/bin/grep -q "Lancer maintenant"; then
   /usr/bin/open "$APP_DEST"
 fi
