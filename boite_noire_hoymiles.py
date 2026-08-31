@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.21"
+VERSION = "7.0.22"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -218,6 +218,8 @@ injection_above_since = None
 injection_alert_latched = False
 injection_clear_since = None
 injection_alert_message = ""
+injection_alert_window = None
+injection_alert_text = None
 
 INJECTION_ALERT_THRESHOLD_W = 100.0
 INJECTION_ALERT_DELAY_S = 180
@@ -252,6 +254,52 @@ def signed_shelly_injection_w(grid_power_w):
     return max(0.0, signed_export)
 
 
+def show_nonblocking_injection_alert(injection_w):
+    """Affiche l'alerte sans arrêter le minuteur de collecte Matplotlib."""
+    global injection_alert_window, injection_alert_text
+    parent = dialog_parent()
+    if parent is None:
+        return
+    message = (
+        f"Le Shelly mesure {injection_w:.0f} W injectés depuis au moins "
+        f"{INJECTION_ALERT_DELAY_S // 60} minutes.\n\n"
+        f"Cumul enregistré : {injection_cumulative_wh / 1000.0:.3f} kWh.\n"
+        "Les mesures continuent d'être enregistrées en arrière-plan."
+    )
+    try:
+        if injection_alert_window is not None and injection_alert_window.winfo_exists():
+            injection_alert_text.set(message)
+            injection_alert_window.lift()
+            return
+    except tk.TclError:
+        injection_alert_window = None
+
+    window = tk.Toplevel(parent)
+    injection_alert_window = window
+    injection_alert_text = tk.StringVar(value=message)
+    window.title("Injection réseau détectée")
+    window.transient(parent)
+    window.resizable(False, False)
+    frame = ttk.Frame(window, padding=18)
+    frame.pack(fill="both", expand=True)
+    ttk.Label(frame, text="⚠ Injection réseau détectée", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
+    ttk.Label(frame, textvariable=injection_alert_text, justify="left", wraplength=430).pack(
+        anchor="w", pady=(12, 16)
+    )
+
+    def close_alert():
+        global injection_alert_window, injection_alert_text
+        try:
+            window.destroy()
+        finally:
+            injection_alert_window = None
+            injection_alert_text = None
+
+    ttk.Button(frame, text="Fermer", command=close_alert).pack(anchor="e")
+    window.protocol("WM_DELETE_WINDOW", close_alert)
+    window.after_idle(window.lift)
+
+
 def record_shelly_injection(measured_at, grid_power_w):
     """Cumule l'injection Shelly et déclenche une seule alerte par épisode."""
     global last_injection_sample_time, last_injection_power_w
@@ -280,14 +328,7 @@ def record_shelly_injection(measured_at, grid_power_w):
                     parent.bell()
                 except Exception:
                     pass
-            messagebox.showwarning(
-                "Injection réseau détectée",
-                f"Le Shelly mesure {injection_w:.0f} W injectés depuis au moins "
-                f"{INJECTION_ALERT_DELAY_S // 60} minutes.\n\n"
-                f"Cumul enregistré : {injection_cumulative_wh / 1000.0:.3f} kWh.\n"
-                "Cette mesure est enregistrée comme preuve pour Hoymiles.",
-                parent=parent,
-            )
+            show_nonblocking_injection_alert(injection_w)
     else:
         injection_above_since = None
         injection_alert_message = ""
@@ -361,8 +402,8 @@ ensure_csv_schema()
 
 def parse_history_row(row):
     t = datetime.strptime(row["date_heure"], "%Y-%m-%d %H:%M:%S")
-    ac = float(row["production_ac_w"])
-    grid = float(row["reseau_ddsu_w"])
+    ac = optional_float(row, "production_ac_w")
+    grid = optional_float(row, "reseau_ddsu_w")
     # Compatibilité avec tous les formats d'historique rencontrés.
     if row.get("consigne_w") not in ("", None):
         limit_w = float(row["consigne_w"])
@@ -598,6 +639,8 @@ def show_cursor(index):
     linky = linky_power[index]
     shelly_a = shelly_a_power[index]
     shelly_b = shelly_b_power[index]
+    production_text = "— (DTU en pause)" if production != production else f"{production:.0f} W"
+    grid_text = "— (DTU en pause)" if grid != grid else f"{grid:+.0f} W"
     linky_text = "—" if linky != linky else f"{linky:.0f} W"
     shelly_a_text = "—" if shelly_a != shelly_a else f"{shelly_a:+.0f} W"
     shelly_b_text = "—" if shelly_b != shelly_b else f"{shelly_b:+.0f} W"
@@ -606,7 +649,7 @@ def show_cursor(index):
     cursor_line.set_xdata([point_x, point_x])
     cursor_line.set_visible(True)
     cursor_dot.set_data([point_x], [production])
-    cursor_dot.set_visible(True)
+    cursor_dot.set_visible(production == production)
     top_x, _ = fig.transFigure.inverted().transform(
         ax.transData.transform((point_x, ax.get_ylim()[1]))
     )
@@ -618,8 +661,8 @@ def show_cursor(index):
         cursor_box.set_position((top_x + 0.008, 0.895))
     cursor_box.set_text(
         f"{point_time:%d/%m/%Y %H:%M:%S}\n"
-        f"Production PV  {production:.0f} W\n"
-        f"Réseau DTU  {grid:+.0f} W\n"
+        f"Production PV  {production_text}\n"
+        f"Réseau DTU  {grid_text}\n"
         f"Limite DTU  {limit:.0f} %\n"
         f"Réseau EDF — mesure Dinky   {linky_text}\n"
         f"{SHELLY_A_LABEL}  {shelly_a_text}\n"
@@ -985,15 +1028,42 @@ def visible_plot_indexes():
     return indexes
 
 
+def series_with_visible_gaps(indexes, values):
+    """Insère des NaN lorsque l'historique contient un vrai trou de collecte."""
+    if not indexes:
+        return [], []
+    threshold_s = max(180.0, (INTERVAL_MS / 1000.0) * 2.5)
+    gap_prefix = [0]
+    for position in range(1, len(times)):
+        is_gap = (times[position] - times[position - 1]).total_seconds() > threshold_s
+        gap_prefix.append(gap_prefix[-1] + int(is_gap))
+
+    plotted_times = []
+    plotted_values = []
+    previous_index = None
+    for index in indexes:
+        if previous_index is not None and gap_prefix[index] > gap_prefix[previous_index]:
+            midpoint = times[previous_index] + (times[index] - times[previous_index]) / 2
+            plotted_times.append(midpoint)
+            plotted_values.append(float("nan"))
+        plotted_times.append(times[index])
+        plotted_values.append(values[index])
+        previous_index = index
+    return plotted_times, plotted_values
+
+
 def redraw():
     indexes = visible_plot_indexes()
-    plotted_times = [times[index] for index in indexes]
-    line_ac.set_data(plotted_times, [ac_power[index] for index in indexes])
-    line_grid.set_data(plotted_times, [grid_power[index] for index in indexes])
-    line_limit.set_data(plotted_times, [power_limit[index] for index in indexes])
-    line_linky.set_data(plotted_times, [linky_power[index] for index in indexes])
-    line_shelly_a.set_data(plotted_times, [shelly_a_power[index] for index in indexes])
-    line_shelly_b.set_data(plotted_times, [shelly_b_power[index] for index in indexes])
+    for line, values in (
+        (line_ac, ac_power),
+        (line_grid, grid_power),
+        (line_limit, power_limit),
+        (line_linky, linky_power),
+        (line_shelly_a, shelly_a_power),
+        (line_shelly_b, shelly_b_power),
+    ):
+        plotted_times, plotted_values = series_with_visible_gaps(indexes, values)
+        line.set_data(plotted_times, plotted_values)
     if times and not showing_bilan:
         show_cursor(len(times) - 1)
     if showing_bilan:
@@ -2907,6 +2977,29 @@ def update(_):
     # reconnexion Wi-Fi et aucune ecriture de mesure DTU ne sont executes.
     # Les index Dinky ont deja ete lus et sauvegardes juste au-dessus.
     if dtu_maintenance_paused:
+        paused_at = datetime.now()
+        paused_limit = power_limit[-1] if power_limit else DEFAULT_DTU_LIMIT_PCT
+        times.append(paused_at)
+        ac_power.append(float("nan"))
+        grid_power.append(float("nan"))
+        power_limit.append(paused_limit)
+        linky_power.append(float(lky) if lky is not None else float("nan"))
+        shelly_a_power.append(float(shelly_values[0]) if shelly_values is not None else float("nan"))
+        shelly_b_power.append(float(shelly_values[1]) if shelly_values is not None else float("nan"))
+        with CSV_FILE.open("a", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
+            writer.writerow({
+                "date_heure": paused_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "production_ac_w": "",
+                "reseau_ddsu_w": "",
+                "consigne_w": round(paused_limit, 1),
+                "linky_w": "" if lky is None else round(lky, 1),
+                "shelly_a_w": "" if shelly_values is None else round(shelly_values[0], 1),
+                "shelly_b_w": "" if shelly_values is None else round(shelly_values[1], 1),
+            })
+        redraw()
+        if follow_now:
+            apply_history_view()
         set_connection_badge(connection_badges[0], "delayed", "● DTU pause maintenance")
         if lky is None:
             linky_card_txt = "LINKY DINKY\nEN ATTENTE"
@@ -2915,6 +3008,10 @@ def update(_):
             linky_card_txt = f"LINKY DINKY\n{lky:.0f} W (TIC)"
             end_labels[3].set_text(f"Linky Dinky {lky:.0f} W")
         live_cards[3].set_text(linky_card_txt)
+        end_labels[0].set_text(f"Limite DTU  {safe_dtu_limit_pct(paused_limit):.0f} %")
+        end_labels[1].set_text("Production PV  — pause")
+        end_labels[2].set_text("Réseau DDSU  — pause")
+        end_labels[3].set_text(f"Linky Dinky  {'—' if lky is None else f'{lky:.0f} W'}")
         status_text.set_text(
             "Pause maintenance Hoymiles active — DTU non interroge, aucune relance automatique.\n"
             f"Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status} — index Dinky conserve."
@@ -3131,4 +3228,3 @@ def enable_full_window_resize():
 
 enable_full_window_resize()
 plt.show()
-

@@ -1,6 +1,6 @@
-# Boîte noire Hoymiles v7.0.21 — macOS
+# Boîte noire Hoymiles v7.0.22 — macOS
 
-Cette édition utilise le même moteur que la version Windows 7.0.21. Elle est prévue en priorité pour macOS 13 ou plus récent sur Mac Apple Silicon (M1, M2, M3 et suivants). Un Mac Intel peut fonctionner avec une version compatible de Python et Tkinter, mais reste à tester par la communauté.
+Cette édition utilise le même moteur que la version Windows 7.0.22. Elle est prévue en priorité pour macOS 13 ou plus récent sur Mac Apple Silicon (M1, M2, M3 et suivants). Un Mac Intel peut fonctionner avec une version compatible de Python et Tkinter, mais reste à tester par la communauté.
 
 ## Installation sans Terminal
 
@@ -35,12 +35,14 @@ Tous les appareils doivent recevoir une adresse dans le même réseau local que 
 
 Lors d’une mise à jour, l’installateur propose séparément de **conserver**, **modifier** ou **désactiver** le Dinky et le Shelly. Le choix « conserver » ne réinitialise pas l’ancienne configuration.
 
-## Fonctions v7.0.21
+## Fonctions v7.0.22
 
 - suivi direct, 24 h, hier et historique de la production PV, du DDSU et du Linky/Dinky ;
 - lecture des deux voies du Shelly Pro EM avec libellés production panneaux et réseau EDF ;
 - flux réseau signé : achat EDF positif, injection négative ;
 - alerte d’injection persistante, cumul des Wh/kWh injectés et journal de preuves exportable ;
+- notification d’injection non bloquante et collecte maintenue pendant la pause DTU ;
+- interruption visuelle des courbes lorsqu’une période ne contient aucune mesure ;
 - bilan EDF HP/HC et abonnement basé sur les index réels du Dinky ;
 - comparatif Hoymiles / Linky et moyenne quotidienne production-consommation ;
 - export CSV, note SAV, captures datées et diagnostic DTU en lecture seule ;

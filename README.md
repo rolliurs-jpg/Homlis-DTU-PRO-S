@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.21-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.22-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -10,7 +10,7 @@
 
 🌐 **Présentation et guide visuel :** activez GitHub Pages sur le dossier `docs` pour publier la vitrine du projet.
 
-![Suivi v7.0.21 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
+![Suivi v7.0.22 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
 
 ## Pourquoi ce logiciel ?
 
@@ -36,6 +36,9 @@ Le Linky/Dinky est la source utilisée pour le bilan EDF. Le DDSU reste affiché
 - Lecture locale et strictement en lecture seule des deux voies d’un **Shelly Pro EM**.
 - Identification indépendante de la production photovoltaïque et du flux réseau signé : achat EDF positif, injection négative.
 - Alerte après une injection supérieure à 100 W pendant trois minutes, sans commander le relais Shelly.
+- Alerte d’injection non bloquante : la collecte continue tant que la notification reste ouverte.
+- Pendant une pause DTU, le Dinky et le Shelly restent enregistrés ; les courbes DTU sont marquées indisponibles.
+- Rupture automatique des courbes lors d’un véritable trou de mesures, sans ligne droite trompeuse.
 - Historique indépendant des injections : puissance, durée, Wh/kWh perdus et cumul persistant.
 - Export d’un journal CSV et d’un résumé texte utilisables comme preuves auprès du SAV Hoymiles.
 - Export CSV filtrable par plage de dates.
@@ -56,7 +59,7 @@ L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les 
 
 ## Installation macOS Apple Silicon
 
-L’édition macOS 7.0.21 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
+L’édition macOS 7.0.22 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
 
 1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
 2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental), puis configurez séparément les équipements facultatifs Dinky et Shelly.

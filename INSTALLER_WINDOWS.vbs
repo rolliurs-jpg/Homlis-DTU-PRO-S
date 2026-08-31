@@ -11,7 +11,7 @@ appData = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\BoiteNoireHoymile
 backup = appData & "\sauvegarde_avant_mise_a_jour"
 configFile = appData & "\config_v5.json"
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.21 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.22 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dépendances sans fenêtre de terminal.
@@ -134,4 +134,3 @@ shortcut.WorkingDirectory = appData
 shortcut.IconLocation = appData & "\icone_panneau_solaire.ico,0"
 shortcut.Save
 MsgBox "Installation terminee." & vbCrLf & "Un raccourci Boite noire Hoymiles a ete cree sur le Bureau." & vbCrLf & vbCrLf & "Les historiques et reglages existants sont conserves.", vbInformation, "Boite noire Hoymiles"
-
