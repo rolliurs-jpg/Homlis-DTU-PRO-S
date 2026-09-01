@@ -35,7 +35,7 @@ if ! choose_python; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.23 pour macOS ?\n\nLes historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.24 pour macOS ?\n\nLes historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 

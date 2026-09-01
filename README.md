@@ -2,7 +2,7 @@
 
 > **Surveiller localement une installation photovoltaïque Hoymiles et comparer les mesures du DTU/DDSU666 avec les données réelles du Linky.**
 
-[![Version](https://img.shields.io/badge/version-7.0.23-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
+[![Version](https://img.shields.io/badge/version-7.0.24-2563eb)](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -10,7 +10,7 @@
 
 🌐 **Présentation et guide visuel :** activez GitHub Pages sur le dossier `docs` pour publier la vitrine du projet.
 
-![Suivi v7.0.23 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
+![Suivi v7.0.24 : production Hoymiles, réseau DDSU, Linky Dinky et mesures Shelly Pro EM](docs/assets/suivi-production-v7.png)
 
 ## Pourquoi ce logiciel ?
 
@@ -59,7 +59,7 @@ L’installateur ne laisse pas de fenêtre de terminal ouverte. Il installe les 
 
 ## Installation macOS Apple Silicon
 
-L’édition macOS 7.0.23 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
+L’édition macOS 7.0.24 se trouve dans le dossier [`macOS-AppleSilicon`](macOS-AppleSilicon). Elle utilise le même moteur et les mêmes fonctions Shelly, injection, bilan et diagnostic que l’édition Windows. Elle est prévue pour les Mac M1, M2, M3 et suivants, sous macOS 13 ou plus récent.
 
 1. Ouvrez `Installer Boîte noire Hoymiles.app` avec un clic droit puis **Ouvrir** lors de la première installation.
 2. Choisissez **DTU-LAN** (recommandé) ou **DTU-WIFI** (expérimental), puis configurez séparément les équipements facultatifs Dinky et Shelly.

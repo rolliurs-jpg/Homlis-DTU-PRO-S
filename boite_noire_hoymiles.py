@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.23"
+VERSION = "7.0.24"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -639,8 +639,8 @@ def show_cursor(index):
     linky = linky_power[index]
     shelly_a = shelly_a_power[index]
     shelly_b = shelly_b_power[index]
-    production_text = "— (DTU en pause)" if production != production else f"{production:.0f} W"
-    grid_text = "— (DTU en pause)" if grid != grid else f"{grid:+.0f} W"
+    production_text = "— (DTU indisponible)" if production != production else f"{production:.0f} W"
+    grid_text = "— (DTU indisponible)" if grid != grid else f"{grid:+.0f} W"
     linky_text = "—" if linky != linky else f"{linky:.0f} W"
     shelly_a_text = "—" if shelly_a != shelly_a else f"{shelly_a:+.0f} W"
     shelly_b_text = "—" if shelly_b != shelly_b else f"{shelly_b:+.0f} W"
@@ -3111,7 +3111,6 @@ def update(_):
         )
     except Exception as e:
         dtu_failures += 1
-        set_connection_badge(connection_badges[0], "offline", "● DTU hors ligne")
         failed_at = datetime.now()
         if dtu_failure_since is None:
             dtu_failure_since = failed_at
@@ -3122,6 +3121,48 @@ def update(_):
         except (TypeError, ValueError):
             delay_minutes = 30
         failure_seconds = (failed_at - dtu_failure_since).total_seconds()
+        if failure_seconds < 180:
+            set_connection_badge(connection_badges[0], "delayed", "● DTU réponse intermittente")
+        else:
+            set_connection_badge(connection_badges[0], "offline", "● DTU hors ligne")
+
+        # Le DTU peut cesser brièvement de répondre pendant sa synchronisation
+        # S-Miles. Les lectures Dinky et Shelly réalisées au début du cycle
+        # restent valides : elles doivent continuer à alimenter le graphique et
+        # le CSV. Seules les valeurs réellement fournies par le DTU sont vides.
+        failed_limit = power_limit[-1] if power_limit else DEFAULT_DTU_LIMIT_PCT
+        times.append(failed_at)
+        ac_power.append(float("nan"))
+        grid_power.append(float("nan"))
+        power_limit.append(failed_limit)
+        linky_power.append(float(lky) if lky is not None else float("nan"))
+        shelly_a_power.append(float(shelly_values[0]) if shelly_values is not None else float("nan"))
+        shelly_b_power.append(float(shelly_values[1]) if shelly_values is not None else float("nan"))
+        with CSV_FILE.open("a", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS)
+            writer.writerow({
+                "date_heure": failed_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "production_ac_w": "",
+                "reseau_ddsu_w": "",
+                "consigne_w": round(failed_limit, 1),
+                "linky_w": "" if lky is None else round(lky, 1),
+                "shelly_a_w": "" if shelly_values is None else round(shelly_values[0], 1),
+                "shelly_b_w": "" if shelly_values is None else round(shelly_values[1], 1),
+            })
+        redraw()
+        if follow_now:
+            apply_history_view()
+        live_cards[0].set_text("PRODUCTION PV\nINDISPONIBLE")
+        live_cards[1].set_text("RÉSEAU DDSU\nINDISPONIBLE")
+        live_cards[2].set_text(f"LIMITE DTU\n{safe_dtu_limit_pct(failed_limit):.0f} %")
+        live_cards[3].set_text(
+            "LINKY DINKY\nEN ATTENTE" if lky is None else f"LINKY DINKY\n{lky:.0f} W (TIC)"
+        )
+        end_labels[0].set_text(f"Limite DTU  {safe_dtu_limit_pct(failed_limit):.0f} %")
+        end_labels[1].set_text("Production PV  — indisponible")
+        end_labels[2].set_text("Réseau DDSU  — indisponible")
+        end_labels[3].set_text(f"Linky Dinky  {'—' if lky is None else f'{lky:.0f} W'}")
+
         cooldown_elapsed = last_dtu_wifi_recovery is None or \
             (failed_at - last_dtu_wifi_recovery).total_seconds() >= delay_minutes * 60
         if failure_seconds >= delay_minutes * 60 and cooldown_elapsed:
