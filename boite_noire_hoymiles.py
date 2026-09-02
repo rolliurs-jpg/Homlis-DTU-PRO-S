@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.27"
+VERSION = "7.0.28"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -634,7 +634,7 @@ cursor_content = VPacker(
 cursor_box = AnnotationBbox(
     cursor_content, (0, 0), xycoords=fig.transFigure, box_alignment=(0, 1),
     frameon=True, pad=0.45, visible=False,
-    bboxprops=dict(boxstyle="round,pad=0.25", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.88),
+    bboxprops=dict(boxstyle="round,pad=0.25", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.96),
     annotation_clip=False, zorder=102,
 )
 fig.add_artist(cursor_box)
@@ -680,10 +680,10 @@ def show_cursor(index):
         ax.transData.transform((point_x, ax.get_ylim()[1]))
     )
     if index > len(times) * 0.78:
-        cursor_position = (top_x - 0.008, 0.895)
+        cursor_position = (top_x - 0.008, 0.735)
         cursor_box.box_alignment = (1, 1)
     else:
-        cursor_position = (top_x + 0.008, 0.895)
+        cursor_position = (top_x + 0.008, 0.735)
         cursor_box.box_alignment = (0, 1)
     cursor_box.xy = cursor_position
     cursor_box.xybox = cursor_position
