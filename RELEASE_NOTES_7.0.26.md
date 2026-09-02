@@ -8,6 +8,5 @@
 - Le DDSU reste rouge et la limite DTU conserve son bleu foncé.
 - La forme du trait distingue chaque mesure : plein, tirets, trait mixte ou pointillés.
 - Le curseur regroupe et colore les valeurs avec la même logique que les courbes.
-- La limite DTU conserve son bleu foncé indépendant.
 
 Cette présentation est commune aux versions Windows et macOS.
