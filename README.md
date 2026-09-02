@@ -2,7 +2,7 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.28-2563eb)](RELEASE_NOTES_7.0.28.md)
+[![Version](https://img.shields.io/badge/version-7.0.29-2563eb)](RELEASE_NOTES_7.0.29.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -66,6 +66,7 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - curseur organisé avec les mêmes couleurs de groupe pour faciliter la comparaison ;
 - zone négative identifiée clairement : toute valeur sous 0 W correspond à une injection vers le réseau ;
 - boîte du curseur placée dans le graphique, sous les titres et la légende, avec un fond renforcé ;
+- boîte du curseur automatiquement ouverte vers l’intérieur dès le milieu du graphique ;
 - alerte et cumul de l’injection mesurée par le Shelly.
 
 Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.

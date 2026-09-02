@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.28"
+VERSION = "7.0.29"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -679,7 +679,8 @@ def show_cursor(index):
     top_x, _ = fig.transFigure.inverted().transform(
         ax.transData.transform((point_x, ax.get_ylim()[1]))
     )
-    if index > len(times) * 0.78:
+    axes_center_x = (ax.get_position().x0 + ax.get_position().x1) / 2
+    if top_x >= axes_center_x:
         cursor_position = (top_x - 0.008, 0.735)
         cursor_box.box_alignment = (1, 1)
     else:
