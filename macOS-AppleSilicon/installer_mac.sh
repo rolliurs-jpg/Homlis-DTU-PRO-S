@@ -35,7 +35,7 @@ if ! choose_python; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.24 pour macOS ?\n\nLes historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.25 pour macOS ?\n\nCette version utilise le réseau unique : DTU en Ethernet sur le nano-routeur Client/Pont, puis Wi-Fi de la box. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
@@ -62,13 +62,7 @@ else
 fi
 
 if [ "$DTU_MODE" != "keep" ]; then
-  selection=$(/usr/bin/osascript -e 'choose from list {"DTU-LAN — recommandé : Ethernet direct ou passerelle pont Wi-Fi vers la box", "DTU-WIFI — expérimental : Wi-Fi propre du DTU, adaptateur Wi-Fi USB compatible macOS requis"} with title "Connexion du DTU" with prompt "Choisissez une seule connexion pour le DTU Pro-S." default items {"DTU-LAN — recommandé : Ethernet direct ou passerelle pont Wi-Fi vers la box"} OK button name "Continuer" Cancel button name "Annuler"') || exit 0
-
-  if /usr/bin/printf '%s' "$selection" | /usr/bin/grep -q "DTU-LAN"; then
-    DTU_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP réellement attribuée au DTU par votre box :" default answer "" with title "DTU-LAN sur la box" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
-  else
-    DTU_HOST="10.10.100.254"
-  fi
+  DTU_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP réservée au DTU par votre box :\n\nLe DTU doit être relié en Ethernet au nano-routeur configuré en mode Client/Pont." default answer "192.168.1.137" with title "Réseau unique — nano-routeur/LAN" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
 
   if [ -z "$DTU_HOST" ]; then
     dialog "L'adresse IP du DTU est nécessaire pour le mode DTU-LAN."
@@ -123,6 +117,13 @@ else:
 
 if os.environ.get("DTU_MODE") != "keep" and os.environ.get("DTU_HOST"):
     config["dtu_host"] = os.environ["DTU_HOST"]
+
+# Sur macOS, la version prise en charge utilise exclusivement le réseau unique.
+# Elle ne doit jamais tenter de basculer le Mac vers le Wi-Fi propre du DTU.
+recovery = config.get("dtu_wifi_recovery", {}) if isinstance(config.get("dtu_wifi_recovery"), dict) else {}
+config["dtu_wifi_recovery"] = {
+    **recovery, "enabled": False, "interface": "", "profile": ""
+}
 
 dinky_mode = os.environ.get("DINKY_MODE", "keep")
 if dinky_mode == "enable":

@@ -37,7 +37,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.24"
+VERSION = "7.0.25"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -840,15 +840,20 @@ def read_linky_dinky_http():
     # Commande Tasmota en lecture seule : elle retourne StatusSNS.ENERGY.
     command = str(cfg.get("path", "") or "Status 8")
     url = f"http://{host}:{port}/cm?cmnd={quote(command)}"
-    try:
-        with urlopen(url, timeout=float(cfg.get("timeout_s", 2))) as response:
-            obj = json.loads(response.read().decode("utf-8"))
-        energy = obj.get("StatusSNS", {}).get("ENERGY", {})
-        if "Power" not in energy:
-            raise RuntimeError("champ StatusSNS.ENERGY.Power absent")
-        return float(energy["Power"]), "Dinky connecté"
-    except (OSError, URLError, ValueError, json.JSONDecodeError, RuntimeError) as e:
-        return None, f"Dinky hors ligne ({e})"
+    last_error = None
+    for attempt in range(2):
+        try:
+            with urlopen(url, timeout=float(cfg.get("timeout_s", 2))) as response:
+                obj = json.loads(response.read().decode("utf-8"))
+            energy = obj.get("StatusSNS", {}).get("ENERGY", {})
+            if "Power" not in energy:
+                raise RuntimeError("champ StatusSNS.ENERGY.Power absent")
+            return float(energy["Power"]), "Dinky connecté"
+        except (OSError, URLError, ValueError, json.JSONDecodeError, RuntimeError) as e:
+            last_error = e
+            if attempt == 0:
+                sleep(0.25)
+    return None, f"Dinky hors ligne ({last_error})"
 
 def read_dinky_energy_indexes():
     """Lit les index Linky HC/HP affichés par le firmware Téléinfo du Dinky."""

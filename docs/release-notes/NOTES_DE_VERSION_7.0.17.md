@@ -20,4 +20,3 @@ comme mesure comparative du DTU, mais ne peut pas altérer la lecture issue du
 Linky/Dinky.
 
 La valeur est aussi disponible dans la bulle qui suit le curseur sur le graphique.
-

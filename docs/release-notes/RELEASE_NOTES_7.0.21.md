@@ -8,4 +8,3 @@
 - Les intervalles sont plafonnés à 180 secondes pour éviter de créer une énergie fictive pendant une interruption du logiciel.
 
 Le journal local est enregistré dans `shelly_injection_log.csv`. Aucun réglage du Shelly, du DTU ou du relais n’est modifié par cette fonction.
-

@@ -11,7 +11,7 @@ appData = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\BoiteNoireHoymile
 backup = appData & "\sauvegarde_avant_mise_a_jour"
 configFile = appData & "\config_v5.json"
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.24 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.25 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dépendances sans fenêtre de terminal.
@@ -49,7 +49,7 @@ If (Not existingConfig) Or choice = vbYes Then
     If dtuMode = "WIFI" Then
         dtuHost = "10.10.100.254"
     ElseIf dtuMode = "LAN" Then
-        dtuHost = Trim(InputBox("Adresse IP du DTU attribuee par la box :", "DTU-LAN sur la box"))
+        dtuHost = Trim(InputBox("Adresse IP du DTU attribuee par la box :", "Reseau unique - DTU sur nano-routeur/LAN"))
         If dtuHost = "" Then
             MsgBox "Installation annulee : l'adresse IP du DTU est necessaire.", vbExclamation, "Boite noire Hoymiles"
             WScript.Quit 1
@@ -65,6 +65,12 @@ If (Not existingConfig) Or choice = vbYes Then
         re.Global = False
         re.Pattern = q & "dtu_host" & q & ":" & q & "[^" & q & "]*" & q
         json = re.Replace(json, q & "dtu_host" & q & ":" & q & dtuHost & q)
+        If dtuMode = "LAN" Then
+            re.Pattern = q & "dtu_wifi_recovery" & q & "\s*:\s*\{[^}]*\}"
+            If re.Test(json) Then
+                json = re.Replace(json, q & "dtu_wifi_recovery" & q & ":{" & q & "enabled" & q & ":false," & q & "interface" & q & ":" & q & q & "," & q & "profile" & q & ":" & q & q & "," & q & "after_minutes" & q & ":30}")
+            End If
+        End If
     Else
         dinkyHost = Trim(InputBox("Adresse IP du Dinky :", "Dinky sur Livebox", "192.168.1.126"))
         If dinkyHost = "" Then dinkyHost = "192.168.1.126"
