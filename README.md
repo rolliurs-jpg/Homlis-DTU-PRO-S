@@ -2,13 +2,13 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.25-2563eb)](RELEASE_NOTES_7.0.25.md)
+[![Version](https://img.shields.io/badge/version-7.0.26-2563eb)](RELEASE_NOTES_7.0.26.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
 **[Télécharger la dernière version Windows et Mac](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
-![Suivi de production v7.0.25](docs/assets/suivi-production-v7.png)
+![Suivi de production](docs/assets/suivi-production-v7.png)
 
 ## Choisir la bonne version réseau
 
@@ -62,6 +62,8 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - bilan EDF fondé sur les index Linky, export CSV, captures et rapport SAV ;
 - continuité des mesures Dinky/Shelly lorsque le DTU est momentanément indisponible ;
 - seconde tentative automatique du Dinky avant de signaler une coupure ;
+- couleurs regroupées par source : production PV et Linky/Dinky en bleu ciel, les deux mesures Shelly en violet, DDSU en rouge et limite DTU en bleu foncé ;
+- curseur organisé avec les mêmes couleurs de groupe pour faciliter la comparaison ;
 - alerte et cumul de l’injection mesurée par le Shelly.
 
 Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.

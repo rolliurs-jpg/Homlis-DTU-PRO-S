@@ -26,6 +26,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.lines import Line2D
+from matplotlib.offsetbox import AnnotationBbox, TextArea, VPacker
 from matplotlib.widgets import Button
 
 try:
@@ -37,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.25"
+VERSION = "7.0.26"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -196,8 +197,12 @@ HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
 SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
 SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
 
-# Bleu ciel pour la production PV : distinct du bleu foncé utilisé pour les HP EDF.
-PV_COLOR = "#0ea5e9"
+# Une couleur par groupe de sources ; la forme du trait identifie la mesure.
+PRIMARY_COLOR = "#0ea5e9"
+SHELLY_COLOR = "#7c3aed"
+DDSU_COLOR = "#dc2626"
+LIMIT_COLOR = "#2563eb"
+PV_COLOR = PRIMARY_COLOR
 
 def save_config():
     CONFIG_FILE.write_text(json.dumps(CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -521,17 +526,17 @@ except Exception:
     pass
 plt.subplots_adjust(left=0.08, bottom=0.34, right=0.91, top=0.75)
 
-line_ac, = ax.plot([], [], linewidth=2.15, color=PV_COLOR, label="Production PV")
-line_grid, = ax.plot([], [], linewidth=1.45, color="#dc2626", label="Réseau DDSU")
-line_linky, = ax.plot([], [], linewidth=1.40, color="#93c5fd", linestyle="--", label="Linky Dinky")
-line_shelly_a, = ax.plot([], [], linewidth=1.35, color="#7c3aed", linestyle="-.", label=SHELLY_A_LABEL)
-line_shelly_b, = ax.plot([], [], linewidth=1.35, color="#d97706", linestyle=":", label=SHELLY_B_LABEL)
+line_ac, = ax.plot([], [], linewidth=2.15, color=PRIMARY_COLOR, linestyle="-", label="Production PV")
+line_linky, = ax.plot([], [], linewidth=1.45, color=PRIMARY_COLOR, linestyle="--", label="Linky Dinky")
+line_shelly_a, = ax.plot([], [], linewidth=1.55, color=SHELLY_COLOR, linestyle="-.", label=SHELLY_A_LABEL)
+line_shelly_b, = ax.plot([], [], linewidth=1.45, color=SHELLY_COLOR, linestyle=":", label=SHELLY_B_LABEL)
+line_grid, = ax.plot([], [], linewidth=1.55, color=DDSU_COLOR, linestyle="-", label="Réseau DDSU")
 limit_ax = ax.twinx()
-line_limit, = limit_ax.plot([], [], linewidth=1.40, color="#2563eb", label="Limite DTU")
+line_limit, = limit_ax.plot([], [], linewidth=1.40, color=LIMIT_COLOR, label="Limite DTU")
 # Légende permanente, hors du graphique, comme sur la page Bilan.
 main_chart_legend = ax.legend(
-    [line_limit, line_ac, line_grid, line_linky, line_shelly_a, line_shelly_b],
-    ["Limite DTU (%)", "Production PV", "Réseau DDSU", "Linky Dinky", SHELLY_A_LABEL, SHELLY_B_LABEL],
+    [line_limit, line_grid, line_ac, line_linky, line_shelly_a, line_shelly_b],
+    ["Limite DTU (%)", "Réseau DDSU", "Production PV", "Linky Dinky", SHELLY_A_LABEL, SHELLY_B_LABEL],
     loc="upper left", bbox_to_anchor=(0.08, 0.866), bbox_transform=fig.transFigure,
     ncol=3, frameon=False, borderaxespad=0.0, fontsize=8.5, handlelength=2.6,
 )
@@ -546,8 +551,8 @@ ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m %H:%M"))
 limit_ax.set_ylim(0, 120)
-limit_ax.set_ylabel("Limite DTU (%)", color="#2563eb")
-limit_ax.tick_params(axis="y", colors="#2563eb")
+limit_ax.set_ylabel("Limite DTU (%)", color=LIMIT_COLOR)
+limit_ax.tick_params(axis="y", colors=LIMIT_COLOR)
 limit_ax.spines["top"].set_visible(False)
 limit_ax.spines["left"].set_visible(False)
 
@@ -608,10 +613,23 @@ cursor_dot = Line2D([], [], transform=ax.transData, linestyle="", marker="o", ma
                     visible=False, zorder=101)
 fig.add_artist(cursor_line)
 fig.add_artist(cursor_dot)
-cursor_box = fig.text(
-    0, 0, "", transform=fig.transFigure, fontsize=9, ha="left", va="top", visible=False,
-    bbox=dict(boxstyle="round,pad=0.45", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.62), zorder=102,
+cursor_time_text = TextArea("", textprops=dict(fontsize=8.8, color="#0f172a"))
+cursor_limit_text = TextArea("", textprops=dict(fontsize=8.8, color=LIMIT_COLOR))
+cursor_ddsu_text = TextArea("", textprops=dict(fontsize=8.8, color=DDSU_COLOR))
+cursor_primary_text = TextArea("", textprops=dict(fontsize=8.8, color=PRIMARY_COLOR))
+cursor_shelly_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_COLOR))
+cursor_note_text = TextArea("", textprops=dict(fontsize=8.2, color="#475569"))
+cursor_content = VPacker(
+    children=[cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_primary_text, cursor_shelly_text, cursor_note_text],
+    align="left", pad=0, sep=1,
 )
+cursor_box = AnnotationBbox(
+    cursor_content, (0, 0), xycoords=fig.transFigure, box_alignment=(0, 1),
+    frameon=True, pad=0.45, visible=False,
+    bboxprops=dict(boxstyle="round,pad=0.25", facecolor="#ffffff", edgecolor="#0f172a", alpha=0.88),
+    annotation_clip=False, zorder=102,
+)
+fig.add_artist(cursor_box)
 bilan_cursor_data = {"labels": [], "production": [], "hc": [], "hp": [], "subscription": []}
 comparison_cursor_data = {"labels": [], "production": [], "ddsu": [], "linky": []}
 last_main_cursor_index = None
@@ -654,19 +672,24 @@ def show_cursor(index):
         ax.transData.transform((point_x, ax.get_ylim()[1]))
     )
     if index > len(times) * 0.78:
-        cursor_box.set_ha("right")
-        cursor_box.set_position((top_x - 0.008, 0.895))
+        cursor_position = (top_x - 0.008, 0.895)
+        cursor_box.box_alignment = (1, 1)
     else:
-        cursor_box.set_ha("left")
-        cursor_box.set_position((top_x + 0.008, 0.895))
-    cursor_box.set_text(
-        f"{point_time:%d/%m/%Y %H:%M:%S}\n"
-        f"Production PV  {production_text}\n"
-        f"Réseau DTU  {grid_text}\n"
-        f"Limite DTU  {limit:.0f} %\n"
-        f"Réseau EDF — mesure Dinky   {linky_text}\n"
+        cursor_position = (top_x + 0.008, 0.895)
+        cursor_box.box_alignment = (0, 1)
+    cursor_box.xy = cursor_position
+    cursor_box.xybox = cursor_position
+    cursor_time_text.set_text(f"{point_time:%d/%m/%Y %H:%M:%S}")
+    cursor_limit_text.set_text(f"Limite DTU  {limit:.0f} %")
+    cursor_ddsu_text.set_text(f"Réseau DTU / DDSU  {grid_text}")
+    cursor_primary_text.set_text(
+        f"Production PV  {production_text}\nRéseau EDF — mesure Dinky  {linky_text}"
+    )
+    cursor_shelly_text.set_text(
         f"{SHELLY_A_LABEL}  {shelly_a_text}\n"
-        f"{SHELLY_B_LABEL}  {shelly_b_text}\n"
+        f"{SHELLY_B_LABEL}  {shelly_b_text}"
+    )
+    cursor_note_text.set_text(
         "Dinky et Shelly mesurent le même achat/injection : ne pas additionner."
     )
     cursor_box.set_visible(True)
