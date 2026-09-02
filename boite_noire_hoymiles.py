@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.30"
+VERSION = "7.0.31"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -200,6 +200,7 @@ SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau ED
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
 PRIMARY_COLOR = "#0ea5e9"
 SHELLY_COLOR = "#7c3aed"
+SHELLY_GRID_COLOR = "#d49a00"
 DDSU_COLOR = "#dc2626"
 LIMIT_COLOR = "#2563eb"
 PV_COLOR = PRIMARY_COLOR
@@ -529,7 +530,7 @@ plt.subplots_adjust(left=0.08, bottom=0.34, right=0.91, top=0.75)
 line_ac, = ax.plot([], [], linewidth=2.15, color=PRIMARY_COLOR, linestyle="-", label="Production PV")
 line_linky, = ax.plot([], [], linewidth=1.45, color=PRIMARY_COLOR, linestyle="--", label="Linky Dinky")
 line_shelly_a, = ax.plot([], [], linewidth=1.55, color=SHELLY_COLOR, linestyle="-.", label=SHELLY_A_LABEL)
-line_shelly_b, = ax.plot([], [], linewidth=1.45, color=SHELLY_COLOR, linestyle=":", label=SHELLY_B_LABEL)
+line_shelly_b, = ax.plot([], [], linewidth=1.75, color=SHELLY_GRID_COLOR, linestyle=":", label=SHELLY_B_LABEL)
 line_grid, = ax.plot([], [], linewidth=1.55, color=DDSU_COLOR, linestyle="-", label="Réseau DDSU")
 limit_ax = ax.twinx()
 line_limit, = limit_ax.plot([], [], linewidth=1.40, color=LIMIT_COLOR, label="Limite DTU")
@@ -624,10 +625,12 @@ cursor_time_text = TextArea("", textprops=dict(fontsize=8.8, color="#0f172a"))
 cursor_limit_text = TextArea("", textprops=dict(fontsize=8.8, color=LIMIT_COLOR))
 cursor_ddsu_text = TextArea("", textprops=dict(fontsize=8.8, color=DDSU_COLOR))
 cursor_primary_text = TextArea("", textprops=dict(fontsize=8.8, color=PRIMARY_COLOR))
-cursor_shelly_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_COLOR))
+cursor_shelly_production_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_COLOR))
+cursor_shelly_grid_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_GRID_COLOR))
 cursor_note_text = TextArea("", textprops=dict(fontsize=8.2, color="#475569"))
 cursor_content = VPacker(
-    children=[cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_primary_text, cursor_shelly_text, cursor_note_text],
+    children=[cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_primary_text,
+              cursor_shelly_production_text, cursor_shelly_grid_text, cursor_note_text],
     align="left", pad=0, sep=1,
 )
 cursor_box = AnnotationBbox(
@@ -693,10 +696,8 @@ def show_cursor(index):
     cursor_primary_text.set_text(
         f"Production PV  {production_text}\nRéseau EDF — mesure Dinky  {linky_text}"
     )
-    cursor_shelly_text.set_text(
-        f"{SHELLY_A_LABEL}  {shelly_a_text}\n"
-        f"{SHELLY_B_LABEL}  {shelly_b_text}"
-    )
+    cursor_shelly_production_text.set_text(f"{SHELLY_A_LABEL}  {shelly_a_text}")
+    cursor_shelly_grid_text.set_text(f"{SHELLY_B_LABEL}  {shelly_b_text}")
     cursor_note_text.set_text(
         "Dinky et Shelly mesurent le même achat/injection : ne pas additionner."
     )

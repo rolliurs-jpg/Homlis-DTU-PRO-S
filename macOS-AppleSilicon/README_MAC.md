@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.30 — macOS Apple Silicon
+# Boîte noire Hoymiles v7.0.31 — macOS Apple Silicon
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 
@@ -42,7 +42,8 @@ Mac Intel reste non testé par la communauté.
 ## Lecture du graphique
 
 - bleu ciel : production PV en trait plein et Linky/Dinky en tirets ;
-- violet : production Shelly en trait mixte et réseau Shelly en pointillés ;
+- violet : production Shelly en trait mixte ;
+- jaune : réseau EDF mesuré par le Shelly en pointillés renforcés ;
 - rouge : réseau DDSU ;
 - bleu foncé : limite du DTU.
 
