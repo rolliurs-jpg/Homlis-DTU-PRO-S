@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.26"
+VERSION = "7.0.27"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -545,7 +545,15 @@ ax.set_xlabel("Date / heure")
 ax.set_ylabel("Puissance (W)")
 ax.set_ylim(-500, 2200)
 ax.set_facecolor((1, 1, 1, 0.47))
-ax.axhline(0, linewidth=0.65, color="#94a3b8")
+ax.axhspan(-500, 0, color="#fee2e2", alpha=0.18, zorder=-1)
+ax.axhline(0, linewidth=1.05, color="#64748b")
+injection_zone_label = ax.text(
+    0.985, -35, "↓ Sous 0 W : injection vers le réseau",
+    transform=ax.get_yaxis_transform(), ha="right", va="top",
+    fontsize=8.2, fontweight="bold", color="#b91c1c",
+    bbox=dict(boxstyle="round,pad=0.25", facecolor="#fff7f7", edgecolor="#fecaca", alpha=0.88),
+    zorder=6,
+)
 ax.grid(True, color="#cbd5e1", linewidth=0.45, alpha=0.85)
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)

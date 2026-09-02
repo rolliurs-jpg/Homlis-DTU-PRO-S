@@ -35,7 +35,7 @@ if ! choose_python; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.26 pour macOS ?\n\nCette version utilise le réseau unique : DTU en Ethernet sur le nano-routeur Client/Pont, puis Wi-Fi de la box. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.27 pour macOS ?\n\nCette version utilise le réseau unique : DTU en Ethernet sur le nano-routeur Client/Pont, puis Wi-Fi de la box. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
