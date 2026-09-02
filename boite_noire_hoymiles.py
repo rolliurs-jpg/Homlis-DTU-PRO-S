@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.32"
+VERSION = "7.0.33"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -199,6 +199,7 @@ SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau ED
 
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
 PRIMARY_COLOR = "#0ea5e9"
+DINKY_COLOR = "#16a34a"
 SHELLY_COLOR = "#a16207"
 SHELLY_GRID_COLOR = SHELLY_COLOR
 DDSU_COLOR = "#dc2626"
@@ -528,7 +529,7 @@ except Exception:
 plt.subplots_adjust(left=0.08, bottom=0.34, right=0.91, top=0.75)
 
 line_ac, = ax.plot([], [], linewidth=2.15, color=PRIMARY_COLOR, linestyle="-", label="Production PV")
-line_linky, = ax.plot([], [], linewidth=1.45, color=PRIMARY_COLOR, linestyle="--", label="Linky Dinky")
+line_linky, = ax.plot([], [], linewidth=1.55, color=DINKY_COLOR, linestyle="--", label="Linky Dinky")
 line_shelly_a, = ax.plot([], [], linewidth=1.55, color=SHELLY_COLOR, linestyle="-.", label=SHELLY_A_LABEL)
 line_shelly_b, = ax.plot([], [], linewidth=1.75, color=SHELLY_GRID_COLOR, linestyle=":", label=SHELLY_B_LABEL)
 line_grid, = ax.plot([], [], linewidth=1.55, color=DDSU_COLOR, linestyle="-", label="Réseau DDSU")
@@ -624,12 +625,13 @@ fig.add_artist(cursor_dot)
 cursor_time_text = TextArea("", textprops=dict(fontsize=8.8, color="#0f172a"))
 cursor_limit_text = TextArea("", textprops=dict(fontsize=8.8, color=LIMIT_COLOR))
 cursor_ddsu_text = TextArea("", textprops=dict(fontsize=8.8, color=DDSU_COLOR))
-cursor_primary_text = TextArea("", textprops=dict(fontsize=8.8, color=PRIMARY_COLOR))
+cursor_pv_text = TextArea("", textprops=dict(fontsize=8.8, color=PRIMARY_COLOR))
+cursor_dinky_text = TextArea("", textprops=dict(fontsize=8.8, color=DINKY_COLOR))
 cursor_shelly_production_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_COLOR))
 cursor_shelly_grid_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_GRID_COLOR))
 cursor_note_text = TextArea("", textprops=dict(fontsize=8.2, color="#475569"))
 cursor_content = VPacker(
-    children=[cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_primary_text,
+    children=[cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_pv_text, cursor_dinky_text,
               cursor_shelly_production_text, cursor_shelly_grid_text, cursor_note_text],
     align="left", pad=0, sep=1,
 )
@@ -693,9 +695,8 @@ def show_cursor(index):
     cursor_time_text.set_text(f"{point_time:%d/%m/%Y %H:%M:%S}")
     cursor_limit_text.set_text(f"Limite DTU  {limit:.0f} %")
     cursor_ddsu_text.set_text(f"Réseau DTU / DDSU  {grid_text}")
-    cursor_primary_text.set_text(
-        f"Production PV  {production_text}\nRéseau EDF — mesure Dinky  {linky_text}"
-    )
+    cursor_pv_text.set_text(f"Production PV  {production_text}")
+    cursor_dinky_text.set_text(f"Réseau EDF — mesure Dinky  {linky_text}")
     cursor_shelly_production_text.set_text(f"{SHELLY_A_LABEL}  {shelly_a_text}")
     cursor_shelly_grid_text.set_text(f"{SHELLY_B_LABEL}  {shelly_b_text}")
     cursor_note_text.set_text(
