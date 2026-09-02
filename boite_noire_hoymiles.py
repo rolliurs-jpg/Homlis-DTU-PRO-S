@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.29"
+VERSION = "7.0.30"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -545,13 +545,12 @@ ax.set_xlabel("Date / heure")
 ax.set_ylabel("Puissance (W)")
 ax.set_ylim(-500, 2200)
 ax.set_facecolor((1, 1, 1, 0.47))
-ax.axhspan(-500, 0, color="#fee2e2", alpha=0.18, zorder=-1)
 ax.axhline(0, linewidth=1.05, color="#64748b")
 injection_zone_label = ax.text(
-    0.985, -35, "↓ Sous 0 W : injection vers le réseau",
-    transform=ax.get_yaxis_transform(), ha="right", va="top",
+    0.015, -35, "↓ Sous 0 W : injection vers le réseau",
+    transform=ax.get_yaxis_transform(), ha="left", va="top",
     fontsize=8.2, fontweight="bold", color="#b91c1c",
-    bbox=dict(boxstyle="round,pad=0.25", facecolor="#fff7f7", edgecolor="#fecaca", alpha=0.88),
+    bbox=dict(boxstyle="round,pad=0.25", facecolor="#ffffff", edgecolor="#fecaca", alpha=0.70),
     zorder=6,
 )
 ax.grid(True, color="#cbd5e1", linewidth=0.45, alpha=0.85)
@@ -1115,9 +1114,13 @@ def update_end_labels():
         return
     linky = linky_power[-1]
     linky_txt = "—" if linky != linky else f"{linky:.0f} W"
+    pv = ac_power[-1]
+    pv_txt = "— indisponible" if pv != pv else f"{pv:.0f} W"
+    grid = grid_power[-1]
+    grid_txt = "— indisponible" if grid != grid else f"{grid:+.0f} W"
     end_labels[0].set_text(f"Limite DTU  {safe_dtu_limit_pct(power_limit[-1]):.0f} %")
-    end_labels[1].set_text(f"Production PV  {ac_power[-1]:.0f} W")
-    end_labels[2].set_text(f"Réseau DDSU  {grid_power[-1]:+.0f} W")
+    end_labels[1].set_text(f"Production PV  {pv_txt}")
+    end_labels[2].set_text(f"Réseau DDSU  {grid_txt}")
     end_labels[3].set_text(f"Linky Dinky  {linky_txt}")
     return
 

@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.29 — macOS Apple Silicon
+# Boîte noire Hoymiles v7.0.30 — macOS Apple Silicon
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 
@@ -48,7 +48,7 @@ Mac Intel reste non testé par la communauté.
 
 Le curseur utilise les mêmes couleurs pour regrouper immédiatement les valeurs comparables.
 
-La zone située sous 0 W est légèrement colorée et porte la mention **injection vers le réseau**.
+La zone située sous 0 W reste transparente. La mention **injection vers le réseau** est placée à gauche pour ne pas masquer les mesures récentes à droite.
 
 La boîte multicolore du curseur reste à l’intérieur du graphique, sous les titres et la légende, avec un fond presque opaque pour préserver la lisibilité.
 
