@@ -39,7 +39,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.36"
+VERSION = "7.0.37"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -199,7 +199,7 @@ SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production
 SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
 
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
-PRIMARY_COLOR = "#075985"
+PRIMARY_COLOR = "#00008b"
 DINKY_COLOR = "#16a34a"
 SHELLY_COLOR = "#ffd000"
 SHELLY_GRID_COLOR = SHELLY_COLOR

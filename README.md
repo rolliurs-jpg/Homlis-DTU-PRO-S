@@ -2,7 +2,7 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.36-2563eb)](RELEASE_NOTES_7.0.36.md)
+[![Version](https://img.shields.io/badge/version-7.0.37-2563eb)](RELEASE_NOTES_7.0.37.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -62,7 +62,7 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - bilan EDF fondé sur les index Linky, export CSV, captures et rapport SAV ;
 - continuité des mesures Dinky/Shelly lorsque le DTU est momentanément indisponible ;
 - seconde tentative automatique du Dinky avant de signaler une coupure ;
-- couleurs distinctes : production PV en bleu foncé, Linky/Dinky en vert, les deux mesures Shelly en jaune lumineux, DDSU en rouge et limite DTU en bleu ;
+- couleurs distinctes : production PV en bleu foncé pur, Linky/Dinky en vert, les deux mesures Shelly en jaune lumineux, DDSU en rouge et limite DTU en bleu ;
 - curseur organisé avec les mêmes couleurs de groupe pour faciliter la comparaison ;
 - zone négative transparente, avec son indication placée à gauche pour préserver les mesures récentes à droite ;
 - valeurs DTU indisponibles affichées clairement, sans valeur `nan` ;
