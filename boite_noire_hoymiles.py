@@ -5,6 +5,7 @@ import shutil
 import socket
 import subprocess
 import calendar
+import math
 import sys
 import tkinter as tk
 from tkinter import filedialog, simpledialog, messagebox, ttk
@@ -38,7 +39,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.34"
+VERSION = "7.0.35"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -200,7 +201,7 @@ SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau ED
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
 PRIMARY_COLOR = "#0ea5e9"
 DINKY_COLOR = "#16a34a"
-SHELLY_COLOR = "#a16207"
+SHELLY_COLOR = "#ffd000"
 SHELLY_GRID_COLOR = SHELLY_COLOR
 DDSU_COLOR = "#dc2626"
 LIMIT_COLOR = "#2563eb"
@@ -530,8 +531,8 @@ plt.subplots_adjust(left=0.08, bottom=0.34, right=0.91, top=0.75)
 
 line_ac, = ax.plot([], [], linewidth=2.15, color=PRIMARY_COLOR, linestyle="-", label="Production PV")
 line_linky, = ax.plot([], [], linewidth=1.55, color=DINKY_COLOR, linestyle="--", label="Linky Dinky")
-line_shelly_a, = ax.plot([], [], linewidth=1.55, color=SHELLY_COLOR, linestyle="-.", label=SHELLY_A_LABEL)
-line_shelly_b, = ax.plot([], [], linewidth=1.75, color=SHELLY_GRID_COLOR, linestyle=":", label=SHELLY_B_LABEL)
+line_shelly_a, = ax.plot([], [], linewidth=2.05, color=SHELLY_COLOR, linestyle="-.", label=SHELLY_A_LABEL)
+line_shelly_b, = ax.plot([], [], linewidth=2.20, color=SHELLY_GRID_COLOR, linestyle=":", label=SHELLY_B_LABEL)
 line_grid, = ax.plot([], [], linewidth=1.55, color=DDSU_COLOR, linestyle="-", label="Réseau DDSU")
 limit_ax = ax.twinx()
 line_limit, = limit_ax.plot([], [], linewidth=1.40, color=LIMIT_COLOR, label="Limite DTU")
@@ -1090,6 +1091,25 @@ def series_with_visible_gaps(indexes, values):
     return plotted_times, plotted_values
 
 
+def update_power_axis_limits(indexes):
+    """Agrandit l'axe pour que les fortes injections restent entièrement visibles."""
+    visible_values = []
+    for values in (ac_power, grid_power, linky_power, shelly_a_power, shelly_b_power):
+        visible_values.extend(values[index] for index in indexes if values[index] == values[index])
+    if not visible_values:
+        ax.set_ylim(-500, 2200)
+        return
+    minimum = min(visible_values)
+    maximum = max(visible_values)
+    lower = -500
+    upper = 2200
+    if minimum < -450:
+        lower = -250 * math.ceil(abs(minimum) * 1.12 / 250)
+    if maximum > 2100:
+        upper = 250 * math.ceil(maximum * 1.08 / 250)
+    ax.set_ylim(lower, upper)
+
+
 def redraw():
     indexes = visible_plot_indexes()
     for line, values in (
@@ -1102,6 +1122,7 @@ def redraw():
     ):
         plotted_times, plotted_values = series_with_visible_gaps(indexes, values)
         line.set_data(plotted_times, plotted_values)
+    update_power_axis_limits(indexes)
     if times and not showing_bilan:
         show_cursor(len(times) - 1)
     if showing_bilan:

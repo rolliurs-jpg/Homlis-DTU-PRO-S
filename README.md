@@ -2,7 +2,7 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.34-2563eb)](RELEASE_NOTES_7.0.34.md)
+[![Version](https://img.shields.io/badge/version-7.0.35-2563eb)](RELEASE_NOTES_7.0.35.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -62,11 +62,12 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - bilan EDF fondé sur les index Linky, export CSV, captures et rapport SAV ;
 - continuité des mesures Dinky/Shelly lorsque le DTU est momentanément indisponible ;
 - seconde tentative automatique du Dinky avant de signaler une coupure ;
-- couleurs distinctes : production PV en bleu ciel, Linky/Dinky en vert, les deux mesures Shelly en jaune très foncé, DDSU en rouge et limite DTU en bleu foncé ;
+- couleurs distinctes : production PV en bleu ciel, Linky/Dinky en vert, les deux mesures Shelly en jaune lumineux, DDSU en rouge et limite DTU en bleu foncé ;
 - curseur organisé avec les mêmes couleurs de groupe pour faciliter la comparaison ;
 - zone négative transparente, avec son indication placée à gauche pour préserver les mesures récentes à droite ;
 - valeurs DTU indisponibles affichées clairement, sans valeur `nan` ;
-- production et réseau Shelly affichés en jaune très foncé, y compris dans le suivi du curseur ;
+- production et réseau Shelly affichés en jaune lumineux, y compris dans le suivi du curseur ;
+- échelle verticale automatiquement agrandie lorsque l’injection dépasse −500 W ;
 - boîte du curseur placée dans le graphique, sous les titres et la légende, avec un fond renforcé ;
 - boîte du curseur automatiquement ouverte vers l’intérieur dès le milieu du graphique ;
 - alignement réel de la bulle corrigé pour que ce basculement fonctionne effectivement avec Matplotlib ;
