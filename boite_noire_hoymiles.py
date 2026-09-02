@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.31"
+VERSION = "7.0.32"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -199,8 +199,8 @@ SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau ED
 
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
 PRIMARY_COLOR = "#0ea5e9"
-SHELLY_COLOR = "#7c3aed"
-SHELLY_GRID_COLOR = "#d49a00"
+SHELLY_COLOR = "#a16207"
+SHELLY_GRID_COLOR = SHELLY_COLOR
 DDSU_COLOR = "#dc2626"
 LIMIT_COLOR = "#2563eb"
 PV_COLOR = PRIMARY_COLOR

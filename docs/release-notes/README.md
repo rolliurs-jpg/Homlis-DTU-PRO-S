@@ -5,4 +5,4 @@ Les notes des anciennes versions sont conservées ici pour documenter l’évolu
 - `RELEASE_NOTES_*.md` : versions communes et Windows.
 - `macOS/RELEASE_NOTES_MAC_*.md` : anciennes versions macOS.
 
-La version actuelle est présentée dans [`RELEASE_NOTES_7.0.31.md`](../../RELEASE_NOTES_7.0.31.md).
+La version actuelle est présentée dans [`RELEASE_NOTES_7.0.32.md`](../../RELEASE_NOTES_7.0.32.md).
