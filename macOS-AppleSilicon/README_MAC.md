@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.33 — macOS Apple Silicon
+# Boîte noire Hoymiles v7.0.34 — macOS Apple Silicon
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 
@@ -53,4 +53,4 @@ La zone située sous 0 W reste transparente. La mention **injection vers le rés
 
 La boîte multicolore du curseur reste à l’intérieur du graphique, sous les titres et la légende, avec un fond presque opaque pour préserver la lisibilité.
 
-Dans la moitié gauche du graphique elle s’ouvre vers la droite ; dans la moitié droite elle s’ouvre vers la gauche, afin de ne jamais sortir de l’écran.
+Dans la moitié gauche du graphique elle s’ouvre vers la droite ; dans la moitié droite elle s’ouvre vers la gauche. La version 7.0.34 corrige l’alignement interne Matplotlib afin que ce basculement soit réellement appliqué.

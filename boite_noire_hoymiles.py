@@ -38,7 +38,7 @@ except ImportError:
     HoymilesModbusTCP = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.33"
+VERSION = "7.0.34"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -686,10 +686,10 @@ def show_cursor(index):
     axes_center_x = (ax.get_position().x0 + ax.get_position().x1) / 2
     if top_x >= axes_center_x:
         cursor_position = (top_x - 0.008, 0.735)
-        cursor_box.box_alignment = (1, 1)
+        cursor_box._box_alignment = (1, 1)
     else:
         cursor_position = (top_x + 0.008, 0.735)
-        cursor_box.box_alignment = (0, 1)
+        cursor_box._box_alignment = (0, 1)
     cursor_box.xy = cursor_position
     cursor_box.xybox = cursor_position
     cursor_time_text.set_text(f"{point_time:%d/%m/%Y %H:%M:%S}")
