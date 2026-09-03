@@ -2,3 +2,4 @@ matplotlib>=3.7.5,<3.11; python_version < "3.11"
 matplotlib>=3.11; python_version >= "3.11"
 hoymiles-wifi
 hoymiles-modbus==0.10.0
+reportlab>=4.0,<5

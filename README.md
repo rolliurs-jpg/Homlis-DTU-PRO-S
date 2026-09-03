@@ -2,7 +2,7 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.43-2563eb)](RELEASE_NOTES_7.0.43.md)
+[![Version](https://img.shields.io/badge/version-7.0.44-2563eb)](RELEASE_NOTES_7.0.44.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -85,12 +85,16 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - alignement réel de la bulle corrigé pour que ce basculement fonctionne effectivement avec Matplotlib ;
 - alerte et cumul de l’injection mesurée par le Shelly.
 - tableau de bord mobile en lecture seule, utilisable sur le Wi-Fi local ou à distance avec Tailscale.
+- âge visible de la dernière mesure et état direct, retardé ou ancien sur mobile ;
+- provenance des valeurs : production DTU réelle, secours Shelly, données partielles ou absentes ;
+- analyse mensuelle de la qualité des données et simulation de batteries 2, 5, 7 et 10 kWh ;
+- rapport mensuel PDF créé localement, avec énergie, coupures observées et hypothèses de batterie.
 
 Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Tableau de bord mobile et Tailscale
 
-La version 7.0.43 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.44 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
@@ -99,6 +103,12 @@ La version 7.0.43 démarre un petit tableau de bord web sur le port `8765`. Il r
 5. Hors de la maison, ouvrez `http://ADRESSE_TAILSCALE_DU_PC:8765`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
 
 Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky/Dinky, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule.
+
+L’âge de la mesure est contrôlé indépendamment de la connexion au serveur : vert jusqu’à 90 secondes, orange en cas de retard et rouge lorsque les données sont anciennes. La source de production et la qualité de la mesure sont également indiquées.
+
+Dans **Bilan consommation**, le bouton **Rapport + batterie** analyse automatiquement le mois en cours. Il compare les capacités 2, 5, 7 et 10 kWh et permet de créer un PDF local. La simulation utilise les flux réellement enregistrés par le Shelly, avec un rendement aller-retour de 90 %, une limite de 2 000 W et une batterie vide au début de la période. Elle sert à comparer les tailles, pas à commander l’installation.
+
+Sur téléphone, Windscribe et Tailscale ne doivent pas être utilisés en même temps. Windscribe peut interrompre temporairement l’accès au tableau ; après l’avoir coupé, réactivez Tailscale si la connexion ne revient pas automatiquement.
 
 Depuis Chrome ou Safari mobile, utilisez **Ajouter à l’écran d’accueil** pour créer une icône solaire ouvrant directement le tableau comme une application. Supprimez puis recréez les anciens raccourcis gris après une mise à jour.
 

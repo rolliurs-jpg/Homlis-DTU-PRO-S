@@ -45,8 +45,13 @@ try:
 except ImportError:
     MobileDashboard = None
 
+try:
+    from energy_analysis import analyse_period, create_monthly_pdf, simulate_batteries
+except ImportError:
+    analyse_period = create_monthly_pdf = simulate_batteries = None
+
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.43"
+VERSION = "7.0.44"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -328,8 +333,21 @@ def publish_mobile_snapshot(dtu_state="waiting"):
         return
     try:
         current = mobile_point(len(times) - 1)
+        dtu_value = finite_mobile_value(ac_power[-1])
+        shelly_pv_value = finite_mobile_value(shelly_a_power[-1])
+        shelly_grid_value = finite_mobile_value(shelly_b_power[-1])
+        if dtu_value is not None and shelly_pv_value is not None and shelly_grid_value is not None:
+            quality = "complete"
+        elif dtu_value is None and shelly_pv_value is not None and shelly_grid_value is not None:
+            quality = "backup"
+        elif any(value is not None for value in (dtu_value, shelly_pv_value, shelly_grid_value)):
+            quality = "partial"
+        else:
+            quality = "missing"
         current.update({
-            "production_source": "DTU" if finite_mobile_value(ac_power[-1]) is not None else "Shelly",
+            "production_source": "DTU réelle" if dtu_value is not None else "Secours Shelly" if shelly_pv_value is not None else "Absente",
+            "grid_source": "Shelly Pro EM" if shelly_grid_value is not None else "Absente",
+            "quality": quality,
             "dtu_state": dtu_state,
             "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
             "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
@@ -2831,6 +2849,7 @@ def toggle_bilan(event=None):
     refresh_history_buttons()
     edf_reading_button.ax.set_visible(showing_bilan)
     edf_cost_button.ax.set_visible(showing_bilan)
+    energy_analysis_button.ax.set_visible(showing_bilan)
     average_pv_button.ax.set_visible(showing_bilan and not showing_comparison)
     surplus_button.ax.set_visible(showing_bilan and not showing_comparison)
     comparison_button.ax.set_visible(showing_bilan)
@@ -2908,6 +2927,101 @@ def open_mobile_dashboard(event=None):
     webbrowser.open(urls[0])
 
 
+def current_month_energy_analysis():
+    """Analyse le mois en cours à partir des tableaux déjà chargés en mémoire."""
+    if analyse_period is None:
+        raise RuntimeError("Le module d'analyse énergétique n'est pas installé.")
+    now = datetime.now()
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return analyse_period(
+        times, ac_power, shelly_a_power, shelly_b_power, start, now,
+        export_positive=bool(CONFIG.get("shelly", {}).get("grid_export_positive", False)),
+    )
+
+
+def open_energy_analysis(event=None):
+    """Affiche provenance, qualité et simulation, sans aucune commande réseau."""
+    parent = dialog_parent()
+    try:
+        analysis = current_month_energy_analysis()
+        simulations = simulate_batteries(analysis)
+    except Exception as exc:
+        messagebox.showerror("Analyse énergie", str(exc), parent=parent)
+        return
+    if not analysis["samples"]:
+        messagebox.showinfo("Analyse énergie", "Aucune mesure exploitable pour le mois en cours.", parent=parent)
+        return
+
+    dialog = tk.Toplevel(parent)
+    dialog.title("Analyse énergie - lecture seule")
+    dialog.geometry("760x560")
+    dialog.minsize(690, 500)
+    dialog.transient(parent)
+    frame = ttk.Frame(dialog, padding=18)
+    frame.pack(fill="both", expand=True)
+    ttk.Label(frame, text="Analyse du mois en cours", font=("Arial", 16, "bold")).pack(anchor="w")
+    ttk.Label(
+        frame,
+        text=(
+            f"Production {analysis['production_kwh']:.2f} kWh   |   Consommation {analysis['consumption_kwh']:.2f} kWh   |   "
+            f"Achat {analysis['import_kwh']:.2f} kWh   |   Injection {analysis['export_kwh']:.2f} kWh"
+        ),
+    ).pack(anchor="w", pady=(8, 3))
+    ttk.Label(
+        frame,
+        text=(
+            f"Qualité complète Shelly : {analysis['coverage_pct']:.1f} %   |   Production DTU réelle : "
+            f"{analysis['dtu_coverage_pct']:.1f} %   |   Secours Shelly : {analysis['backup_pct']:.1f} %   |   "
+            f"Séquences DTU indisponibles : {analysis['dtu_outages']}"
+        ),
+        wraplength=710,
+    ).pack(anchor="w", pady=(0, 12))
+    ttk.Label(frame, text="Simulation batterie", font=("Arial", 12, "bold")).pack(anchor="w")
+    columns = ("capacity", "captured", "avoided", "export", "cycles")
+    table = ttk.Treeview(frame, columns=columns, show="headings", height=6)
+    for key, label, width in (
+        ("capacity", "Capacité", 95), ("captured", "Surplus capté", 125),
+        ("avoided", "Achat évité", 125), ("export", "Injection restante", 150),
+        ("cycles", "Cycles équiv.", 110),
+    ):
+        table.heading(key, text=label)
+        table.column(key, width=width, anchor="center")
+    for item in simulations:
+        table.insert("", "end", values=(
+            f"{item['capacity_kwh']:.1f} kWh", f"{item['captured_kwh']:.2f} kWh",
+            f"{item['avoided_import_kwh']:.2f} kWh", f"{item['remaining_export_kwh']:.2f} kWh",
+            f"{item['equivalent_cycles']:.1f}",
+        ))
+    table.pack(fill="x", pady=(6, 10))
+    ttk.Label(
+        frame,
+        text=(
+            "Hypothèses : batterie vide au début, rendement aller-retour 90 %, charge/décharge limitée à 2 000 W. "
+            "Résultats indicatifs pour comparer les tailles ; aucune commande n'est envoyée aux appareils."
+        ),
+        wraplength=710,
+    ).pack(anchor="w", pady=(0, 12))
+
+    def save_pdf():
+        suggested = f"rapport_solaire_{analysis['start']:%Y-%m}.pdf"
+        path = filedialog.asksaveasfilename(
+            title="Enregistrer le rapport mensuel", defaultextension=".pdf",
+            filetypes=[("Document PDF", "*.pdf")], initialfile=suggested, parent=dialog,
+        )
+        if not path:
+            return
+        try:
+            create_monthly_pdf(path, analysis, simulations, title="Rapport mensuel solaire - lecture seule")
+            messagebox.showinfo("Rapport mensuel", f"Rapport créé :\n{path}", parent=dialog)
+        except Exception as exc:
+            messagebox.showerror("Rapport mensuel", str(exc), parent=dialog)
+
+    footer = ttk.Frame(frame)
+    footer.pack(side="bottom", fill="x")
+    ttk.Button(footer, text="Créer le PDF mensuel", command=save_pdf).pack(side="left")
+    ttk.Button(footer, text="Fermer", command=dialog.destroy).pack(side="right")
+
+
 tariffs_ax = plt.axes([0.31, 0.145, 0.18, 0.048])
 tariffs_button = Button(tariffs_ax, "Tarifs EDF", color="#64748b", hovercolor="#475569")
 tariffs_button.label.set_color("white")
@@ -2926,6 +3040,12 @@ edf_cost_button = Button(edf_cost_ax, "Coût EDF réel", color="#0f766e", hoverc
 edf_cost_button.label.set_color("white")
 edf_cost_button.on_clicked(show_real_edf_cost)
 edf_cost_ax.set_visible(False)
+
+energy_analysis_ax = plt.axes([0.82, 0.805, 0.16, 0.042], zorder=25)
+energy_analysis_button = Button(energy_analysis_ax, "Rapport + batterie", color="#0f766e", hovercolor="#115e59")
+energy_analysis_button.label.set_color("white")
+energy_analysis_button.on_clicked(open_energy_analysis)
+energy_analysis_ax.set_visible(False)
 
 # Information synthétique : la moyenne est affichée à la demande, sans
 # alourdir le graphique ni masquer les valeurs instantanées.
@@ -3052,6 +3172,7 @@ export_button.on_clicked(export_history)
 style_final_button(tariffs_button)
 style_final_button(edf_reading_button)
 style_final_button(edf_cost_button)
+style_final_button(energy_analysis_button)
 style_final_button(average_pv_button)
 # Le libellé de ce bouton comporte deux lignes : on le descend légèrement
 # afin qu'il reste bien centré dans son cadre.
@@ -3074,9 +3195,10 @@ def layout_bottom_actions():
     """Aligne les actions selon la page, sans laisser de vide inutile."""
     if showing_bilan:
         # Ligne haute : uniquement les actions liées à EDF.
-        edf_reading_ax.set_position([0.18, 0.805, 0.21, 0.042])
-        tariffs_ax.set_position([0.42, 0.805, 0.18, 0.042])
-        edf_cost_ax.set_position([0.63, 0.805, 0.18, 0.042])
+        edf_reading_ax.set_position([0.08, 0.805, 0.20, 0.042])
+        tariffs_ax.set_position([0.30, 0.805, 0.16, 0.042])
+        edf_cost_ax.set_position([0.48, 0.805, 0.16, 0.042])
+        energy_analysis_ax.set_position([0.66, 0.805, 0.22, 0.042])
         # Ligne basse : analyse et navigation.
         surplus_ax.set_position([0.04, 0.145, 0.18, 0.048])
         average_pv_ax.set_position([0.24, 0.145, 0.18, 0.048])
@@ -3085,6 +3207,7 @@ def layout_bottom_actions():
             surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
             average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
             edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
+            energy_analysis_ax.set_position([0.001, 0.001, 0.001, 0.001])
             tariffs_ax.set_position([0.61, 0.805, 0.15, 0.042])
             comparison_details_ax.set_position([0.78, 0.805, 0.15, 0.042])
             comparison_ax_button.set_position([0.42, 0.145, 0.17, 0.048])
@@ -3099,6 +3222,7 @@ def layout_bottom_actions():
         # Un axe masqué peut tout de même capter les clics Matplotlib : on le
         # retire physiquement du graphique de production.
         edf_cost_ax.set_position([0.001, 0.001, 0.001, 0.001])
+        energy_analysis_ax.set_position([0.001, 0.001, 0.001, 0.001])
         average_pv_ax.set_position([0.001, 0.001, 0.001, 0.001])
         surplus_ax.set_position([0.001, 0.001, 0.001, 0.001])
         comparison_ax_button.set_position([0.001, 0.001, 0.001, 0.001])
