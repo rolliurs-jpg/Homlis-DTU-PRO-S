@@ -21,6 +21,16 @@ Selon le firmware Hoymiles, le mode Modbus peut rendre le DDSU et la gestion d�
 
 Le lanceur ouvre le script avec `/bin/bash` et reste actif comme processus parent. macOS conserve ainsi l’identité de l’application pour l’autorisation réseau locale, même si le ZIP retire le droit d’exécution du script interne.
 
+### Si macOS affiche « No route to host »
+
+Sous macOS 15.5 ou plus récent, un lanceur communautaire sans signature Apple Developer peut être bloqué alors que les mêmes appareils répondent depuis Terminal. Pour autoriser le réseau Wi-Fi local `192.168.1.x`, exécutez :
+
+```bash
+sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"
+```
+
+Le mot de passe administrateur reste invisible pendant sa saisie. Redémarrez complètement le Mac, puis ouvrez le logiciel depuis `/Applications`. Cette exception système autorise toutes les applications à joindre le sous-réseau `192.168.1.x`. Elle a été validée avec macOS 27.0. Référence : [Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
+
 L’installateur crée un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Le logo des panneaux solaires est utilisé et les boutons gardent la forme rectangulaire de Windows.
 
 Les mises à jour conservent les réglages et historiques dans :

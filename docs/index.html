@@ -66,7 +66,7 @@
 
     <section class="section screenshot-section">
       <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky/Dinky, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
-      <figure class="app-shot"><img src="assets/suivi-production-v7.png" alt="Interface de suivi : production Hoymiles, réseau DDSU, Linky Dinky et deux mesures Shelly Pro EM"><figcaption>Version 7.0.39 : le lanceur Mac conserve l’identité nécessaire à l’accès au réseau local.</figcaption></figure>
+      <figure class="app-shot"><a href="assets/suivi-production-v7.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture complète"><img src="assets/suivi-production-v7.png" alt="Interface complète de suivi : production Hoymiles, réseau DDSU, Linky Dinky et deux mesures Shelly Pro EM"></a><figcaption>Capture affichée entièrement, sans recadrage. Cliquez dessus pour l’ouvrir à sa taille réelle.</figcaption></figure>
     </section>
 
     <section id="installation" class="section split-section">
@@ -79,6 +79,7 @@
         <li><strong>5. Lancez</strong><span>Utilisez le raccourci Boîte noire Hoymiles créé sur le Bureau.</span></li>
         <li><strong>6. Mac Apple Silicon</strong><span>La version Mac utilise uniquement le <strong>réseau unique nano-routeur/LAN</strong>. Ouvrez par clic droit <code>macOS-AppleSilicon/Installer Boîte noire Hoymiles.app</code>. Un unique lanceur est créé dans <code>/Applications</code> et un raccourci sur le Bureau.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
       </ol>
+      <aside class="mac-network-note"><strong>macOS 15.5 ou plus récent — erreur « No route to host »</strong><p>Si les appareils répondent depuis Terminal mais restent hors ligne dans l’application, autorisez le réseau Wi-Fi local puis redémarrez le Mac :</p><code>sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"</code><p>Cette exception système concerne toutes les applications utilisant le réseau <code>192.168.1.x</code>. Procédure validée sous macOS 27.0. <a href="https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy">Explication officielle Apple</a>.</p></aside>
     </section>
 
     <section id="soutenir" class="section">
