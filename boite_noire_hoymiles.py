@@ -5,9 +5,11 @@ import shutil
 import socket
 import subprocess
 import calendar
+import atexit
 import math
 import sys
 import tkinter as tk
+import webbrowser
 from tkinter import filedialog, simpledialog, messagebox, ttk
 from bisect import bisect_left
 from datetime import datetime, timedelta
@@ -38,8 +40,13 @@ try:
 except ImportError:
     HoymilesModbusTCP = None
 
+try:
+    from mobile_dashboard import MobileDashboard
+except ImportError:
+    MobileDashboard = None
+
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.39"
+VERSION = "7.0.40"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -129,6 +136,13 @@ DEFAULT_CONFIG = {
         "profile": "",
         "after_minutes": 30,
     },
+    # Tableau de bord HTTP en lecture seule. L'écoute sur toutes les interfaces
+    # permet l'accès depuis le Wi-Fi local et l'adresse privée Tailscale.
+    "mobile_dashboard": {
+        "enabled": True,
+        "host": "0.0.0.0",
+        "port": 8765,
+    },
     # Relevés saisis depuis l'espace client EDF, indexés par mois AAAA-MM.
     "releves_edf": {}
 }
@@ -178,6 +192,10 @@ def load_config():
         if not isinstance(saved_recovery, dict):
             saved_recovery = {}
         cfg["dtu_wifi_recovery"] = {**DEFAULT_CONFIG["dtu_wifi_recovery"], **saved_recovery}
+        saved_mobile = data.get("mobile_dashboard", {})
+        if not isinstance(saved_mobile, dict):
+            saved_mobile = {}
+        cfg["mobile_dashboard"] = {**DEFAULT_CONFIG["mobile_dashboard"], **saved_mobile}
         saved_readings = data.get("releves_edf", {})
         cfg["releves_edf"] = saved_readings if isinstance(saved_readings, dict) else {}
         # Ne jamais conserver dans la configuration une ancienne valeur brute
@@ -197,6 +215,16 @@ CONFIG = load_config()
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
 SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
 SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
+
+mobile_dashboard = None
+mobile_cfg = CONFIG.get("mobile_dashboard", {})
+if MobileDashboard is not None and mobile_cfg.get("enabled", True):
+    mobile_dashboard = MobileDashboard(
+        host=mobile_cfg.get("host", "0.0.0.0"),
+        port=mobile_cfg.get("port", 8765),
+    )
+    mobile_dashboard.start()
+    atexit.register(mobile_dashboard.stop)
 
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
 PRIMARY_COLOR = "#00008b"
@@ -260,6 +288,58 @@ def signed_shelly_injection_w(grid_power_w):
     export_positive = bool(CONFIG.get("shelly", {}).get("grid_export_positive", False))
     signed_export = float(grid_power_w) if export_positive else -float(grid_power_w)
     return max(0.0, signed_export)
+
+
+def finite_mobile_value(value):
+    """Convertit une mesure affichable en nombre, sinon en valeur absente."""
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) else None
+
+
+def mobile_point(index):
+    """Construit une mesure mobile sans interroger une seconde fois les appareils."""
+    dtu_pv = finite_mobile_value(ac_power[index])
+    shelly_pv = finite_mobile_value(shelly_a_power[index])
+    shelly_grid = finite_mobile_value(shelly_b_power[index])
+    production = dtu_pv if dtu_pv is not None else shelly_pv
+    import_signed = None
+    if shelly_grid is not None:
+        export_positive = bool(CONFIG.get("shelly", {}).get("grid_export_positive", False))
+        import_signed = -shelly_grid if export_positive else shelly_grid
+    consumption = None
+    if shelly_pv is not None and import_signed is not None:
+        consumption = max(0.0, shelly_pv + import_signed)
+    return {
+        "timestamp": times[index].isoformat(timespec="seconds"),
+        "production_w": production,
+        "consumption_w": consumption,
+        "import_w": None if import_signed is None else max(0.0, import_signed),
+        "export_w": None if import_signed is None else max(0.0, -import_signed),
+        "linky_w": finite_mobile_value(linky_power[index]),
+    }
+
+
+def publish_mobile_snapshot(dtu_state="waiting"):
+    """Publie le dernier état au serveur web local en lecture seule."""
+    if mobile_dashboard is None or not times:
+        return
+    try:
+        current = mobile_point(len(times) - 1)
+        current.update({
+            "production_source": "DTU" if finite_mobile_value(ac_power[-1]) is not None else "Shelly",
+            "dtu_state": dtu_state,
+            "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
+            "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
+        })
+        start = max(0, len(times) - 360)
+        history = [mobile_point(index) for index in range(start, len(times))]
+        mobile_dashboard.update(current, history)
+    except Exception:
+        # Le tableau mobile ne doit jamais interrompre la collecte principale.
+        pass
 
 
 def show_nonblocking_injection_alert(injection_w):
@@ -2790,6 +2870,42 @@ def toggle_dtu_maintenance_pause(event=None):
     fig.canvas.draw_idle()
 
 
+def open_mobile_dashboard(event=None):
+    """Ouvre le tableau local et affiche les adresses utilisables sur téléphone."""
+    if mobile_dashboard is None:
+        messagebox.showwarning(
+            "Tableau mobile",
+            "Le module du tableau mobile n'est pas installé.",
+            parent=dialog_parent(),
+        )
+        return
+    if mobile_dashboard.error:
+        messagebox.showerror(
+            "Tableau mobile",
+            f"Le serveur mobile n'a pas pu démarrer sur le port {mobile_dashboard.port}.\n\n"
+            f"Détail : {mobile_dashboard.error}",
+            parent=dialog_parent(),
+        )
+        return
+    urls = mobile_dashboard.urls()
+    webbrowser.open(urls[0])
+    remote = [url for url in urls if "//100." in url]
+    message = (
+        "Le tableau mobile est actif en lecture seule.\n\n"
+        "Sur le Wi-Fi de la maison, ouvrez :\n"
+        + "\n".join(url for url in urls if "//100." not in url and "127.0.0.1" not in url)
+    )
+    if remote:
+        message += "\n\nDepuis l'extérieur avec Tailscale :\n" + "\n".join(remote)
+    else:
+        message += (
+            "\n\nTailscale n'est pas encore détecté. Après son installation, "
+            "utilisez l'adresse 100.x affichée par Tailscale avec le port "
+            f"{mobile_dashboard.port}."
+        )
+    messagebox.showinfo("Tableau mobile", message, parent=dialog_parent())
+
+
 tariffs_ax = plt.axes([0.31, 0.145, 0.18, 0.048])
 tariffs_button = Button(tariffs_ax, "Tarifs EDF", color="#64748b", hovercolor="#475569")
 tariffs_button.label.set_color("white")
@@ -2840,7 +2956,7 @@ comparison_ax_button.set_visible(False)
 # il ouvre un rapport technique de lecture seule pour le SAV Hoymiles.
 # Les actions restent groupées, sous les cartes de statut : elles ne masquent
 # ni le titre ni l'infobulle du curseur quand la fenêtre est réduite.
-maintenance_pause_ax = plt.axes([0.44, 0.875, 0.15, 0.042], zorder=30)
+maintenance_pause_ax = plt.axes([0.42, 0.875, 0.14, 0.042], zorder=30)
 maintenance_pause_button = Button(maintenance_pause_ax, "Pause maintenance", color="#b45309", hovercolor="#92400e")
 maintenance_pause_button.label.set_color("white")
 maintenance_pause_button.on_clicked(toggle_dtu_maintenance_pause)
@@ -2877,16 +2993,21 @@ def hide_maintenance_tooltip(event):
 fig.canvas.mpl_connect("motion_notify_event", update_maintenance_tooltip)
 fig.canvas.mpl_connect("figure_leave_event", hide_maintenance_tooltip)
 
-diagnostic_ax = plt.axes([0.61, 0.875, 0.15, 0.042], zorder=30)
+diagnostic_ax = plt.axes([0.58, 0.875, 0.13, 0.042], zorder=30)
 diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
 diagnostic_button.label.set_color("white")
 diagnostic_button.on_clicked(open_dtu_diagnostic)
 
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
-capture_ax = plt.axes([0.78, 0.875, 0.15, 0.042], zorder=30)
+capture_ax = plt.axes([0.73, 0.875, 0.13, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
 capture_button.label.set_color("white")
 capture_button.on_clicked(capture_screen)
+
+mobile_ax = plt.axes([0.88, 0.875, 0.10, 0.042], zorder=30)
+mobile_button = Button(mobile_ax, "Mobile", color="#0f766e", hovercolor="#115e59")
+mobile_button.label.set_color("white")
+mobile_button.on_clicked(open_mobile_dashboard)
 
 bilan_button_ax = plt.axes([0.52, 0.145, 0.22, 0.048])
 bilan_button = Button(bilan_button_ax, "Bilan consommation", color="#0ea5e9", hovercolor="#0284c7")
@@ -2939,6 +3060,7 @@ style_final_button(comparison_details_button)
 style_final_button(comparison_button)
 style_final_button(diagnostic_button)
 style_final_button(capture_button)
+style_final_button(mobile_button)
 style_final_button(bilan_button, active=True)
 style_final_button(export_button)
 for period, button in period_buttons.items():
@@ -3080,6 +3202,7 @@ def update(_):
             f"Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status} — index Dinky conserve."
             + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
+        publish_mobile_snapshot("waiting")
         return (
             line_ac, line_grid, line_limit, line_linky, line_shelly_a, line_shelly_b, cursor_line, cursor_dot, cursor_box,
             *live_cards, status_text, *end_labels, *connection_badges,
@@ -3172,6 +3295,7 @@ def update(_):
             f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status}{limit_note}"
             + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
+        publish_mobile_snapshot("online")
     except Exception as e:
         dtu_failures += 1
         failed_at = datetime.now()
@@ -3244,6 +3368,7 @@ def update(_):
             + (f" — {injection_alert_message}" if injection_alert_message else "")
             + (f" — {recovery_note}" if recovery_note else "")
         )
+        publish_mobile_snapshot("waiting" if failure_seconds < 180 else "offline")
 
     return (
         line_ac, line_grid, line_limit, line_linky, line_shelly_a, line_shelly_b, cursor_line, cursor_dot, cursor_box,

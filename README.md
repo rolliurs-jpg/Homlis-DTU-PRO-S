@@ -2,7 +2,7 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.39-2563eb)](RELEASE_NOTES_7.0.39.md)
+[![Version](https://img.shields.io/badge/version-7.0.40-2563eb)](RELEASE_NOTES_7.0.40.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -84,8 +84,23 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - boîte du curseur automatiquement ouverte vers l’intérieur dès le milieu du graphique ;
 - alignement réel de la bulle corrigé pour que ce basculement fonctionne effectivement avec Matplotlib ;
 - alerte et cumul de l’injection mesurée par le Shelly.
+- tableau de bord mobile en lecture seule, utilisable sur le Wi-Fi local ou à distance avec Tailscale.
 
 Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
+
+## Tableau de bord mobile et Tailscale
+
+La version 7.0.40 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+
+1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
+2. Cliquez sur le bouton **Mobile** pour ouvrir le tableau et afficher les adresses disponibles.
+3. Sur le Wi-Fi de la maison, ouvrez `http://ADRESSE_DU_PC:8765` depuis le téléphone.
+4. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur l’ordinateur et le téléphone, puis connectez les deux appareils au même compte.
+5. Hors de la maison, ouvrez `http://ADRESSE_TAILSCALE_DU_PC:8765`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
+
+Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky/Dinky, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule.
+
+N’ouvrez aucun port de la box et n’utilisez pas **Tailscale Funnel** : le tableau doit rester limité à votre réseau local et à votre réseau privé Tailscale. L’ordinateur, le logiciel et Tailscale doivent rester actifs pour une consultation pendant les vacances. Si le pare-feu Windows demande une autorisation pour Python, autorisez le réseau privé utilisé par l’installation.
 
 ## Données locales
 
