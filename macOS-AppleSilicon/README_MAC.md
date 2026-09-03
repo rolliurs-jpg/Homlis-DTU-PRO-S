@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.42 — macOS Apple Silicon
+# Boîte noire Hoymiles v7.0.43 — macOS Apple Silicon
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 
