@@ -2,7 +2,7 @@
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.38-2563eb)](RELEASE_NOTES_7.0.38.md)
+[![Version](https://img.shields.io/badge/version-7.0.39-2563eb)](RELEASE_NOTES_7.0.39.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -37,7 +37,7 @@ Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou
 4. Faites un clic droit sur `Installer Boîte noire Hoymiles.app`, puis choisissez **Ouvrir**.
 5. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
 
-Le lanceur appelle explicitement Bash : l’installation reste fonctionnelle même si le ZIP perd le droit d’exécution du script interne.
+Le lanceur appelle explicitement Bash et conserve l’identité de l’application pendant l’exécution : l’installation résiste à la perte des droits du ZIP et macOS peut attribuer correctement l’autorisation de réseau local.
 
 L’installateur place un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Les données sont conservées dans `~/Library/Application Support/BoiteNoireHoymiles`. Voir le [guide Mac détaillé](macOS-AppleSilicon/README_MAC.md).
 

@@ -11,4 +11,7 @@ fi
 export MPLCONFIGDIR="$BASE/.matplotlib"
 mkdir -p "$MPLCONFIGDIR"
 cd "$BASE"
-exec "$PYTHON" "$PROGRAM"
+# Conserver ce processus, lancé et identifié par LaunchServices, pendant toute
+# l'exécution. Si `exec` le remplace par Python, macOS peut perdre l'identité du
+# bundle et refuser l'accès au réseau local sans afficher de demande.
+"$PYTHON" "$PROGRAM"

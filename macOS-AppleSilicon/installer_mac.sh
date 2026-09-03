@@ -35,7 +35,7 @@ if ! choose_python; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.38 pour macOS ?\n\nCette version utilise le réseau unique : DTU en Ethernet sur le nano-routeur Client/Pont, puis Wi-Fi de la box. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.39 pour macOS ?\n\nCette version utilise le réseau unique : DTU en Ethernet sur le nano-routeur Client/Pont, puis Wi-Fi de la box. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
@@ -95,7 +95,7 @@ fi
 case "$shelly_selection" in
   *"Configurer"*)
     SHELLY_MODE="enable"
-    SHELLY_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP du Shelly Pro EM sur le réseau de la box :" default answer "" with title "Shelly Pro EM" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
+    SHELLY_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP du Shelly Pro EM sur le réseau de la box :" default answer "192.168.1.105" with title "Shelly Pro EM" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
     [ -n "$SHELLY_HOST" ] || { dialog "L'adresse IP du Shelly est nécessaire."; exit 1; }
     ;;
   *"sans Shelly"*|*"Désactiver"*) SHELLY_MODE="disable" ;;

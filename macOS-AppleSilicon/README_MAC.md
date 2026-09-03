@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.38 — macOS Apple Silicon
+# Boîte noire Hoymiles v7.0.39 — macOS Apple Silicon
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 
@@ -19,7 +19,7 @@ Selon le firmware Hoymiles, le mode Modbus peut rendre le DDSU et la gestion d�
 4. Saisissez l’adresse IP du DTU, puis configurez si nécessaire le Dinky et le Shelly.
 5. Choisissez **Lancer maintenant** à la fin.
 
-Le lanceur ouvre désormais le script avec `/bin/bash`. Il fonctionne donc même si macOS affiche le script interne sans droit d’exécution après extraction du ZIP.
+Le lanceur ouvre le script avec `/bin/bash` et reste actif comme processus parent. macOS conserve ainsi l’identité de l’application pour l’autorisation réseau locale, même si le ZIP retire le droit d’exécution du script interne.
 
 L’installateur crée un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Le logo des panneaux solaires est utilisé et les boutons gardent la forme rectangulaire de Windows.
 
