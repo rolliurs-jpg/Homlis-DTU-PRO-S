@@ -1,4 +1,4 @@
-# Boîte noire Hoymiles v7.0.40 — macOS Apple Silicon
+# Boîte noire Hoymiles v7.0.41 — macOS Apple Silicon
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 
@@ -41,7 +41,7 @@ Le paquet communautaire n’est pas notarisé avec un compte Apple Developer. La
 
 ## Tableau de bord mobile et accès Tailscale
 
-Le logiciel démarre un tableau mobile en lecture seule sur le port `8765`. Cliquez sur **Mobile** pour l’ouvrir et connaître l’adresse à saisir sur le téléphone.
+Le logiciel démarre un tableau mobile en lecture seule sur le port `8765`. Cliquez sur **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre après validation du message.
 
 - À la maison : `http://ADRESSE_DU_MAC:8765` sur le même Wi-Fi.
 - À distance : installez [Tailscale](https://tailscale.com/download) sur le Mac et le téléphone, connectez-les au même compte, puis ouvrez `http://ADRESSE_TAILSCALE_DU_MAC:8765`.

@@ -46,7 +46,7 @@ except ImportError:
     MobileDashboard = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.40"
+VERSION = "7.0.41"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -2888,7 +2888,6 @@ def open_mobile_dashboard(event=None):
         )
         return
     urls = mobile_dashboard.urls()
-    webbrowser.open(urls[0])
     remote = [url for url in urls if "//100." in url]
     message = (
         "Le tableau mobile est actif en lecture seule.\n\n"
@@ -2903,7 +2902,10 @@ def open_mobile_dashboard(event=None):
             "utilisez l'adresse 100.x affichée par Tailscale avec le port "
             f"{mobile_dashboard.port}."
         )
-    messagebox.showinfo("Tableau mobile", message, parent=dialog_parent())
+    messagebox.showinfo("Lecture à distance", message, parent=dialog_parent())
+    # Ouvrir le navigateur seulement après fermeture du message : sous Windows,
+    # Chrome passait sinon devant la fenêtre contenant les adresses à recopier.
+    webbrowser.open(urls[0])
 
 
 tariffs_ax = plt.axes([0.31, 0.145, 0.18, 0.048])
@@ -2956,7 +2958,7 @@ comparison_ax_button.set_visible(False)
 # il ouvre un rapport technique de lecture seule pour le SAV Hoymiles.
 # Les actions restent groupées, sous les cartes de statut : elles ne masquent
 # ni le titre ni l'infobulle du curseur quand la fenêtre est réduite.
-maintenance_pause_ax = plt.axes([0.42, 0.875, 0.14, 0.042], zorder=30)
+maintenance_pause_ax = plt.axes([0.39, 0.875, 0.14, 0.042], zorder=30)
 maintenance_pause_button = Button(maintenance_pause_ax, "Pause maintenance", color="#b45309", hovercolor="#92400e")
 maintenance_pause_button.label.set_color("white")
 maintenance_pause_button.on_clicked(toggle_dtu_maintenance_pause)
@@ -2993,19 +2995,19 @@ def hide_maintenance_tooltip(event):
 fig.canvas.mpl_connect("motion_notify_event", update_maintenance_tooltip)
 fig.canvas.mpl_connect("figure_leave_event", hide_maintenance_tooltip)
 
-diagnostic_ax = plt.axes([0.58, 0.875, 0.13, 0.042], zorder=30)
+diagnostic_ax = plt.axes([0.55, 0.875, 0.13, 0.042], zorder=30)
 diagnostic_button = Button(diagnostic_ax, "Diagnostic DTU", color="#334155", hovercolor="#0f172a")
 diagnostic_button.label.set_color("white")
 diagnostic_button.on_clicked(open_dtu_diagnostic)
 
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
-capture_ax = plt.axes([0.73, 0.875, 0.13, 0.042], zorder=30)
+capture_ax = plt.axes([0.70, 0.875, 0.13, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
 capture_button.label.set_color("white")
 capture_button.on_clicked(capture_screen)
 
-mobile_ax = plt.axes([0.88, 0.875, 0.10, 0.042], zorder=30)
-mobile_button = Button(mobile_ax, "Mobile", color="#0f766e", hovercolor="#115e59")
+mobile_ax = plt.axes([0.85, 0.875, 0.13, 0.042], zorder=30)
+mobile_button = Button(mobile_ax, "Lecture à distance", color="#0f766e", hovercolor="#115e59")
 mobile_button.label.set_color("white")
 mobile_button.on_clicked(open_mobile_dashboard)
 
