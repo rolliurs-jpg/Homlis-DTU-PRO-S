@@ -17,7 +17,14 @@ import subprocess
 import threading
 from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
+from pathlib import Path
 from urllib.parse import urlparse
+
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
 
 MOBILE_HTML = r"""<!doctype html>
@@ -26,6 +33,13 @@ MOBILE_HTML = r"""<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#071a33">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Solaire">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <title>Boîte noire Hoymiles</title>
   <style>
     :root{color-scheme:dark;--bg:#061426;--panel:#0d223b;--line:#1d3b5c;--text:#f8fafc;--muted:#9db2c8;--blue:#3b82f6;--navy:#4f7cff;--green:#22c55e;--yellow:#ffd000;--red:#ef4444}
@@ -56,6 +70,41 @@ function draw(history){const c=$('chart'),dpr=window.devicePixelRatio||1,w=c.cli
 async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{};$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=exporting?'Surplus mesuré par le Shelly':'Mesure réseau locale';$('updated').textContent=s.timestamp?`Dernière mesure : ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent='En direct';$('liveDot').style.background='#22c55e';draw(d.history)}catch(e){$('liveText').textContent='Hors ligne';$('liveDot').style.background='#ef4444'}}
 refresh();setInterval(refresh,5000);addEventListener('resize',refresh);
 </script></body></html>"""
+
+MOBILE_MANIFEST = {
+    "name": "Boîte noire Hoymiles — Solaire",
+    "short_name": "Solaire",
+    "description": "Lecture à distance de la production et de la consommation solaire.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#061426",
+    "theme_color": "#071a33",
+    "icons": [
+        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    ],
+}
+
+_ICON_CACHE = {}
+
+
+def _mobile_icon(size):
+    """Convertit le logo ICO existant en PNG pour Android et iOS."""
+    if size in _ICON_CACHE:
+        return _ICON_CACHE[size]
+    if Image is None:
+        return None
+    icon_path = Path(__file__).with_name("icone_panneau_solaire.ico")
+    try:
+        with Image.open(icon_path) as source:
+            icon = source.convert("RGBA").resize((size, size), Image.Resampling.LANCZOS)
+            output = BytesIO()
+            icon.save(output, format="PNG", optimize=True)
+            _ICON_CACHE[size] = output.getvalue()
+            return _ICON_CACHE[size]
+    except (OSError, ValueError):
+        return None
 
 
 def _clean_number(value):
@@ -90,6 +139,26 @@ class MobileDashboard:
                     with dashboard._lock:
                         body = json.dumps(dashboard._payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
                     self._send(body, "application/json; charset=utf-8")
+                    return
+                if path == "/manifest.webmanifest":
+                    body = json.dumps(MOBILE_MANIFEST, ensure_ascii=False).encode("utf-8")
+                    self._send(body, "application/manifest+json; charset=utf-8")
+                    return
+                if path in ("/icon-192.png", "/icon-512.png"):
+                    size = 192 if "192" in path else 512
+                    body = _mobile_icon(size)
+                    if body is not None:
+                        self._send(body, "image/png")
+                        return
+                    self.send_error(404)
+                    return
+                if path == "/favicon.ico":
+                    try:
+                        body = Path(__file__).with_name("icone_panneau_solaire.ico").read_bytes()
+                    except OSError:
+                        self.send_error(404)
+                        return
+                    self._send(body, "image/x-icon")
                     return
                 if path == "/health":
                     self._send(b'{"status":"ok"}', "application/json")
