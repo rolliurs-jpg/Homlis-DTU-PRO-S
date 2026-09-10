@@ -15,8 +15,8 @@ jobs:
         run: |
           find . -type f \( -name '*.sh' -o -name '*.command' -o -path '*/Contents/MacOS/*' \) -exec /bin/bash -n {} \;
           find . -name Info.plist -exec plutil -lint {} \;
-      - run: python scripts/package_release.py dist/Hoymiles-7.0.46.zip
+      - run: python scripts/package_release.py dist/Hoymiles-7.0.47.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: Hoymiles-7.0.46
-          path: dist/Hoymiles-7.0.46.zip
+          name: Hoymiles-7.0.47
+          path: dist/Hoymiles-7.0.47.zip

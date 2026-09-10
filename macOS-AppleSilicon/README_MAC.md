@@ -1,10 +1,10 @@
-# Installation Mac — version 7.0.46
+# Installation Mac — version 7.0.47
 
 1. Téléchargez et décompressez le ZIP complet directement sur le Mac.
 2. Revenez à la racine du dossier et double-cliquez sur **Installer sur Mac.app**.
 3. Suivez les fenêtres de l’assistant, puis cliquez sur **Lancer maintenant**.
 
-Gardez tous les fichiers ensemble. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés.
+L’installateur contient tous ses fichiers : vous pouvez déplacer **Installer sur Mac.app** seul dans un autre dossier. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés.
 
 En cas d’échec, l’assistant permet d’ouvrir le journal dans TextEdit. Si macOS affiche « endommagé », retéléchargez le paquet complet directement sur le Mac et contactez le projet avec le message exact.
 
