@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleDisplayName</key>
-  <string>Installer Boîte noire Hoymiles</string>
+  <string>Installer sur Mac</string>
   <key>CFBundleExecutable</key>
   <string>InstallerBoiteNoireHoymiles</string>
   <key>CFBundleIdentifier</key>
@@ -11,7 +11,7 @@
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleName</key>
-  <string>Installer Boîte noire Hoymiles</string>
+  <string>Installer sur Mac</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

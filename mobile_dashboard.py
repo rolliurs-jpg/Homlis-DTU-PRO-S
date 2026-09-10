@@ -53,6 +53,7 @@ MOBILE_HTML = r"""<!doctype html>
 </head>
 <body><main>
   <header><div><h1>Boîte noire Hoymiles</h1><div class="sub" id="updated">En attente de la première mesure…</div><div class="quality" id="quality">Qualité : en attente</div></div><div class="live"><span class="dot" id="liveDot"></span><span id="liveText">Connexion</span></div></header>
+  <aside id="monitorAlarm" role="alert" style="padding:12px;margin-bottom:14px;border:1px solid #8a5b08;border-radius:12px">Surveillance en attente…</aside>
   <section class="grid">
     <article class="card pv"><div class="label">Production solaire</div><div class="value" id="pv">—</div><div class="hint" id="pvSource">DTU / Shelly</div></article>
     <article class="card home"><div class="label">Consommation maison</div><div class="value" id="home">—</div><div class="hint">Calculée avec le Shelly</div></article>
@@ -69,7 +70,26 @@ function state(id,value){const el=$(id),txt=el.querySelector('span');el.classNam
 function ageLabel(seconds){if(seconds<2)return 'à l’instant';if(seconds<60)return`il y a ${Math.round(seconds)} s`;return`il y a ${Math.floor(seconds/60)} min`}
 function freshness(timestamp){if(!timestamp)return{age:Infinity,label:'Aucune mesure',color:'#ef4444'};let age=Math.max(0,(Date.now()-new Date(timestamp).getTime())/1000);if(age<=90)return{age,label:'En direct',color:'#22c55e'};if(age<=180)return{age,label:'Retard',color:'#f59e0b'};return{age,label:'Données anciennes',color:'#ef4444'}}
 function draw(history){const c=$('chart'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);x.strokeStyle='#1d3b5c';x.lineWidth=1;for(let i=0;i<4;i++){let y=15+i*(h-30)/3;x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}if(!history||history.length<2)return;let vals=[];history.forEach(p=>['production_w','consumption_w','import_w','export_w'].forEach(k=>{if(p[k]!=null)vals.push(p[k])}));let max=Math.max(100,...vals)*1.12;[['production_w','#4f7cff'],['consumption_w','#ffffff'],['import_w','#22c55e'],['export_w','#ffd000']].forEach(([k,col])=>{x.strokeStyle=col;x.lineWidth=k==='production_w'?2.6:2;x.beginPath();let started=false;history.forEach((p,i)=>{if(p[k]==null){started=false;return}let px=i*w/(history.length-1),py=h-12-(p[k]/max)*(h-26);if(!started){x.moveTo(px,py);started=true}else x.lineTo(px,py)});x.stroke()})}
-async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{},fresh=freshness(s.timestamp);$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=(s.grid_source||'Mesure réseau locale')+(exporting?' · injection':' · soutirage');$('updated').textContent=s.timestamp?`Dernière mesure ${ageLabel(fresh.age)} · ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';const labels={complete:'<strong>Qualité complète</strong> · DTU + Shelly',backup:'<strong>Mesure de secours</strong> · DTU absente, Shelly utilisé',partial:'<strong>Données partielles</strong>',missing:'<strong>Données absentes</strong>'};$('quality').innerHTML=labels[s.quality]||'Qualité : en attente';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent=fresh.label;$('liveDot').style.background=fresh.color;draw(d.history)}catch(e){$('liveText').textContent='Serveur inaccessible';$('liveDot').style.background='#ef4444'}}
+let lastReceived=null, lastMonitor=null, failedSince=null;
+function showMonitoring(){
+ const el=$('monitorAlarm'), now=Date.now();
+ if(failedSince!==null){
+   const age=(now-(lastReceived||failedSince))/1000;
+   el.textContent=(age>=300?'ALARME : ':'Connexion interrompue : ')+`ordinateur inaccessible depuis ${Math.floor(age/60)} min. Les dernières valeurs affichées sont anciennes. `+
+      'Pour une notification quand l’appli est fermée, configurez Alarmes sur le PC/Mac.';
+   el.style.borderColor='#ef4444'; return;
+ }
+ const m=lastMonitor;
+ if(!m){el.textContent='Surveillance indisponible : mettre à jour le logiciel PC/Mac.';return;}
+ const age=(m.age_seconds||0)+(lastReceived?(now-lastReceived)/1000:0), active=m.active||age>=300;
+ el.style.borderColor=active?'#ef4444':'#17683b';
+ el.textContent=(active?`ALARME : aucune mesure enregistrée depuis ${Math.floor(age/60)} min.`:
+   m.last_measure?'Mesures enregistrées normalement.':'En attente de la première mesure.')+
+   ' Alerte extérieure : '+m.remote+'.';
+ if(m.recovery)el.textContent+=` Dernière interruption : ${Math.floor(m.recovery.seconds/60)} min, reprise ${new Date(m.recovery.to*1000).toLocaleString('fr-FR')}.`;
+}
+setInterval(showMonitoring,1000);
+async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{},fresh=freshness(s.timestamp);$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=(s.grid_source||'Mesure réseau locale')+(exporting?' · injection':' · soutirage');$('updated').textContent=s.timestamp?`Dernière mesure ${ageLabel(fresh.age)} · ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';const labels={complete:'<strong>Qualité complète</strong> · DTU + Shelly',backup:'<strong>Mesure de secours</strong> · DTU absente, Shelly utilisé',partial:'<strong>Données partielles</strong>',missing:'<strong>Données absentes</strong>'};$('quality').innerHTML=labels[s.quality]||'Qualité : en attente';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent=fresh.label;$('liveDot').style.background=fresh.color;draw(d.history);lastReceived=Date.now();lastMonitor=d.monitoring;failedSince=null;showMonitoring()}catch(e){if(failedSince===null)failedSince=Date.now();showMonitoring();$('liveText').textContent='Serveur inaccessible';$('liveDot').style.background='#ef4444'}}
 refresh();setInterval(refresh,5000);addEventListener('resize',refresh);
 </script></body></html>"""
 
@@ -127,6 +147,7 @@ class MobileDashboard:
         self._server = None
         self._thread = None
         self.error = ""
+        self.monitoring = None
 
     def start(self):
         dashboard = self
@@ -139,7 +160,10 @@ class MobileDashboard:
                     return
                 if path == "/api/status":
                     with dashboard._lock:
-                        body = json.dumps(dashboard._payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
+                        payload = deepcopy(dashboard._payload)
+                    if dashboard.monitoring is not None:
+                        payload["monitoring"] = dashboard.monitoring()
+                    body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
                     self._send(body, "application/json; charset=utf-8")
                     return
                 if path == "/manifest.webmanifest":

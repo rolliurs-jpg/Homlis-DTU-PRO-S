@@ -1,4 +1,5 @@
 import csv
+from monitoring import Monitoring, has_measure, open_settings
 import json
 import re
 import shutil
@@ -51,7 +52,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.44"
+VERSION = "7.0.46"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -216,6 +217,10 @@ def load_config():
     except Exception:
         return DEFAULT_CONFIG.copy()
 
+monitor = Monitoring(BASE)
+monitor.start()
+atexit.register(monitor.stop)
+
 CONFIG = load_config()
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
 SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
@@ -228,6 +233,7 @@ if MobileDashboard is not None and mobile_cfg.get("enabled", True):
         host=mobile_cfg.get("host", "0.0.0.0"),
         port=mobile_cfg.get("port", 8765),
     )
+    mobile_dashboard.monitoring = monitor.snapshot
     mobile_dashboard.start()
     atexit.register(mobile_dashboard.stop)
 
@@ -3121,15 +3127,22 @@ diagnostic_button.label.set_color("white")
 diagnostic_button.on_clicked(open_dtu_diagnostic)
 
 # Même position sur toutes les pages : facilite les captures destinées au support Hoymiles.
-capture_ax = plt.axes([0.70, 0.875, 0.13, 0.042], zorder=30)
+capture_ax = plt.axes([0.70, 0.875, 0.09, 0.042], zorder=30)
 capture_button = Button(capture_ax, "Capture écran", color="#334155", hovercolor="#0f172a")
 capture_button.label.set_color("white")
 capture_button.on_clicked(capture_screen)
 
-mobile_ax = plt.axes([0.85, 0.875, 0.13, 0.042], zorder=30)
+mobile_ax = plt.axes([0.80, 0.875, 0.10, 0.042], zorder=30)
 mobile_button = Button(mobile_ax, "Lecture à distance", color="#0f766e", hovercolor="#115e59")
 mobile_button.label.set_color("white")
 mobile_button.on_clicked(open_mobile_dashboard)
+capture_button.label.set_fontsize(8)
+mobile_button.label.set_fontsize(8)
+alarm_ax = plt.axes([0.91, 0.875, 0.07, 0.042], zorder=30)
+alarm_button = Button(alarm_ax, "Alarmes", color="#b45309", hovercolor="#92400e")
+alarm_button.label.set_color("white")
+alarm_button.label.set_fontsize(8)
+alarm_button.on_clicked(lambda event: open_settings(monitor, dialog_parent()))
 
 bilan_button_ax = plt.axes([0.52, 0.145, 0.22, 0.048])
 bilan_button = Button(bilan_button_ax, "Bilan consommation", color="#0ea5e9", hovercolor="#0284c7")
@@ -3308,6 +3321,7 @@ def update(_):
                 "shelly_a_w": "" if shelly_values is None else round(shelly_values[0], 1),
                 "shelly_b_w": "" if shelly_values is None else round(shelly_values[1], 1),
             })
+        monitor.record((ac_power[-1], linky_power[-1], shelly_a_power[-1], shelly_b_power[-1]))
         redraw()
         if follow_now:
             apply_history_view()
@@ -3396,6 +3410,7 @@ def update(_):
                 "shelly_b_w": "" if shelly_values is None else round(shelly_values[1], 1),
             })
 
+        monitor.record((ac_power[-1], linky_power[-1], shelly_a_power[-1], shelly_b_power[-1]))
         redraw()
         update_end_labels()
 
@@ -3462,6 +3477,7 @@ def update(_):
                 "shelly_a_w": "" if shelly_values is None else round(shelly_values[0], 1),
                 "shelly_b_w": "" if shelly_values is None else round(shelly_values[1], 1),
             })
+        monitor.record((ac_power[-1], linky_power[-1], shelly_a_power[-1], shelly_b_power[-1]))
         redraw()
         if follow_now:
             apply_history_view()
@@ -3515,6 +3531,12 @@ else:
 # démarrage peuvent être ignorés tant que la fenêtre n'a pas été activée ; un
 # relevé Modbus prend ici quelques secondes mais garantit l'affichage direct
 # des données dès l'ouverture.
+# L'historique n'est jamais considéré comme un nouveau signe de vie.
+for monitor_index in range(len(times) - 1, -1, -1):
+    if has_measure((ac_power[monitor_index], linky_power[monitor_index],
+                    shelly_a_power[monitor_index], shelly_b_power[monitor_index])):
+        monitor.seed(times[monitor_index].timestamp())
+        break
 update(None)
 
 # Puis une lecture chaque minute.
@@ -3582,4 +3604,28 @@ def enable_full_window_resize():
         pass
 
 enable_full_window_resize()
+alarm_notice = [None]
+
+def refresh_alarm():
+    state = monitor.snapshot()
+    remote_recent = state["last_ping"] is not None and datetime.now().timestamp() - state["last_ping"] < 300
+    color = "#dc2626" if state["active"] else "#15803d" if remote_recent else "#b45309"
+    alarm_button.color = color
+    alarm_button.ax.set_facecolor(color)
+    alarm_button.label.set_text("ALARME" if state["active"] else "Alarmes")
+    episode = ("alarm", state["last_measure"]) if state["active"] else (
+        ("recovery", state["recovery"]["to"]) if state["recovery"] else None)
+    if episode is not None and episode != alarm_notice[0]:
+        alarm_notice[0] = episode
+        open_settings(monitor, dialog_parent())
+        try:
+            dialog_parent().bell()
+        except Exception:
+            pass
+    fig.canvas.draw_idle()
+
+alarm_timer = fig.canvas.new_timer(interval=5000)
+alarm_timer.add_callback(refresh_alarm)
+alarm_timer.start()
+fig.canvas.mpl_connect("close_event", lambda event: monitor.stop())
 plt.show()

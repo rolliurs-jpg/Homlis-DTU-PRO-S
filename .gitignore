@@ -12,3 +12,8 @@ Historiques_importes/
 *.env
 .idea/
 .vscode/
+
+surveillance.json
+surveillance.json.tmp
+interruptions_suivi.jsonl
+dist/

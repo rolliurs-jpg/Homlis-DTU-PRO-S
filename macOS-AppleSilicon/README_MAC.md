@@ -1,4 +1,17 @@
-# Boîte noire Hoymiles v7.0.44 — macOS Apple Silicon
+# Installation Mac — version 7.0.46
+
+1. Téléchargez et décompressez le ZIP complet directement sur le Mac.
+2. Revenez à la racine du dossier et double-cliquez sur **Installer sur Mac.app**.
+3. Suivez les fenêtres de l’assistant, puis cliquez sur **Lancer maintenant**.
+
+Gardez tous les fichiers ensemble. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés.
+
+En cas d’échec, l’assistant permet d’ouvrir le journal dans TextEdit. Si macOS affiche « endommagé », retéléchargez le paquet complet directement sur le Mac et contactez le projet avec le message exact.
+
+Pour les alarmes, utilisez **⌘+V** dans le champ URL et un contrôle Healthchecks propre au Mac. Voir le [guide principal](../README.md#alarmes--pc-mac-et-téléphone).
+
+## Détails réseau et compatibilité
+
 
 La version Mac utilise uniquement la configuration stable à **réseau unique**. Le DTU est relié en Ethernet à un nano-routeur en mode Client/Pont ; le Mac, le Dinky et le Shelly restent sur le Wi-Fi de la box. Il n’y a plus d’option Wi-Fi direct du DTU dans l’installateur Mac.
 

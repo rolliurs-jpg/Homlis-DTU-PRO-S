@@ -1,8 +1,11 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
+**Nouveau : [Alarmes du suivi et activation des notifications](RELEASE_NOTES_7.0.46.md).**
+Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
+
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.44-2563eb)](RELEASE_NOTES_7.0.44.md)
+[![Version](https://img.shields.io/badge/version-7.0.46-2563eb)](RELEASE_NOTES_7.0.46.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -33,8 +36,8 @@ Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou
 
 1. Configurez d’abord le nano-routeur en **mode Client/Pont** sur le Wi-Fi 2,4 GHz de la box.
 2. Reliez le port Ethernet du DTU au nano-routeur.
-3. Dans le ZIP, ouvrez `macOS-AppleSilicon`.
-4. Faites un clic droit sur `Installer Boîte noire Hoymiles.app`, puis choisissez **Ouvrir**.
+3. Décompressez le ZIP complet dans Téléchargements sur le Mac.
+4. Double-cliquez sur **Installer sur Mac.app**, à la racine du dossier. Les étapes s’affichent dans des fenêtres ; aucune commande Terminal n’est nécessaire dans le parcours normal.
 5. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
 
 Le lanceur appelle explicitement Bash et conserve l’identité de l’application pendant l’exécution : l’installation résiste à la perte des droits du ZIP et macOS peut attribuer correctement l’autorisation de réseau local.
@@ -94,7 +97,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Tableau de bord mobile et Tailscale
 
-La version 7.0.44 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.46 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
@@ -128,3 +131,15 @@ Ne publiez jamais `config_v5.json`, vos adresses IP, numéros de série ou mots 
 Signalez un problème dans les [Issues GitHub](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues) en indiquant la version, le modèle de DTU et une capture sans donnée personnelle.
 
 Le logiciel est distribué sous [licence MIT](LICENSE). C’est un projet communautaire indépendant, non affilié à Hoymiles, Enedis, EDF, Tasmota, S-Miles Cloud ou TP-Link. Un [don facultatif](https://paypal.me/RolliursHoymiles) peut soutenir son développement.
+
+## Alarmes : PC, Mac et téléphone
+
+Le bouton **Alarmes** signale cinq minutes sans mesure valide enregistrée. Une production nocturne à 0 W est valide. Les interruptions et reprises sont conservées dans un journal local ; une panne partielle reste visible dans l’état des appareils.
+
+Pour être averti même ordinateur éteint, créez un contrôle Healthchecks distinct pour **chaque ordinateur** : **Period = 1 minute**, **Grace Time = 4 minutes**. Collez son URL privée dans Alarmes (Ctrl+V sous Windows, **⌘+V sur Mac**) et enregistrez. Les espaces copiés sont corrigés automatiquement et une confirmation verte apparaît. Cette URL n’est pas l’adresse IP utilisée pour l’appli mobile.
+
+Dans Healthchecks, ajoutez **Email** dans Intégrations, validez l’adresse puis activez-la pour les contrôles concernés. Vérifiez le premier ping et le mail de test. Les SMS dépendent du quota de votre offre ; un quota de zéro empêche leur envoi. Aucun SMS n’est nécessaire pour les alarmes par mail.
+
+Le tableau mobile, y compris via **Tailscale**, affiche l’alarme lorsqu’il est ouvert. Pour une notification téléphone verrouillé ou appli fermée, le canal extérieur configuré dans Healthchecks est indispensable. Une coupure Internet, électrique ou un arrêt du logiciel provoquent la même absence de signal : l’alerte ne permet pas d’en identifier la cause à elle seule.
+
+Les URL privées restent sur chaque ordinateur. Pour une maintenance volontaire, mettez temporairement le contrôle Healthchecks en pause et réactivez-le à la reprise. Les réglages et historiques sont conservés lors de la mise à jour.

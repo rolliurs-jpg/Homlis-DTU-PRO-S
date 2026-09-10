@@ -1,0 +1,19 @@
+#!/bin/bash
+PACKAGE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+SCRIPT="$PACKAGE_DIR/macOS-AppleSilicon/installer_mac.sh"
+if [ ! -f "$SCRIPT" ]; then
+  /usr/bin/osascript -e 'display alert "Dossier incomplet" message "Décompressez le ZIP complet et gardez Installer sur Mac avec le dossier macOS-AppleSilicon."'
+  exit 1
+fi
+LOG_FILE="$(/usr/bin/mktemp -t hoymiles-install)" || exit 1
+if ! /bin/bash "$SCRIPT" >"$LOG_FILE" 2>&1; then
+  /usr/bin/osascript - "$LOG_FILE" <<'APPLESCRIPT'
+on run argv
+  set answer to display dialog "L’installation n’a pas abouti. Vous pouvez ouvrir le journal pour obtenir de l’aide." with title "Installation Hoymiles" buttons {"Fermer", "Voir le journal"} default button "Voir le journal" with icon caution
+  if button returned of answer is "Voir le journal" then
+    do shell script "/usr/bin/open -a TextEdit " & quoted form of (item 1 of argv)
+  end if
+end run
+APPLESCRIPT
+  exit 1
+fi

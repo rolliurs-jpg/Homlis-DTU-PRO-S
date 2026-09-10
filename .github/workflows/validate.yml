@@ -1,0 +1,22 @@
+name: Vérifier les alarmes et le paquet Mac
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m unittest discover -s tests -v
+      - name: Vérifier les scripts et les applications Mac
+        run: |
+          find . -type f \( -name '*.sh' -o -name '*.command' -o -path '*/Contents/MacOS/*' \) -exec /bin/bash -n {} \;
+          find . -name Info.plist -exec plutil -lint {} \;
+      - run: python scripts/package_release.py dist/Hoymiles-7.0.46.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Hoymiles-7.0.46
+          path: dist/Hoymiles-7.0.46.zip
