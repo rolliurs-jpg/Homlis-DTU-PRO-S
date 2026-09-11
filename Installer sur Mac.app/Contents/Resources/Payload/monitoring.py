@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import math
 import threading
 import time
@@ -140,7 +141,7 @@ class Monitoring:
                     "last_measure": self.last_measure, "last_cycle": self.last_cycle,
                     "recovery": self.recovery, "remote": self.remote,
                     "remote_configured": bool(self.url), "last_ping": self.last_ping,
-                    "io_error": self.io_error}
+                    "io_error": self.io_error, "computer": "Mac" if sys.platform == "darwin" else "Windows" if sys.platform == "win32" else "Ordinateur"}
 
     def _dispatch(self):
         with self.lock:
@@ -150,7 +151,7 @@ class Monitoring:
         url, timestamp = pending
         try:
             self.sender(url)
-            result = "Signal reçu — notifications à vérifier dans Healthchecks"
+            result = "Signal de surveillance reçu par Healthchecks"
             successful = True
         except Exception:
             # Ne jamais exposer une exception réseau contenant la clé privée.
@@ -173,10 +174,12 @@ class Monitoring:
 
 def describe(state):
     if state["active"]:
-        return f"ALARME : aucune mesure enregistrée depuis {state['age_seconds'] // 60} min"
+        return (f"SUIVI INTERROMPU : aucune mesure enregistrée depuis {state['age_seconds'] // 60} min. "
+                "Vérifiez que le logiciel collecte les mesures et que les appareils sont accessibles. "
+                "La cause exacte n’est pas identifiée ; cela ne prouve pas un arrêt des panneaux.")
     if state["last_measure"] is None:
         return "Surveillance : en attente de la première mesure"
-    return "Surveillance : mesures enregistrées normalement"
+    return "SUIVI EN COURS : les mesures sont enregistrées normalement"
 
 
 def open_settings(monitor, parent):
@@ -228,10 +231,10 @@ def open_settings(monitor, parent):
         if not dialog.winfo_exists():
             return
         state = monitor.snapshot()
-        content = describe(state) + "\nAlerte extérieure : " + state["remote"]
+        content = describe(state) + "\nSurveillance extérieure : " + state["remote"]
         if state["recovery"]:
             gap = state["recovery"]
-            content += (f"\nDernière interruption : {datetime.fromtimestamp(gap['from']):%d/%m %H:%M} → "
+            content += (f"\nInterruption passée de l’enregistrement (suivi rétabli) : {datetime.fromtimestamp(gap['from']):%d/%m %H:%M} → "
                         f"{datetime.fromtimestamp(gap['to']):%d/%m %H:%M} ({int(gap['seconds'] // 60)} min)")
         text.set(content)
         dialog.after(2000, refresh)

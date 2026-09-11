@@ -24,7 +24,7 @@ def package(target):
             data = path.read_bytes()
             if executable(path) and b'\r' in data:
                 raise ValueError(f'Fins de ligne Windows interdites : {relative}')
-            entry = zipfile.ZipInfo('Homlis-DTU-PRO-S-7.0.47/' + relative.as_posix())
+            entry = zipfile.ZipInfo('Homlis-DTU-PRO-S-7.0.48/' + relative.as_posix())
             entry.create_system = 3
             entry.external_attr = (0o100755 if executable(path) else 0o100644) << 16
             entry.compress_type = zipfile.ZIP_DEFLATED

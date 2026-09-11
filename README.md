@@ -1,11 +1,11 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Nouveau : [Alarmes du suivi et activation des notifications](RELEASE_NOTES_7.0.47.md).**
+**Nouveau : [Alarmes du suivi et activation des notifications](RELEASE_NOTES_7.0.48.md).**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.47-2563eb)](RELEASE_NOTES_7.0.47.md)
+[![Version](https://img.shields.io/badge/version-7.0.48-2563eb)](RELEASE_NOTES_7.0.48.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -97,7 +97,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Tableau de bord mobile et Tailscale
 
-La version 7.0.47 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.48 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.

@@ -11,12 +11,13 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m unittest discover -s tests -v
+      - run: node tests/test_mobile_alarm.cjs
       - name: Vérifier les scripts et les applications Mac
         run: |
           find . -type f \( -name '*.sh' -o -name '*.command' -o -path '*/Contents/MacOS/*' \) -exec /bin/bash -n {} \;
           find . -name Info.plist -exec plutil -lint {} \;
-      - run: python scripts/package_release.py dist/Hoymiles-7.0.47.zip
+      - run: python scripts/package_release.py dist/Hoymiles-7.0.48.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: Hoymiles-7.0.47
-          path: dist/Hoymiles-7.0.47.zip
+          name: Hoymiles-7.0.48
+          path: dist/Hoymiles-7.0.48.zip
