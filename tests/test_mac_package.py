@@ -47,4 +47,4 @@ class MacPackageTests(unittest.TestCase):
             with self.subTest(path=str(path.relative_to(ROOT))):
                 info = plistlib.loads(path.read_bytes())
                 self.assertTrue((path.parent/'MacOS'/info['CFBundleExecutable']).is_file())
-                self.assertEqual(info['CFBundleShortVersionString'], '7.0.48')
+                self.assertEqual(info['CFBundleShortVersionString'], '7.0.49')

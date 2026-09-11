@@ -52,7 +52,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.48"
+VERSION = "7.0.49"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -3613,15 +3613,15 @@ def refresh_alarm():
     alarm_button.color = color
     alarm_button.ax.set_facecolor(color)
     alarm_button.label.set_text("ALARME" if state["active"] else "Alarmes")
-    episode = ("alarm", state["last_measure"]) if state["active"] else (
-        ("recovery", state["recovery"]["to"]) if state["recovery"] else None)
+    # La configuration s'ouvre uniquement sur clic volontaire du bouton Alarmes.
+    # Le minuteur signale une panne par la couleur et un son, jamais une fenêtre.
+    episode = ("alarm", state["last_measure"]) if state["active"] else None
     if episode is not None and episode != alarm_notice[0]:
-        alarm_notice[0] = episode
-        open_settings(monitor, dialog_parent())
         try:
             dialog_parent().bell()
         except Exception:
             pass
+    alarm_notice[0] = episode
     fig.canvas.draw_idle()
 
 alarm_timer = fig.canvas.new_timer(interval=5000)
