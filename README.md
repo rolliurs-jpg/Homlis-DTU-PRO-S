@@ -1,11 +1,11 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Nouveau : [Alarmes du suivi et activation des notifications](RELEASE_NOTES_7.0.49.md).**
+**Nouveau : [Alarmes du suivi et activation des notifications](RELEASE_NOTES_7.0.50.md).**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
 
-[![Version](https://img.shields.io/badge/version-7.0.49-2563eb)](RELEASE_NOTES_7.0.49.md)
+[![Version](https://img.shields.io/badge/version-7.0.50-2563eb)](RELEASE_NOTES_7.0.50.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -97,7 +97,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Tableau de bord mobile et Tailscale
 
-La version 7.0.49 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.50 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
@@ -143,3 +143,37 @@ Dans Healthchecks, ajoutez **Email** dans Intégrations, validez l’adresse pui
 Le tableau mobile, y compris via **Tailscale**, affiche l’alarme lorsqu’il est ouvert. Pour une notification téléphone verrouillé ou appli fermée, le canal extérieur configuré dans Healthchecks est indispensable. Une coupure Internet, électrique ou un arrêt du logiciel provoquent la même absence de signal : l’alerte ne permet pas d’en identifier la cause à elle seule.
 
 Les URL privées restent sur chaque ordinateur. Pour une maintenance volontaire, mettez temporairement le contrôle Healthchecks en pause et réactivez-le à la reprise. Les réglages et historiques sont conservés lors de la mise à jour.
+
+## Choisir les équipements de mesure
+
+Le DTU Hoymiles reste la source de production habituelle. En complément, choisissez
+dans le bouton **Équipements** du logiciel :
+
+| Configuration | Utilisation |
+| --- | --- |
+| Linky / Dinky seul | Solution économique pour lire la téléinformation du Linky et ses index d’achat HC/HP. La production solaire reste fournie par le DTU. |
+| Shelly Pro EM seul | Solution plus coûteuse, avec une mesure indépendante de la production et du flux réseau, selon le câblage des deux voies. Le bilan d’achat est une estimation calculée sur les puissances enregistrées. |
+| Linky / Dinky + Shelly Pro EM | Index du compteur pour le bilan d’achat et mesures Shelly pour la production indépendante, le flux réseau et les comparaisons. Les deux mesures réseau ne sont jamais additionnées. |
+
+Ces choix concernent les équipements complémentaires : « Dinky seul » ne signifie
+pas que le Dinky mesure la production des panneaux. L’injection disponible par
+téléinformation dépend des champs publiés par le compteur et le firmware ; une
+puissance de soutirage n’est pas une mesure signée d’injection.
+
+Cochez les équipements utilisés, renseignez leur adresse IP ou nom réseau, puis
+**Enregistrer**. Fermez et relancez le logiciel pour appliquer le choix. Les réglages
+avancés existants et les historiques sont conservés. Les courbes, légendes, bulles,
+états et cartes mobiles des équipements désactivés sont masqués. Un équipement
+activé qui tombe en panne reste visible : une coupure ne doit pas disparaître de l’écran.
+
+Avec le Shelly seul, le partage HC/HP utilise les plages configurées dans **Tarifs EDF**.
+Le calcul porte sur les mesures enregistrées et limite chaque intervalle à trois
+minutes : les interruptions de collecte peuvent sous-estimer l’énergie. Il ne
+remplace pas les index du compteur ni une facture. Les relevés EDF saisis manuellement
+restent identifiés séparément. Les fonctions d’analyse nécessitant le Shelly ne
+sont proposées que lorsqu’il est activé ; la comparaison Linky/Hoymiles nécessite le Dinky.
+
+Sur mobile, les cartes maison et flux signé nécessitent les mesures Shelly ; la
+carte Dinky affiche sa mesure de téléinformation. Aucun flux d’injection n’est inventé
+à partir d’un soutirage nul.
+

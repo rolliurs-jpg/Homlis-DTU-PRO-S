@@ -52,7 +52,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.49"
+VERSION = "7.0.50"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -246,8 +246,19 @@ DDSU_COLOR = "#dc2626"
 LIMIT_COLOR = "#2563eb"
 PV_COLOR = PRIMARY_COLOR
 
+def equipment_enabled(name):
+    """Un équipement configuré reste visible même pendant une panne."""
+    return bool(CONFIG.get(name, {}).get("enabled", False))
+
+
+pending_equipment = {}
+
+
 def save_config():
-    CONFIG_FILE.write_text(json.dumps(CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
+    data = json.loads(json.dumps(CONFIG))
+    for name, changes in pending_equipment.items():
+        data.setdefault(name, {}).update(changes)
+    CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 times, ac_power, grid_power, power_limit = [], [], [], []
 linky_power, shelly_a_power, shelly_b_power = [], [], []
@@ -313,8 +324,8 @@ def finite_mobile_value(value):
 def mobile_point(index):
     """Construit une mesure mobile sans interroger une seconde fois les appareils."""
     dtu_pv = finite_mobile_value(ac_power[index])
-    shelly_pv = finite_mobile_value(shelly_a_power[index])
-    shelly_grid = finite_mobile_value(shelly_b_power[index])
+    shelly_pv = finite_mobile_value(shelly_a_power[index]) if equipment_enabled("shelly") else None
+    shelly_grid = finite_mobile_value(shelly_b_power[index]) if equipment_enabled("shelly") else None
     production = dtu_pv if dtu_pv is not None else shelly_pv
     import_signed = None
     if shelly_grid is not None:
@@ -329,7 +340,7 @@ def mobile_point(index):
         "consumption_w": consumption,
         "import_w": None if import_signed is None else max(0.0, import_signed),
         "export_w": None if import_signed is None else max(0.0, -import_signed),
-        "linky_w": finite_mobile_value(linky_power[index]),
+        "linky_w": finite_mobile_value(linky_power[index]) if equipment_enabled("linky") else None,
     }
 
 
@@ -354,6 +365,7 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "production_source": "DTU réelle" if dtu_value is not None else "Secours Shelly" if shelly_pv_value is not None else "Absente",
             "grid_source": "Shelly Pro EM" if shelly_grid_value is not None else "Absente",
             "quality": quality,
+            "equipment": {name: equipment_enabled(name) for name in ("linky", "shelly")},
             "dtu_state": dtu_state,
             "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
             "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
@@ -641,9 +653,15 @@ line_grid, = ax.plot([], [], linewidth=1.55, color=DDSU_COLOR, linestyle="-", la
 limit_ax = ax.twinx()
 line_limit, = limit_ax.plot([], [], linewidth=1.40, color=LIMIT_COLOR, label="Limite DTU")
 # Légende permanente, hors du graphique, comme sur la page Bilan.
+equipment_lines = [(line_limit, True), (line_grid, True), (line_ac, True),
+                   (line_linky, equipment_enabled("linky")),
+                   (line_shelly_a, equipment_enabled("shelly")),
+                   (line_shelly_b, equipment_enabled("shelly"))]
+for equipment_line, enabled in equipment_lines:
+    equipment_line.set_visible(enabled)
 main_chart_legend = ax.legend(
-    [line_limit, line_grid, line_ac, line_linky, line_shelly_a, line_shelly_b],
-    ["Limite DTU (%)", "Réseau DDSU", "Production PV", "Linky Dinky", SHELLY_A_LABEL, SHELLY_B_LABEL],
+    [line for line, enabled in equipment_lines if enabled],
+    [line.get_label() for line, enabled in equipment_lines if enabled],
     loc="upper left", bbox_to_anchor=(0.08, 0.866), bbox_transform=fig.transFigure,
     ncol=3, frameon=False, borderaxespad=0.0, fontsize=8.5, handlelength=2.6,
 )
@@ -677,7 +695,9 @@ live_cards = [fig.text(0, 0, "", visible=False) for _ in range(4)]
 # En-tête du suivi direct : il disparaît sur le bilan, qui possède son propre titre.
 dashboard_title = fig.text(0.08, 0.890, f"Boîte noire Hoymiles — v{VERSION}", ha="left", va="center",
                            fontsize=16, fontweight="bold", color="#0f172a")
-dashboard_subtitle = fig.text(0.08, 0.790, "Suivi de production · DTU Pro-S + Linky Dinky 4 + Shelly Pro EM",
+dashboard_subtitle = fig.text(0.08, 0.790, "Suivi de production · " + " + ".join(
+    ["DTU Pro-S"] + (["Linky / Dinky"] if equipment_enabled("linky") else [])
+    + (["Shelly Pro EM"] if equipment_enabled("shelly") else [])),
                                ha="left", va="center", fontsize=9, color="#475569")
 dashboard_independence_notice = fig.text(
     0.08, 0.765,
@@ -736,8 +756,10 @@ cursor_shelly_production_text = TextArea("", textprops=dict(fontsize=8.8, color=
 cursor_shelly_grid_text = TextArea("", textprops=dict(fontsize=8.8, color=SHELLY_GRID_COLOR))
 cursor_note_text = TextArea("", textprops=dict(fontsize=8.2, color="#475569"))
 cursor_content = VPacker(
-    children=[cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_pv_text, cursor_dinky_text,
-              cursor_shelly_production_text, cursor_shelly_grid_text, cursor_note_text],
+    children=([cursor_time_text, cursor_limit_text, cursor_ddsu_text, cursor_pv_text]
+              + ([cursor_dinky_text] if equipment_enabled("linky") else [])
+              + ([cursor_shelly_production_text, cursor_shelly_grid_text] if equipment_enabled("shelly") else [])
+              + ([cursor_note_text] if equipment_enabled("linky") and equipment_enabled("shelly") else [])),
     align="left", pad=0, sep=1,
 )
 cursor_box = AnnotationBbox(
@@ -805,7 +827,7 @@ def show_cursor(index):
     cursor_shelly_production_text.set_text(f"{SHELLY_A_LABEL}  {shelly_a_text}")
     cursor_shelly_grid_text.set_text(f"{SHELLY_B_LABEL}  {shelly_b_text}")
     cursor_note_text.set_text(
-        "Dinky et Shelly mesurent le même achat/injection : ne pas additionner."
+        "Dinky et Shelly : deux mesures du réseau à comparer, jamais à additionner."
     )
     cursor_box.set_visible(True)
     last_main_cursor_index = index
@@ -1198,7 +1220,9 @@ def series_with_visible_gaps(indexes, values):
 def update_power_axis_limits(indexes):
     """Agrandit l'axe pour que les fortes injections restent entièrement visibles."""
     visible_values = []
-    for values in (ac_power, grid_power, linky_power, shelly_a_power, shelly_b_power):
+    for values in ([ac_power, grid_power]
+                   + ([linky_power] if equipment_enabled("linky") else [])
+                   + ([shelly_a_power, shelly_b_power] if equipment_enabled("shelly") else [])):
         visible_values.extend(values[index] for index in indexes if values[index] == values[index])
     if not visible_values:
         ax.set_ylim(-500, 2200)
@@ -1698,6 +1722,8 @@ edf_cost_details = {"message": "Aucun bilan EDF n'est encore disponible."}
 comparison_details = {"message": "Aucune comparaison n'est encore disponible."}
 # Le haut du graphique est volontairement abaissé : la légende dispose ainsi
 # d'une bande dédiée entre le tracé et les boutons EDF, sans chevauchement.
+bilan_source_text = fig.text(0.08, 0.245, "", fontsize=8, color="#334155", visible=False)
+
 bilan_ax = fig.add_axes([0.08, 0.34, 0.83, 0.40])
 bilan_ax.set_visible(False)
 bilan_cost_ax = bilan_ax.twinx()
@@ -1923,6 +1949,30 @@ def automatic_energy_series(period, now):
         except (IndexError, TypeError, ValueError):
             continue
 
+    if not equipment_enabled("linky"):
+        hc, hp = [0.0] * len(labels), [0.0] * len(labels)
+        ranges = parse_hc_ranges(CONFIG["tarifs_edf"].get("plages_hc", ""))
+        samples_used = 0
+        if equipment_enabled("shelly"):
+            direction = -1 if CONFIG["shelly"].get("grid_export_positive", False) else 1
+            for index, when in enumerate(times):
+                if not start <= when <= now:
+                    continue
+                value = finite_mobile_value(shelly_b_power[index])
+                if value is None:
+                    continue
+                next_when = times[index + 1] if index + 1 < len(times) else now
+                seconds = max(0, min((next_when - when).total_seconds(), 180))
+                bucket = index_for(when)
+                if not 0 <= bucket < len(labels) or not seconds:
+                    continue
+                samples_used += 1
+                target = hc if is_hc(when, ranges) else hp
+                target[bucket] += max(0.0, direction * value) * seconds / 3_600_000
+        source = ("Estimation Shelly sur les mesures enregistrées ; HC/HP selon les plages configurées"
+                  if samples_used else "Achat réseau indisponible : aucune mesure pour cette période")
+        return labels, production, [a + b for a, b in zip(hc, hp)], hc, hp, title, source, start
+
     # Achat EDF : seule la Téléinfo du Linky (Dinky 4) fait foi, jamais le DDSU.
     # Certains firmwares Dinky n'affichent qu'une des deux series HC/HP dans
     # l'historique SVG. On calcule toujours un secours avec les index locaux.
@@ -2054,7 +2104,7 @@ def automatic_month_subscription(now, daily_subscription):
 
 def latest_dinky_indexes():
     """Retourne le dernier index connu, sans imposer une nouvelle lecture réseau."""
-    if linky_hc_index and linky_hp_index:
+    if equipment_enabled("linky") and linky_hc_index and linky_hp_index:
         return {"hc": float(linky_hc_index[-1][1]), "hp": float(linky_hp_index[-1][1])}
     return None
 
@@ -2110,6 +2160,7 @@ def draw_bilan():
         return
     now = datetime.now()
     labels, production, achat_edf, hc, hp, title, dinky_source, start = automatic_energy_series(bilan_period, now)
+    bilan_source_text.set_text(dinky_source)
     tariffs = CONFIG["tarifs_edf"]
     hp_price = float(tariffs.get("hp_eur_kwh", 0.0) or 0.0)
     hc_price = float(tariffs.get("hc_eur_kwh", 0.0) or 0.0)
@@ -2153,13 +2204,13 @@ def draw_bilan():
     )
     bilan_cost_ax.bar(
         edf_positions, hp_cost, width=edf_bar_width, align="center", bottom=subscription,
-        facecolor="#1d4ed8", edgecolor="#1d4ed8", linewidth=1.10, label="Achat Linky/Dinky HP",
+        facecolor="#1d4ed8", edgecolor="#1d4ed8", linewidth=1.10, label=("Achat Linky/Dinky HP" if equipment_enabled("linky") else "Estimation Shelly HP" if equipment_enabled("shelly") else "Achat HP indisponible"),
     )
     hp_and_subscription = [fixed + hp_value for fixed, hp_value in zip(subscription, hp_cost)]
     bilan_cost_ax.bar(
         edf_positions, hc_cost, width=edf_bar_width, align="center", bottom=hp_and_subscription,
         facecolor="#ffffff", edgecolor="#1d4ed8", linewidth=1.10, hatch="///",
-        label="Achat Linky/Dinky HC",
+        label=("Achat Linky/Dinky HC" if equipment_enabled("linky") else "Estimation Shelly HC" if equipment_enabled("shelly") else "Achat HC indisponible"),
     )
     # Un seul contour extérieur, ajouté après les trois segments : les bords
     # Abonnement / HP / HC restent ainsi strictement sur le même alignement.
@@ -2232,7 +2283,7 @@ def draw_bilan():
         manual_details = "\n\nAucun relevé EDF manuel enregistré pour ce mois."
     edf_cost_details["message"] = (
         f"{title}\n\n"
-        f"Achat Linky : {total_edf:.2f} kWh\n"
+        f"Achat réseau : {total_edf:.2f} kWh\n"
         f"• Heures creuses : {displayed_hc_total:.2f} kWh  →  {displayed_hc_cost:.2f} €\n"
         f"• Heures pleines : {displayed_hp_total:.2f} kWh  →  {displayed_hp_cost:.2f} €\n"
         f"• Abonnement : {subscription_cost:.2f} €\n\n"
@@ -2245,6 +2296,7 @@ def draw_bilan():
         "hc": hc,
         "hp": hp,
         "subscription": subscription,
+        "source": dinky_source,
     })
 
 def move_bilan_cursor(x, y):
@@ -2280,9 +2332,10 @@ def move_bilan_cursor(x, y):
     bilan_cursor_box.set_text(
         f"{labels[index]}\n"
         f"Production PV  {bilan_cursor_data['production'][index]:.2f} kWh\n"
-        f"Linky HC    {bilan_cursor_data['hc'][index]:.2f} kWh\n"
-        f"Linky HP    {bilan_cursor_data['hp'][index]:.2f} kWh\n"
-        f"Abonnement  {bilan_cursor_data['subscription'][index]:.2f} €"
+        f"Achat HC    {bilan_cursor_data['hc'][index]:.2f} kWh\n"
+        f"Achat HP    {bilan_cursor_data['hp'][index]:.2f} kWh\n"
+        f"Abonnement  {bilan_cursor_data['subscription'][index]:.2f} €\n"
+        f"{bilan_cursor_data.get('source', '')}"
     )
     bilan_cursor_box.set_visible(True)
     last_bilan_cursor_key = cursor_key
@@ -2326,10 +2379,10 @@ def show_daily_pv_and_consumption_average(event=None):
             f"Jours avec mesures PV : {count}\n\n"
             f"Production PV cumulée : {total_pv:.2f} kWh\n"
             f"Moyenne PV : {total_pv / count:.2f} kWh / jour\n\n"
-            f"Consommation réelle Linky : {total_consumption:.2f} kWh\n"
+            f"Achat réseau : {total_consumption:.2f} kWh\n"
             f"• Heures pleines : {total_hp:.2f} kWh\n"
             f"• Heures creuses : {total_hc:.2f} kWh\n"
-            f"Moyenne consommation réelle : {total_consumption / count:.2f} kWh / jour\n\n"
+            f"Moyenne achat réseau : {total_consumption / count:.2f} kWh / jour\n\n"
             f"Source consommation : {source}\n"
             "La consommation ne contient jamais les données DDSU."
         )
@@ -2338,7 +2391,7 @@ def show_daily_pv_and_consumption_average(event=None):
             f"{title}\n\n"
             "Aucune mesure PV locale n'est encore disponible pour calculer une moyenne fiable."
         )
-    messagebox.showinfo("Moyenne PV et consommation réelle / jour", details, parent=dialog_parent())
+    messagebox.showinfo("Moyenne PV et achat réseau / jour", details, parent=dialog_parent())
 
 
 def calculate_daily_shelly_surplus():
@@ -2429,7 +2482,7 @@ def show_daily_shelly_surplus(event=None):
         messagebox.showinfo(
             "Surplus solaire / jour",
             "Aucune mesure Shelly B n'est encore disponible.\n\n"
-            "Le calcul commencera après les premiers relevés de la pince Réseau Linky.",
+            "Le calcul commencera après les premiers relevés de la pince réseau Shelly.",
             parent=dialog_parent(),
         )
         return
@@ -2441,7 +2494,7 @@ def show_daily_shelly_surplus(event=None):
         lines.append(f"• {day:%d/%m/%Y} : {daily[day]:.2f} kWh injectés  ({minutes:.0f} min mesurées)")
     average = total / len(days)
     details = (
-        "Surplus solaire mesuré — pince Réseau Linky\n\n"
+        "Surplus solaire mesuré — pince réseau Shelly\n\n"
         + "\n".join(lines)
         + f"\n\nTotal sur {len(days)} jour(s) mesuré(s) : {total:.2f} kWh"
         + f"\nMoyenne d'injection : {average:.2f} kWh / jour"
@@ -2611,6 +2664,7 @@ def toggle_hoymiles_comparison(event=None):
         return
     showing_comparison = not showing_comparison
     bilan_ax.set_visible(not showing_comparison)
+    bilan_source_text.set_visible(not showing_comparison)
     bilan_cost_ax.set_visible(not showing_comparison)
     comparison_ax.set_visible(showing_comparison)
     bilan_cursor_box.set_visible(False)
@@ -2734,7 +2788,7 @@ def open_real_edf_reading(event=None):
             f"Relevé {month} enregistré.\n\nHC : {float_from_user(hc, 'HC'):.2f} kWh\n"
             f"HP : {float_from_user(hp, 'HP'):.2f} kWh\n"
             f"Abonnement automatique à ce jour : {automatic_subscription:.2f} €\n\n"
-            "Les prochains kWh lus par le Dinky seront ajoutés sans double compte.",
+            "Avec le Dinky activé, les prochains index prolongent ce relevé sans double compte.",
             parent=parent,
         )
     except Exception as exc:
@@ -2841,10 +2895,12 @@ def toggle_bilan(event=None):
     bilan_ax.set_visible(showing_bilan and not showing_comparison)
     bilan_cost_ax.set_visible(showing_bilan and not showing_comparison)
     comparison_ax.set_visible(showing_bilan and showing_comparison)
+    bilan_source_text.set_visible(showing_bilan and not showing_comparison)
     dashboard_title.set_visible(not showing_bilan)
     dashboard_subtitle.set_visible(not showing_bilan)
     dashboard_independence_notice.set_visible(not showing_bilan)
     main_chart_legend.set_visible(not showing_bilan)
+    equipment_button_ax.set_visible(not showing_bilan)
     cursor_line.set_visible(False)
     cursor_dot.set_visible(False)
     cursor_box.set_visible(False)
@@ -2855,10 +2911,10 @@ def toggle_bilan(event=None):
     refresh_history_buttons()
     edf_reading_button.ax.set_visible(showing_bilan)
     edf_cost_button.ax.set_visible(showing_bilan)
-    energy_analysis_button.ax.set_visible(showing_bilan)
+    energy_analysis_button.ax.set_visible(showing_bilan and equipment_enabled("shelly"))
     average_pv_button.ax.set_visible(showing_bilan and not showing_comparison)
-    surplus_button.ax.set_visible(showing_bilan and not showing_comparison)
-    comparison_button.ax.set_visible(showing_bilan)
+    surplus_button.ax.set_visible(showing_bilan and not showing_comparison and equipment_enabled("shelly"))
+    comparison_button.ax.set_visible(showing_bilan and equipment_enabled("linky"))
     comparison_details_button.ax.set_visible(False)
     comparison_button.label.set_text("Estimation Hoymiles")
     if showing_bilan:
@@ -2882,7 +2938,7 @@ def toggle_dtu_maintenance_pause(event=None):
         set_connection_badge(connection_badges[0], "delayed", "● DTU pause maintenance")
         status_text.set_text(
             "Pause maintenance Hoymiles active — aucune lecture ni relance locale du DTU.\n"
-            "Le Linky/Dinky reste lu normalement ; cliquez sur « Reprendre le DTU » apres la maintenance."
+            "Les équipements complémentaires activés restent lus ; cliquez sur « Reprendre le DTU » apres la maintenance."
         )
     else:
         maintenance_pause_button.label.set_text("Pause maintenance")
@@ -3056,7 +3112,7 @@ energy_analysis_ax.set_visible(False)
 # Information synthétique : la moyenne est affichée à la demande, sans
 # alourdir le graphique ni masquer les valeurs instantanées.
 average_pv_ax = plt.axes([0.25, 0.145, 0.18, 0.048], zorder=25)
-average_pv_button = Button(average_pv_ax, "Moyenne PV et conso\nréelle / jour", color="#eff6ff", hovercolor="#dbeafe")
+average_pv_button = Button(average_pv_ax, "Moyenne PV et achat\nréseau / jour", color="#eff6ff", hovercolor="#dbeafe")
 average_pv_button.on_clicked(show_daily_pv_and_consumption_average)
 average_pv_ax.set_visible(False)
 
@@ -3093,7 +3149,7 @@ maintenance_pause_button.on_clicked(toggle_dtu_maintenance_pause)
 # rappelle que seule la lecture DTU est suspendue. Le Linky/Dinky reste suivi.
 maintenance_tooltip = maintenance_pause_ax.annotate(
     "Pause les lectures et reconnexions du DTU.\n"
-    "Le Linky/Dinky continue d'être lu.\n"
+    "Les équipements complémentaires activés continuent d’être lus.\n"
     "À utiliser uniquement pendant une maintenance S-Miles.",
     xy=(0.5, 0.0), xycoords="axes fraction",
     xytext=(0, -10), textcoords="offset points",
@@ -3247,6 +3303,12 @@ def layout_bottom_actions():
 layout_bottom_actions()
 refresh_history_buttons()
 
+def equipment_status(linky_status, index_status, shelly_status):
+    return " — ".join(
+        ([f"Linky : {linky_status} — {index_status}"] if equipment_enabled("linky") else [])
+        + ([f"Shelly : {shelly_status}"] if equipment_enabled("shelly") else []))
+
+
 def update(_):
     global last_success, dtu_failures, dtu_failure_since, last_dtu_wifi_recovery
     linky_started = monotonic()
@@ -3339,7 +3401,7 @@ def update(_):
         end_labels[3].set_text(f"Linky Dinky  {'—' if lky is None else f'{lky:.0f} W'}")
         status_text.set_text(
             "Pause maintenance Hoymiles active — DTU non interroge, aucune relance automatique.\n"
-            f"Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status} — index Dinky conserve."
+            f"{equipment_status(linky_status, dinky_index_status, shelly_status)}."
             + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
         publish_mobile_snapshot("waiting")
@@ -3433,7 +3495,7 @@ def update(_):
         mode = "suivi direct" if follow_now else "historique"
         status_text.set_text(
             f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté ({'Modbus TCP' if source == 'modbus_tcp' else 'Wi-Fi direct'}) — réponse : 0 s — échecs DTU : {dtu_failures}\n"
-            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status}{limit_note}"
+            f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — {equipment_status(linky_status, dinky_index_status, shelly_status)}{limit_note}"
             + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
         publish_mobile_snapshot("online")
@@ -3506,7 +3568,7 @@ def update(_):
         last_update = last_success.strftime("%d/%m/%Y %H:%M:%S") if last_success else "jamais"
         status_text.set_text(
             f"Dernière mise à jour : {last_update} — DTU sans réponse depuis {age} — échecs DTU : {dtu_failures}\n"
-            f"Linky : {linky_status} — {dinky_index_status} — Shelly : {shelly_status} — erreur DTU : {str(e)[:110]}"
+            f"{equipment_status(linky_status, dinky_index_status, shelly_status)} — erreur DTU : {str(e)[:110]}"
             + (f" — {injection_alert_message}" if injection_alert_message else "")
             + (f" — {recovery_note}" if recovery_note else "")
         )
@@ -3518,6 +3580,48 @@ def update(_):
     )
 
 redraw()
+def open_equipment_settings(event=None):
+    window = tk.Toplevel(dialog_parent())
+    window.title("Mes équipements")
+    frame = ttk.Frame(window, padding=16)
+    frame.pack(fill="both", expand=True)
+    ttk.Label(frame, text="Choisissez les équipements utilisés en complément du DTU.").grid(row=0, column=0, columnspan=3, sticky="w")
+    fields = {}
+    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM")), 1):
+        active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
+        address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
+        ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)
+        ttk.Label(frame, text="Adresse IP / nom réseau").grid(row=row, column=1, padx=8)
+        ttk.Entry(frame, textvariable=address, width=25).grid(row=row, column=2)
+        fields[name] = active, address
+    feedback = tk.StringVar(value="Un appareil activé reste visible même s’il ne répond plus.")
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=3, column=0, columnspan=3, sticky="w", pady=10)
+    def save():
+        for name, (active, address) in fields.items():
+            if active.get() and not address.get().strip():
+                feedback.set("Renseignez l’adresse de chaque équipement activé.")
+                return
+        try:
+            # Write a copy: the running collector keeps its current configuration.
+            data = json.loads(json.dumps(CONFIG))
+            for name, (active, address) in fields.items():
+                data.setdefault(name, {}).update(enabled=active.get(), host=address.get().strip())
+            CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+            pending_equipment.update({name: {"enabled": active.get(), "host": address.get().strip()}
+                                      for name, (active, address) in fields.items()})
+            feedback.set("Enregistré. Fermez puis relancez le logiciel pour appliquer votre choix.")
+        except OSError as exc:
+            feedback.set(f"Enregistrement impossible : {exc}")
+    ttk.Button(frame, text="Enregistrer", command=save).grid(row=4, column=2, sticky="e")
+
+equipment_button_ax = plt.axes([0.79, 0.778, 0.12, 0.032])
+equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
+equipment_button.on_clicked(open_equipment_settings)
+connection_badges[1].set_visible(equipment_enabled("linky"))
+connection_badges[2].set_visible(equipment_enabled("shelly"))
+end_labels[3].set_visible(equipment_enabled("linky"))
+live_cards[3].set_visible(equipment_enabled("linky"))
+
 update_end_labels()
 if times:
     apply_history_view()

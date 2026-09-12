@@ -1,4 +1,4 @@
-# Installation Mac — version 7.0.49
+# Installation Mac — version 7.0.50
 
 1. Téléchargez et décompressez le ZIP complet directement sur le Mac.
 2. Revenez à la racine du dossier et double-cliquez sur **Installer sur Mac.app**.
