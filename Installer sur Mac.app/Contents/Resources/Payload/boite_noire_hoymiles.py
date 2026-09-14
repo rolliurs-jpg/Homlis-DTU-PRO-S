@@ -378,16 +378,20 @@ def publish_mobile_snapshot(dtu_state="waiting"):
         pass
 
 
-def show_nonblocking_injection_alert(injection_w):
+def show_nonblocking_injection_alert(injection_w, measured_at=None):
     """Affiche l'alerte sans arrêter le minuteur de collecte Matplotlib."""
     global injection_alert_window, injection_alert_text
     parent = dialog_parent()
     if parent is None:
         return
+    measured_at = measured_at or datetime.now()
     message = (
-        f"Le Shelly mesure {injection_w:.0f} W injectés depuis au moins "
-        f"{INJECTION_ALERT_DELAY_S // 60} minutes.\n\n"
-        f"Cumul enregistré : {injection_cumulative_wh / 1000.0:.3f} kWh.\n"
+        f"Injection détectée le {measured_at:%d/%m/%Y à %H:%M:%S}.\n"
+        f"Puissance mesurée au déclenchement : {injection_w:.0f} W.\n\n"
+        f"Cumul total enregistré au déclenchement : {injection_cumulative_wh / 1000.0:.3f} kWh.\n"
+        "Ce cumul couvre l'historique enregistré, pas seulement cette alerte.\n\n"
+        "Cette notification décrit un événement passé.\n"
+        "Pour la situation actuelle, consultez le suivi en direct.\n"
         "Les mesures continuent d'être enregistrées en arrière-plan."
     )
     try:
@@ -452,7 +456,7 @@ def record_shelly_injection(measured_at, grid_power_w):
                     parent.bell()
                 except Exception:
                     pass
-            show_nonblocking_injection_alert(injection_w)
+            show_nonblocking_injection_alert(injection_w, measured_at)
     else:
         injection_above_since = None
         injection_alert_message = ""
@@ -691,6 +695,26 @@ limit_ax.spines["left"].set_visible(False)
 status_text = fig.text(0.08, 0.028, "Connexion au DTU...", ha="left", va="bottom", fontsize=8.3, color="#475569")
 # Les cartes de tête ont été retirées visuellement ; les objets sont conservés pour l'animation Matplotlib.
 live_cards = [fig.text(0, 0, "", visible=False) for _ in range(4)]
+network_live_label = fig.text(
+    0.775, 0.794, "Réseau Shelly\nEn attente de mesure", ha="right", va="center",
+    fontsize=9, fontweight="bold", color="#334155",
+    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#94a3b8"),
+    visible=equipment_enabled("shelly"),
+)
+
+
+def update_network_live_label(shelly_values, measured_at):
+    """La mesure réseau signée vient du canal Shelly configuré pour le réseau."""
+    network_live_label.set_visible(equipment_enabled("shelly") and not showing_bilan)
+    watts = finite_mobile_value(shelly_values[1]) if shelly_values is not None else None
+    if watts is None:
+        network_live_label.set_text("Réseau Shelly\nmesure indisponible")
+        network_live_label.set_color("#64748b")
+        return
+    watts = round(watts)
+    direction = "Injection réseau" if watts < 0 else "Achat réseau" if watts > 0 else "Échange réseau"
+    network_live_label.set_text(f"{direction} : {abs(watts):.0f} W\nShelly · mesure à {measured_at:%H:%M:%S}")
+    network_live_label.set_color("#b45309" if watts < 0 else "#173f8a")
 
 # En-tête du suivi direct : il disparaît sur le bilan, qui possède son propre titre.
 dashboard_title = fig.text(0.08, 0.890, f"Boîte noire Hoymiles — v{VERSION}", ha="left", va="center",
@@ -2901,6 +2925,7 @@ def toggle_bilan(event=None):
     dashboard_independence_notice.set_visible(not showing_bilan)
     main_chart_legend.set_visible(not showing_bilan)
     equipment_button_ax.set_visible(not showing_bilan)
+    network_live_label.set_visible(not showing_bilan and equipment_enabled("shelly"))
     cursor_line.set_visible(False)
     cursor_dot.set_visible(False)
     cursor_box.set_visible(False)
@@ -3348,6 +3373,7 @@ def update(_):
     else:
         set_connection_badge(connection_badges[2], "offline", "● Shelly hors ligne")
 
+    update_network_live_label(shelly_values, datetime.now())
     dinky_indexes = None
     dinky_index_status = "index non lu"
     linky_cfg = CONFIG.get("linky", {})
@@ -3620,7 +3646,7 @@ equipment_button.on_clicked(open_equipment_settings)
 connection_badges[1].set_visible(equipment_enabled("linky"))
 connection_badges[2].set_visible(equipment_enabled("shelly"))
 end_labels[3].set_visible(equipment_enabled("linky"))
-live_cards[3].set_visible(equipment_enabled("linky"))
+live_cards[3].set_visible(False)
 
 update_end_labels()
 if times:

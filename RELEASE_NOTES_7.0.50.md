@@ -33,3 +33,12 @@ Sur mobile, les cartes maison et flux signé nécessitent les mesures Shelly ; l
 carte Dinky affiche sa mesure de téléinformation. Aucun flux d’injection n’est inventé
 à partir d’un soutirage nul.
 
+
+## Correctif du 14 septembre 2026 — achat et injection réseau
+
+- L’indication Shelly achat/injection est placée à gauche du bouton Équipements, avec l’heure de la dernière mesure. Elle affiche « mesure indisponible » si la lecture échoue.
+- Le texte Linky/Dinky coupé dans le coin inférieur gauche est masqué ; sa valeur reste affichée en haut.
+- La notification d’injection indique la date, la puissance et le cumul au déclenchement. Elle ne présente plus les trois minutes du délai d’alerte comme une durée à puissance constante. Le calcul du cumul reste inchangé.
+- La procédure Mac avec `/bin/bash` et le script du nouveau dossier complet est documentée. Les corrections d’affichage ont été validées par l’utilisateur sur Windows et Mac.
+
+Ce correctif conserve le numéro 7.0.50. Téléchargez le dernier ZIP du dépôt pour obtenir les fichiers corrigés.

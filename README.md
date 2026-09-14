@@ -177,3 +177,25 @@ Sur mobile, les cartes maison et flux signé nécessitent les mesures Shelly ; l
 carte Dinky affiche sa mesure de téléinformation. Aucun flux d’injection n’est inventé
 à partir d’un soutirage nul.
 
+
+### Si macOS refuse l’ouverture de l’installateur
+
+Gardez le nouveau dossier complet décompressé : un installateur pris dans un ancien dossier réinstalle cette ancienne copie.
+Vous pouvez lancer `macOS-AppleSilicon/INSTALLER_MAC.command`. Si macOS affiche « endommagé » et refuse aussi ce fichier, voici le dépannage validé sur Mac pour le paquet provenant de ce dépôt :
+
+1. Ouvrez Terminal et tapez `/bin/bash` suivi d’un espace, sans valider.
+2. Glissez `installer_mac.sh` depuis le **nouveau** dossier `macOS-AppleSilicon` dans Terminal.
+3. Appuyez sur Entrée, puis suivez l’assistant et conservez vos réglages existants.
+
+Cette procédure n’exige pas de désactiver globalement Gatekeeper. Le paquet communautaire n’est pas notarisé par Apple ; l’ouverture par double-clic n’est donc pas garantie sur tous les Mac.
+
+
+
+## Correctif du 14 septembre 2026 — achat et injection réseau
+
+- L’indication Shelly achat/injection est placée à gauche du bouton Équipements, avec l’heure de la dernière mesure. Elle affiche « mesure indisponible » si la lecture échoue.
+- Le texte Linky/Dinky coupé dans le coin inférieur gauche est masqué ; sa valeur reste affichée en haut.
+- La notification d’injection indique la date, la puissance et le cumul au déclenchement. Elle ne présente plus les trois minutes du délai d’alerte comme une durée à puissance constante. Le calcul du cumul reste inchangé.
+- La procédure Mac avec `/bin/bash` et le script du nouveau dossier complet est documentée. Les corrections d’affichage ont été validées par l’utilisateur sur Windows et Mac.
+
+Ce correctif conserve le numéro 7.0.50. Téléchargez le dernier ZIP du dépôt pour obtenir les fichiers corrigés.
