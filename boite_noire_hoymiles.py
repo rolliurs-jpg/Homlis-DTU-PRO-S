@@ -3677,7 +3677,8 @@ def open_equipment_settings(event=None):
             CONFIG.setdefault("shelly2", {})["reverse"] = reverse2.get()
             pending_equipment.update({name: {"enabled": active.get(), "host": address.get().strip()}
                                       for name, (active, address) in fields.items()})
-            feedback.set("Enregistré. Fermez puis relancez le logiciel pour appliquer votre choix.")
+            window.destroy()
+            messagebox.showinfo("Équipements enregistrés", "Fermez puis relancez le logiciel pour appliquer vos réglages.", parent=dialog_parent())
         except OSError as exc:
             feedback.set(f"Enregistrement impossible : {exc}")
     ttk.Button(frame, text="Enregistrer", command=save).grid(row=8, column=2, sticky="e")
@@ -3804,3 +3805,4 @@ alarm_timer.add_callback(refresh_alarm)
 alarm_timer.start()
 fig.canvas.mpl_connect("close_event", lambda event: monitor.stop())
 plt.show()
+
