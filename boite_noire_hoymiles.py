@@ -1,4 +1,5 @@
 import csv
+from battery_monitor import BatteryMonitor, household
 from monitoring import Monitoring, has_measure, open_settings
 import json
 import re
@@ -52,7 +53,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.50"
+VERSION = "7.0.51"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -126,6 +127,9 @@ DEFAULT_CONFIG = {
         # peut être changé sans retourner physiquement une pince.
         "grid_export_positive": False,
     },
+    "battery": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
+    "shelly2": {"enabled": False, "host": "", "port": 80, "timeout_s": 2, "channel": 0, "reverse": False},
+    "production_complete": False,
     "tarifs_edf": {
         "hp_eur_kwh": 0.0,
         "hc_eur_kwh": 0.0,
@@ -222,6 +226,9 @@ monitor.start()
 atexit.register(monitor.stop)
 
 CONFIG = load_config()
+battery_monitor = BatteryMonitor(BASE, CONFIG)
+battery_monitor.start()
+atexit.register(battery_monitor.stop)
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
 SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
 SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
@@ -334,7 +341,23 @@ def mobile_point(index):
     consumption = None
     if shelly_pv is not None and import_signed is not None:
         consumption = max(0.0, shelly_pv + import_signed)
+    battery_row = battery_monitor.at(times[index].timestamp()) if equipment_enabled("battery") or equipment_enabled("shelly2") else {}
+    if equipment_enabled("battery") or equipment_enabled("shelly2"):
+        second = battery_row.get("pv2_w") if equipment_enabled("shelly2") else None
+        total_known = bool(CONFIG.get("production_complete", False))
+        if total_known and not equipment_enabled("shelly2"):
+            second = 0.0
+        production = shelly_pv + second if shelly_pv is not None and second is not None else None
+        battery = battery_row if battery_row.get("ac_charge_w") is not None and battery_row.get("ac_discharge_w") is not None else None
+        if not equipment_enabled("battery"):
+            battery = {"ac_charge_w": 0.0, "ac_discharge_w": 0.0}
+        consumption = household(shelly_pv, second, import_signed, battery, total_known)
     return {
+        "battery_enabled": equipment_enabled("battery"),
+        "battery_soc_pct": battery_row.get("soc_pct"),
+        "battery_charge_w": battery_row.get("charge_w"),
+        "battery_discharge_w": battery_row.get("discharge_w"),
+        "pv2_w": battery_row.get("pv2_w"),
         "timestamp": times[index].isoformat(timespec="seconds"),
         "production_w": production,
         "consumption_w": consumption,
@@ -370,6 +393,10 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
             "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
         })
+        if equipment_enabled("battery") or equipment_enabled("shelly2"):
+            current["production_source"] = "Total Shelly" if current["production_w"] is not None else "Production totale incomplète"
+            if current["consumption_w"] is None:
+                current["quality"] = "partial"
         start = max(0, len(times) - 360)
         history = [mobile_point(index) for index in range(start, len(times))]
         mobile_dashboard.update(current, history)
@@ -3028,6 +3055,9 @@ def current_month_energy_analysis():
 
 def open_energy_analysis(event=None):
     """Affiche provenance, qualité et simulation, sans aucune commande réseau."""
+    if equipment_enabled("battery") or equipment_enabled("shelly2"):
+        battery_monitor.open_window(dialog_parent())
+        return
     parent = dialog_parent()
     try:
         analysis = current_month_energy_analysis()
@@ -3336,6 +3366,10 @@ def equipment_status(linky_status, index_status, shelly_status):
 
 def update(_):
     global last_success, dtu_failures, dtu_failure_since, last_dtu_wifi_recovery
+    battery_row, battery_error = battery_monitor.snapshot()
+    if equipment_enabled("battery"):
+        soc = battery_row.get("soc_pct")
+        battery_button.label.set_text("Batterie —" if soc is None else f"Batterie {soc:.0f} %")
     linky_started = monotonic()
     try:
         # Le Linky reste utilisable même lorsque le DTU est temporairement indisponible.
@@ -3613,15 +3647,19 @@ def open_equipment_settings(event=None):
     frame.pack(fill="both", expand=True)
     ttk.Label(frame, text="Choisissez les équipements utilisés en complément du DTU.").grid(row=0, column=0, columnspan=3, sticky="w")
     fields = {}
-    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM")), 1):
+    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2")), 1):
         active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
         address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
         ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)
         ttk.Label(frame, text="Adresse IP / nom réseau").grid(row=row, column=1, padx=8)
         ttk.Entry(frame, textvariable=address, width=25).grid(row=row, column=2)
         fields[name] = active, address
-    feedback = tk.StringVar(value="Un appareil activé reste visible même s’il ne répond plus.")
-    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=3, column=0, columnspan=3, sticky="w", pady=10)
+    complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
+    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=5, column=0, columnspan=3, sticky="w")
+    reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
+    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=6, column=0, columnspan=3, sticky="w")
+    feedback = tk.StringVar(value="Shelly EM Gen3 : pince sur le canal 0. Laissez la production complète décochée tant que la seconde ligne n’est pas mesurée.")
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=7, column=0, columnspan=3, sticky="w", pady=10)
     def save():
         for name, (active, address) in fields.items():
             if active.get() and not address.get().strip():
@@ -3630,19 +3668,26 @@ def open_equipment_settings(event=None):
         try:
             # Write a copy: the running collector keeps its current configuration.
             data = json.loads(json.dumps(CONFIG))
+            data["production_complete"] = complete.get()
+            data.setdefault("shelly2", {})["reverse"] = reverse2.get()
             for name, (active, address) in fields.items():
                 data.setdefault(name, {}).update(enabled=active.get(), host=address.get().strip())
             CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+            CONFIG["production_complete"] = complete.get()
+            CONFIG.setdefault("shelly2", {})["reverse"] = reverse2.get()
             pending_equipment.update({name: {"enabled": active.get(), "host": address.get().strip()}
                                       for name, (active, address) in fields.items()})
             feedback.set("Enregistré. Fermez puis relancez le logiciel pour appliquer votre choix.")
         except OSError as exc:
             feedback.set(f"Enregistrement impossible : {exc}")
-    ttk.Button(frame, text="Enregistrer", command=save).grid(row=4, column=2, sticky="e")
+    ttk.Button(frame, text="Enregistrer", command=save).grid(row=8, column=2, sticky="e")
 
 equipment_button_ax = plt.axes([0.79, 0.778, 0.12, 0.032])
 equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
 equipment_button.on_clicked(open_equipment_settings)
+battery_button_ax = plt.axes([0.48, 0.778, 0.15, 0.032])
+battery_button = Button(battery_button_ax, "Batterie / PV 2", color="#eff6ff", hovercolor="#bfdbfe")
+battery_button.on_clicked(lambda event: battery_monitor.open_window(dialog_parent()))
 connection_badges[1].set_visible(equipment_enabled("linky"))
 connection_badges[2].set_visible(equipment_enabled("shelly"))
 end_labels[3].set_visible(equipment_enabled("linky"))

@@ -165,6 +165,7 @@ fi
 /usr/bin/ditto "$SOURCE_DIR/mobile_dashboard.py" "$BASE/mobile_dashboard.py"
 /usr/bin/ditto "$SOURCE_DIR/monitoring.py" "$BASE/monitoring.py"
 /usr/bin/ditto "$SOURCE_DIR/energy_analysis.py" "$BASE/energy_analysis.py"
+/usr/bin/ditto "$SOURCE_DIR/battery_monitor.py" "$BASE/battery_monitor.py"
 /usr/bin/ditto "$SOURCE_DIR/fond_solaire.png" "$BASE/fond_solaire.png"
 /usr/bin/ditto "$SOURCE_DIR/icone_panneau_solaire.ico" "$BASE/icone_panneau_solaire.ico"
 # Installation dans le véritable dossier Applications de Finder. AppleScript
