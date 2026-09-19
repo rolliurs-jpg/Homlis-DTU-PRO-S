@@ -723,7 +723,7 @@ status_text = fig.text(0.08, 0.028, "Connexion au DTU...", ha="left", va="bottom
 # Les cartes de tête ont été retirées visuellement ; les objets sont conservés pour l'animation Matplotlib.
 live_cards = [fig.text(0, 0, "", visible=False) for _ in range(4)]
 network_live_label = fig.text(
-    0.775, 0.794, "Réseau Shelly\nEn attente de mesure", ha="right", va="center",
+    0.71, 0.794, "Réseau Shelly\nEn attente de mesure", ha="center", va="center",
     fontsize=9, fontweight="bold", color="#334155",
     bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#94a3b8"),
     visible=equipment_enabled("shelly"),
@@ -2952,6 +2952,7 @@ def toggle_bilan(event=None):
     dashboard_independence_notice.set_visible(not showing_bilan)
     main_chart_legend.set_visible(not showing_bilan)
     equipment_button_ax.set_visible(not showing_bilan)
+    battery_button_ax.set_visible(not showing_bilan)
     network_live_label.set_visible(not showing_bilan and equipment_enabled("shelly"))
     cursor_line.set_visible(False)
     cursor_dot.set_visible(False)
@@ -3683,10 +3684,10 @@ def open_equipment_settings(event=None):
             feedback.set(f"Enregistrement impossible : {exc}")
     ttk.Button(frame, text="Enregistrer", command=save).grid(row=8, column=2, sticky="e")
 
-equipment_button_ax = plt.axes([0.79, 0.778, 0.12, 0.032])
+equipment_button_ax = plt.axes([0.82, 0.774, 0.13, 0.040])
 equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
 equipment_button.on_clicked(open_equipment_settings)
-battery_button_ax = plt.axes([0.48, 0.778, 0.15, 0.032])
+battery_button_ax = plt.axes([0.46, 0.774, 0.14, 0.040])
 battery_button = Button(battery_button_ax, "Batterie / PV 2", color="#eff6ff", hovercolor="#bfdbfe")
 battery_button.on_clicked(lambda event: battery_monitor.open_window(dialog_parent()))
 connection_badges[1].set_visible(equipment_enabled("linky"))
