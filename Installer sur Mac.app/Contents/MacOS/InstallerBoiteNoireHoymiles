@@ -7,10 +7,11 @@ if [ ! -f "$SCRIPT" ]; then
 fi
 # Vérification sans installation, utilisée dans les tests du paquet déplacé.
 if [ "${1:-}" = "--check-resources" ]; then
-  for item in boite_noire_hoymiles.py mobile_dashboard.py monitoring.py energy_analysis.py requirements.txt fond_solaire.png icone_panneau_solaire.ico; do
+  for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py requirements.txt fond_solaire.png icone_panneau_solaire.ico macOS-AppleSilicon/LANCER_INTERFACE_WEB.command; do
     [ -f "$PACKAGE_DIR/$item" ] || exit 1
   done
   [ -f "$PACKAGE_DIR/macOS-AppleSilicon/Boîte noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles" ] || exit 1
+  [ -f "$PACKAGE_DIR/macOS-AppleSilicon/MISE_A_JOUR_INTERFACE_MAC.command" ] || exit 1
   printf '%s\n' "Ressources internes complètes"
   exit 0
 fi

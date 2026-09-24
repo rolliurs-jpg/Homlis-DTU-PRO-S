@@ -11,7 +11,14 @@ appData = shell.ExpandEnvironmentStrings("%LOCALAPPDATA%") & "\BoiteNoireHoymile
 backup = appData & "\sauvegarde_avant_mise_a_jour"
 configFile = appData & "\config_v5.json"
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.50 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+If Not fso.FileExists(folder & "\requirements.txt") Then
+    MsgBox "L'installateur est lance directement depuis le fichier ZIP." & vbCrLf & vbCrLf & _
+           "Cliquez d'abord sur Extraire tout, ouvrez le dossier extrait, puis relancez INSTALLER_WINDOWS.vbs.", _
+           vbExclamation, "Boite noire Hoymiles - extraction necessaire"
+    WScript.Quit 1
+End If
+
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.54 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dependances sans fenetre de terminal.
@@ -129,17 +136,21 @@ End If
 
 fso.CopyFile folder & "\boite_noire_hoymiles.py", appData & "\boite_noire_hoymiles.py", True
 fso.CopyFile folder & "\mobile_dashboard.py", appData & "\mobile_dashboard.py", True
+fso.CopyFile folder & "\dashboard_data.py", appData & "\dashboard_data.py", True
+fso.CopyFile folder & "\dashboard_ui.html", appData & "\dashboard_ui.html", True
+fso.CopyFile folder & "\autostart.py", appData & "\autostart.py", True
 fso.CopyFile folder & "\monitoring.py", appData & "\monitoring.py", True
 fso.CopyFile folder & "\energy_analysis.py", appData & "\energy_analysis.py", True
 fso.CopyFile folder & "\battery_monitor.py", appData & "\battery_monitor.py", True
 fso.CopyFile folder & "\fond_solaire.png", appData & "\fond_solaire.png", True
 fso.CopyFile folder & "\icone_panneau_solaire.ico", appData & "\icone_panneau_solaire.ico", True
 fso.CopyFile folder & "\LANCER.vbs", appData & "\LANCER.vbs", True
+fso.CopyFile folder & "\LANCER_INTERFACE_WEB.vbs", appData & "\LANCER_INTERFACE_WEB.vbs", True
 
 desktop = shell.SpecialFolders("Desktop")
 Set shortcut = shell.CreateShortcut(desktop & "\Boite noire Hoymiles.lnk")
 shortcut.TargetPath = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\wscript.exe"
-shortcut.Arguments = Chr(34) & appData & "\LANCER.vbs" & Chr(34)
+shortcut.Arguments = Chr(34) & appData & "\LANCER_INTERFACE_WEB.vbs" & Chr(34)
 shortcut.WorkingDirectory = appData
 shortcut.IconLocation = appData & "\icone_panneau_solaire.ico,0"
 shortcut.Save

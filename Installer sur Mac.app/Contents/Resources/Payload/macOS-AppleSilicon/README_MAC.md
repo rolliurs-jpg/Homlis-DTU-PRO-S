@@ -1,10 +1,10 @@
-# Installation Mac — version 7.0.50
+# Installation Mac — version 7.0.54
 
 1. Téléchargez et décompressez le ZIP complet directement sur le Mac.
-2. Revenez à la racine du dossier et double-cliquez sur **Installer sur Mac.app**.
+2. Ouvrez `macOS-AppleSilicon`, puis double-cliquez sur **Installer Boîte noire Hoymiles.app**.
 3. Suivez les fenêtres de l’assistant, puis cliquez sur **Lancer maintenant**.
 
-L’installateur contient tous ses fichiers : vous pouvez déplacer **Installer sur Mac.app** seul dans un autre dossier. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés.
+L’installateur contient tous ses fichiers et fonctionne même lorsque macOS l’isole au premier lancement. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés, avec une sauvegarde datée avant chaque mise à jour.
 
 En cas d’échec, l’assistant permet d’ouvrir le journal dans TextEdit. En cas de refus d’ouverture, suivez la procédure ci-dessous.
 
@@ -95,12 +95,6 @@ Lorsque l’injection dépasse −500 W, l’échelle verticale descend automati
 
 ### Si macOS refuse l’ouverture de l’installateur
 
-Gardez le nouveau dossier complet décompressé : un installateur pris dans un ancien dossier réinstalle cette ancienne copie.
-Vous pouvez lancer `macOS-AppleSilicon/INSTALLER_MAC.command`. Si macOS affiche « endommagé » et refuse aussi ce fichier, voici le dépannage validé sur Mac pour le paquet provenant de ce dépôt :
+Utilisez le ZIP Mac autonome de la version publiée et décompressez-le directement sur le Mac. Faites un clic droit sur **Installer Boîte noire Hoymiles.app**, puis choisissez **Ouvrir**. Si nécessaire, validez ensuite l’application dans **Réglages Système → Confidentialité et sécurité**.
 
-1. Ouvrez Terminal et tapez `/bin/bash` suivi d’un espace, sans valider.
-2. Glissez `installer_mac.sh` depuis le **nouveau** dossier `macOS-AppleSilicon` dans Terminal.
-3. Appuyez sur Entrée, puis suivez l’assistant et conservez vos réglages existants.
-
-Cette procédure n’exige pas de désactiver globalement Gatekeeper. Le paquet communautaire n’est pas notarisé par Apple ; l’ouverture par double-clic n’est donc pas garantie sur tous les Mac.
-
+L’installateur est autonome : macOS peut l’isoler sans lui faire perdre l’accès à ses ressources. Il n’est pas nécessaire de déplacer des scripts ni de désactiver globalement Gatekeeper.

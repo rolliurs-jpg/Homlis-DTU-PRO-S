@@ -18,6 +18,7 @@ dialog() {
 
 choose_python() {
   for candidate in \
+    "$BASE/venv/bin/python" \
     "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" \
     "$(command -v python3 2>/dev/null || true)"; do
     # Python provenant de python.org : 3.10 ou plus récent, avec Tkinter.
@@ -35,11 +36,33 @@ if ! choose_python; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.50 pour macOS ?\n\nCette version utilise le réseau unique : DTU en Ethernet sur le nano-routeur Client/Pont, puis Wi-Fi de la box. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py battery_monitor.py requirements.txt fond_solaire.png icone_panneau_solaire.ico; do
+  if [ ! -f "$SOURCE_DIR/$item" ]; then
+    dialog "Le paquet est incomplet : $item est absent. Utilisez le nouveau ZIP complet."
+    exit 1
+  fi
+done
+if [ ! -f "$PACKAGE_DIR/LANCER_INTERFACE_WEB.command" ]; then
+  dialog "Le paquet est incomplet : le lanceur invisible est absent."
+  exit 1
+fi
+
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.54 pour macOS ?\n\nCette version installe la nouvelle interface Direct, Bilans, Batterie et Équipements. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
 mkdir -p "$BASE"
+# Sauvegarde indépendante du code : une mise à jour ne doit jamais être le
+# seul exemplaire des mesures et réglages Mac. Les fichiers sont copiés avant
+# toute modification, dans un dossier daté qui n'est jamais écrasé.
+BACKUP_DIR="$BASE/Sauvegardes/avant_mise_a_jour_$(/bin/date +%Y%m%d_%H%M%S)"
+/bin/mkdir -p "$BACKUP_DIR"
+for data_file in "$BASE"/*.csv "$BASE"/*.json "$BASE"/*.jsonl "$BASE"/*.log; do
+  [ -f "$data_file" ] && /usr/bin/ditto "$data_file" "$BACKUP_DIR/$(/usr/bin/basename "$data_file")"
+done
+if [ -d "$BASE/Historiques_importes" ]; then
+  /usr/bin/ditto "$BASE/Historiques_importes" "$BACKUP_DIR/Historiques_importes"
+fi
 # Après la première ouverture autorisée par l'utilisateur, les relances de ce
 # dossier téléchargé ne doivent plus redemander l'autorisation Gatekeeper.
 /usr/bin/xattr -dr com.apple.quarantine "$SOURCE_DIR" >/dev/null 2>&1 || true
@@ -155,19 +178,33 @@ if [ ! -d "$BASE/venv" ]; then
   "$PYTHON_BIN" -m venv "$BASE/venv" || { dialog "Impossible de créer l'environnement Python privé."; exit 1; }
 fi
 
-"$BASE/venv/bin/python" -m pip install --upgrade pip >/dev/null 2>&1
-if ! "$BASE/venv/bin/python" -m pip install -r "$SOURCE_DIR/requirements.txt" >/dev/null 2>&1; then
-  dialog "L'installation des dépendances Python a échoué. Vérifiez la connexion Internet puis relancez l'installation."
-  exit 1
+if ! "$BASE/venv/bin/python" -c "import tkinter, matplotlib, PIL" >/dev/null 2>&1; then
+  "$BASE/venv/bin/python" -m pip install --upgrade pip >/dev/null 2>&1 || true
+  if ! "$BASE/venv/bin/python" -m pip install -r "$SOURCE_DIR/requirements.txt" >/dev/null 2>&1; then
+    dialog "Les dépendances Python manquantes n'ont pas pu être installées. Vérifiez la connexion Internet puis relancez l'installation."
+    exit 1
+  fi
 fi
 
 /usr/bin/ditto "$SOURCE_DIR/boite_noire_hoymiles.py" "$BASE/boite_noire_hoymiles.py"
 /usr/bin/ditto "$SOURCE_DIR/mobile_dashboard.py" "$BASE/mobile_dashboard.py"
+/usr/bin/ditto "$SOURCE_DIR/dashboard_data.py" "$BASE/dashboard_data.py"
+/usr/bin/ditto "$SOURCE_DIR/dashboard_ui.html" "$BASE/dashboard_ui.html"
+/usr/bin/ditto "$SOURCE_DIR/autostart.py" "$BASE/autostart.py"
+/usr/bin/ditto "$PACKAGE_DIR/LANCER_INTERFACE_WEB.command" "$BASE/LANCER_INTERFACE_WEB.command"
+/bin/chmod +x "$BASE/LANCER_INTERFACE_WEB.command"
 /usr/bin/ditto "$SOURCE_DIR/monitoring.py" "$BASE/monitoring.py"
 /usr/bin/ditto "$SOURCE_DIR/energy_analysis.py" "$BASE/energy_analysis.py"
 /usr/bin/ditto "$SOURCE_DIR/battery_monitor.py" "$BASE/battery_monitor.py"
 /usr/bin/ditto "$SOURCE_DIR/fond_solaire.png" "$BASE/fond_solaire.png"
 /usr/bin/ditto "$SOURCE_DIR/icone_panneau_solaire.ico" "$BASE/icone_panneau_solaire.ico"
+
+for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py battery_monitor.py; do
+  if [ ! -s "$BASE/$item" ]; then
+    dialog "La mise à jour est incomplète : $item n'a pas été installé."
+    exit 1
+  fi
+done
 # Installation dans le véritable dossier Applications de Finder. AppleScript
 # demande le mot de passe administrateur uniquement pour cette copie système.
 if ! /usr/bin/osascript - "$LAUNCH_APP" "$APP_DEST" <<'APPLESCRIPT'

@@ -1,17 +1,28 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Nouveau : [Suivi batterie Zendure et seconde production solaire](RELEASE_NOTES_7.0.51.md).**
+**Version 7.0.54 : nouvelle interface, suivi Zendure, seconde production solaire, curseur détaillé et cycle de batterie continu après minuit.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
-> Application locale Windows et macOS pour comparer la production Hoymiles, le compteur Linky et les mesures indépendantes du Shelly.
+> Suivi solaire local sur Windows et macOS, consultable depuis Android et iPhone avec la nouvelle interface web privée.
 
-[![Version](https://img.shields.io/badge/version-7.0.51-2563eb)](RELEASE_NOTES_7.0.51.md)
+[![Version](https://img.shields.io/badge/version-7.0.54-2563eb)](RELEASE_NOTES_7.0.54.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[Télécharger la dernière version Windows et Mac](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/archive/refs/heads/main.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger pour Windows](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.54-WINDOWS-SEULEMENT.zip)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.54-MAC-INSTALLATEUR-AUTONOME.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 ![Suivi de production](docs/assets/suivi-production-v7.png)
+
+## Disponible sur quatre plateformes
+
+| Plateforme | Disponibilité | Utilisation |
+| --- | --- | --- |
+| Windows | Application complète | Collecte permanente, historique, réglages et nouvelle interface. |
+| macOS Apple Silicon | Application complète | Collecte permanente avec installateur autonome et sauvegarde avant mise à jour. |
+| Android | Interface web | Chrome sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
+| iPhone / iPad | Interface web | Safari sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
+
+Android et iPhone utilisent la même interface moderne, sans application de magasin. Un ordinateur Windows ou Mac — puis prochainement le boîtier Raspberry — doit rester actif pour collecter et servir les données.
 
 ## Choisir la bonne version réseau
 
@@ -25,7 +36,7 @@ Le choix se fait pendant l’installation Windows. L’installation Mac demande 
 
 ## Installation Windows
 
-1. Téléchargez et décompressez le ZIP.
+1. Téléchargez le paquet **Windows uniquement** depuis la page des versions et décompressez-le complètement.
 2. Double-cliquez sur `INSTALLER_WINDOWS.vbs`.
 3. Choisissez l’une des deux configurations réseau du tableau ci-dessus.
 4. Saisissez les adresses IP demandées, puis lancez le raccourci créé sur le Bureau.
@@ -36,8 +47,8 @@ Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou
 
 1. Configurez d’abord le nano-routeur en **mode Client/Pont** sur le Wi-Fi 2,4 GHz de la box.
 2. Reliez le port Ethernet du DTU au nano-routeur.
-3. Décompressez le ZIP complet dans Téléchargements sur le Mac.
-4. Double-cliquez sur **Installer sur Mac.app**, à la racine du dossier. Les étapes s’affichent dans des fenêtres ; aucune commande Terminal n’est nécessaire dans le parcours normal.
+3. Téléchargez le paquet **Mac – installateur autonome**, transférez le ZIP intact sur le Mac et décompressez-le sur le Mac.
+4. Ouvrez `macOS-AppleSilicon`, puis double-cliquez sur **Installer Boîte noire Hoymiles.app**. Tous les fichiers nécessaires sont intégrés dans l’application afin de fonctionner même lorsque macOS l’isole au premier lancement.
 5. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
 
 Le lanceur appelle explicitement Bash et conserve l’identité de l’application pendant l’exécution : l’installation résiste à la perte des droits du ZIP et macOS peut attribuer correctement l’autorisation de réseau local.
@@ -52,7 +63,7 @@ sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddre
 
 Le mot de passe ne s’affiche pas pendant la saisie. Redémarrez ensuite complètement le Mac. Cette exception concerne toutes les applications qui accèdent au sous-réseau `192.168.1.x`, pas uniquement Boîte noire Hoymiles. Procédure validée sous macOS 27.0. Voir la [note technique Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 
-L’installateur place un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Les données sont conservées dans `~/Library/Application Support/BoiteNoireHoymiles`. Voir le [guide Mac détaillé](macOS-AppleSilicon/README_MAC.md).
+L’installateur place un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Avant chaque mise à jour, il sauvegarde les CSV, JSON et journaux dans `~/Library/Application Support/BoiteNoireHoymiles/Sauvegardes`. Voir le [guide Mac détaillé](macOS-AppleSilicon/README_MAC.md).
 
 Le paquet communautaire n’est pas notarisé par Apple. La première ouverture peut donc demander une validation et l’autorisation d’accéder au réseau local.
 
@@ -95,13 +106,13 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 
 Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
-## Tableau de bord mobile et Tailscale
+## Android, iPhone et accès à distance
 
-La version 7.0.50 démarre un petit tableau de bord web sur le port `8765`. Il reprend les mesures déjà collectées par le logiciel : il ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.54 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
-3. Sur le Wi-Fi de la maison, ouvrez `http://ADRESSE_DU_PC:8765` depuis le téléphone.
+3. Sur Android avec Chrome ou sur iPhone/iPad avec Safari, ouvrez `http://ADRESSE_DU_PC:8765` depuis le Wi-Fi de la maison.
 4. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur l’ordinateur et le téléphone, puis connectez les deux appareils au même compte.
 5. Hors de la maison, ouvrez `http://ADRESSE_TAILSCALE_DU_PC:8765`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
 
@@ -113,7 +124,7 @@ Dans **Bilan consommation**, le bouton **Rapport + batterie** analyse automatiqu
 
 Sur téléphone, Windscribe et Tailscale ne doivent pas être utilisés en même temps. Windscribe peut interrompre temporairement l’accès au tableau ; après l’avoir coupé, réactivez Tailscale si la connexion ne revient pas automatiquement.
 
-Depuis Chrome ou Safari mobile, utilisez **Ajouter à l’écran d’accueil** pour créer une icône solaire ouvrant directement le tableau comme une application. Supprimez puis recréez les anciens raccourcis gris après une mise à jour.
+Depuis Chrome Android ou Safari iPhone/iPad, utilisez **Ajouter à l’écran d’accueil** pour créer une icône solaire ouvrant directement l’interface comme une application. Il ne s’agit pas d’une application native publiée sur Google Play ou l’App Store.
 
 N’ouvrez aucun port de la box et n’utilisez pas **Tailscale Funnel** : le tableau doit rester limité à votre réseau local et à votre réseau privé Tailscale. L’ordinateur, le logiciel et Tailscale doivent rester actifs pour une consultation pendant les vacances. Si le pare-feu Windows demande une autorisation pour Python, autorisez le réseau privé utilisé par l’installation.
 
@@ -180,27 +191,28 @@ carte Dinky affiche sa mesure de téléinformation. Aucun flux d’injection n�
 
 ### Si macOS refuse l’ouverture de l’installateur
 
-Gardez le nouveau dossier complet décompressé : un installateur pris dans un ancien dossier réinstalle cette ancienne copie.
-Vous pouvez lancer `macOS-AppleSilicon/INSTALLER_MAC.command`. Si macOS affiche « endommagé » et refuse aussi ce fichier, voici le dépannage validé sur Mac pour le paquet provenant de ce dépôt :
+Utilisez exclusivement le ZIP Mac autonome de la version publiée. Après décompression sur le Mac, faites un clic droit sur **Installer Boîte noire Hoymiles.app**, puis choisissez **Ouvrir**. Si macOS le bloque, autorisez-le dans **Réglages Système → Confidentialité et sécurité**. Il n’est pas nécessaire de désactiver globalement Gatekeeper.
 
-1. Ouvrez Terminal et tapez `/bin/bash` suivi d’un espace, sans valider.
-2. Glissez `installer_mac.sh` depuis le **nouveau** dossier `macOS-AppleSilicon` dans Terminal.
-3. Appuyez sur Entrée, puis suivez l’assistant et conservez vos réglages existants.
-
-Cette procédure n’exige pas de désactiver globalement Gatekeeper. Le paquet communautaire n’est pas notarisé par Apple ; l’ouverture par double-clic n’est donc pas garantie sur tous les Mac.
+L’installateur conserve toutes ses ressources dans l’application : l’isolation de sécurité de macOS ne coupe plus l’accès aux fichiers nécessaires.
 
 
+## Batterie réelle et seconde production — 7.0.54
 
-## Correctif du 14 septembre 2026 — achat et injection réseau
-
-- L’indication Shelly achat/injection est placée à gauche du bouton Équipements, avec l’heure de la dernière mesure. Elle affiche « mesure indisponible » si la lecture échoue.
-- Le texte Linky/Dinky coupé dans le coin inférieur gauche est masqué ; sa valeur reste affichée en haut.
-- La notification d’injection indique la date, la puissance et le cumul au déclenchement. Elle ne présente plus les trois minutes du délai d’alerte comme une durée à puissance constante. Le calcul du cumul reste inchangé.
-- La procédure Mac avec `/bin/bash` et le script du nouveau dossier complet est documentée. Les corrections d’affichage ont été validées par l’utilisateur sur Windows et Mac.
-
-Ce correctif conserve le numéro 7.0.50. Téléchargez le dernier ZIP du dépôt pour obtenir les fichiers corrigés.
+Voir [les notes de la version 7.0.54](RELEASE_NOTES_7.0.54.md). Le suivi Zendure est en lecture seule. Les deux productions Shelly et les flux AC de la batterie permettent le calcul de consommation complète lorsque toutes les mesures sont disponibles.
 
 
-## Batterie réelle et seconde production — 7.0.51
+Le suivi batterie propose désormais **Plein à 100 % et surplus après charge** : heure du premier plein observé, injection nette après le plein, fin solaire estimée si toutes les productions sont mesurées, couverture et export quotidien CSV. Voir les notes de version.
 
-Voir [les instructions de la version 7.0.51](RELEASE_NOTES_7.0.51.md). Le suivi Zendure est en lecture seule. Les deux productions Shelly et les flux AC de la batterie permettent le calcul de consommation complète lorsque toutes les mesures sont disponibles.
+
+### Bilan après plein sur mobile
+
+La page mobile affiche désormais une carte « Plein batterie et surplus après charge » lorsque la batterie est activée : journée en cours, historique des jours et export CSV. Les règles de calcul sont identiques au suivi ordinateur. Les données se rafraîchissent toutes les 30 secondes ; une erreur laisse les anciens résultats visibles avec un avertissement. Installez cette version sur l’ordinateur qui héberge le suivi, redémarrez le logiciel, puis actualisez ou rouvrez la page mobile. Aucune application de magasin à réinstaller.
+
+
+### Batterie graphique et cycle de décharge
+
+Le suivi ordinateur et mobile présente une batterie avec pourcentage : vert en charge, rouge en décharge, gris au repos, mesure indisponible si les données manquent. La puissance nette côté batterie apparaît sous le dessin (seuil de repos de 20 W). Le détail reste accessible via le bouton Cycle batterie / les sections dépliables du mobile.
+
+Le bilan remplace la colonne de couverture par début de décharge, temps de décharge effectivement mesuré et reprise de charge, y compris le lendemain. Chaque événement exige deux minutes continues au-delà de 20 W nets. L’heure affichée est le premier relevé de cette séquence confirmée. Le temps effectif exclut pauses et intervalles sans données de plus de 45 secondes ; ce n’est pas le temps écoulé entre les événements. Le premier retour durable en charge termine le cycle, même s’il survient le même jour. La recherche s’arrête au plus tard à la fin du lendemain ; sans reprise observée la durée reste provisoire. Les relevés manquants sont signalés en remarques.
+
+Le surplus reste provisoire tant que la fin solaire totale n’est pas confirmée. Aucun réglage de production ou de batterie n’est modifié. Les historiques existants sont réutilisés. Installer sur Windows ou Mac, relancer, puis actualiser la page mobile.

@@ -1,3 +1,29 @@
 #!/bin/bash
-PACKAGE_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-exec /bin/bash "$PACKAGE_DIR/installer_mac.sh"
+PACKAGE_DIR="$(cd "$(/usr/bin/dirname "$0")/../Resources/Payload" && pwd)"
+SCRIPT="$PACKAGE_DIR/macOS-AppleSilicon/installer_mac.sh"
+if [ ! -f "$SCRIPT" ]; then
+  /usr/bin/osascript -e 'display alert "Dossier incomplet" message "Les ressources internes de l’installateur sont absentes. Retéléchargez la version complète depuis GitHub."'
+  exit 1
+fi
+# Vérification sans installation, utilisée dans les tests du paquet déplacé.
+if [ "${1:-}" = "--check-resources" ]; then
+  for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py requirements.txt fond_solaire.png icone_panneau_solaire.ico macOS-AppleSilicon/LANCER_INTERFACE_WEB.command; do
+    [ -f "$PACKAGE_DIR/$item" ] || exit 1
+  done
+  [ -f "$PACKAGE_DIR/macOS-AppleSilicon/Boîte noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles" ] || exit 1
+  [ -f "$PACKAGE_DIR/macOS-AppleSilicon/MISE_A_JOUR_INTERFACE_MAC.command" ] || exit 1
+  printf '%s\n' "Ressources internes complètes"
+  exit 0
+fi
+LOG_FILE="$(/usr/bin/mktemp -t hoymiles-install)" || exit 1
+if ! /bin/bash "$SCRIPT" >"$LOG_FILE" 2>&1; then
+  /usr/bin/osascript - "$LOG_FILE" <<'APPLESCRIPT'
+on run argv
+  set answer to display dialog "L’installation n’a pas abouti. Vous pouvez ouvrir le journal pour obtenir de l’aide." with title "Installation Hoymiles" buttons {"Fermer", "Voir le journal"} default button "Voir le journal" with icon caution
+  if button returned of answer is "Voir le journal" then
+    do shell script "/usr/bin/open -a TextEdit " & quoted form of (item 1 of argv)
+  end if
+end run
+APPLESCRIPT
+  exit 1
+fi

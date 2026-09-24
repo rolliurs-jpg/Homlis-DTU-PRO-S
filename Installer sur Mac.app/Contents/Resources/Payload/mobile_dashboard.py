@@ -8,6 +8,12 @@ principale après chaque cycle de collecte.
 from __future__ import annotations
 
 import json
+import csv
+from battery_monitor import cycle_values, CYCLE_HEADINGS
+import time
+import secrets
+from datetime import datetime
+from io import StringIO
 import ipaddress
 import math
 import os
@@ -19,7 +25,7 @@ from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 try:
     from PIL import Image
@@ -60,7 +66,24 @@ MOBILE_HTML = r"""<!doctype html>
     <article class="card home"><div class="label">Consommation maison</div><div class="value" id="home">—</div><div class="hint">Calculée avec les mesures disponibles ; — si incomplètes</div></article>
     <article class="card gridflow" id="flowCard"><div class="label" id="flowLabel">Réseau</div><div class="value" id="flow">—</div><div class="hint" id="flowHint">Linky / Shelly</div></article>
     <article class="card linky"><div class="label">Linky / Dinky</div><div class="value" id="linky">—</div><div class="hint">Téléinformation locale</div></article>
-    <article class="card wide" id="batteryCard" hidden><div class="label">Batterie Zendure</div><div id="batteryValues">—</div><div class="hint">Charge et décharge batterie · entrée 230 V distincte de l’achat EDF</div></article>
+    <article class="card wide" id="batteryCard" hidden><div class="label">Batterie Zendure</div><svg viewBox="0 0 340 125" role="img" aria-label="Batterie" style="width:100%;max-width:340px;display:block;margin:auto">
+<rect x="24" y="14" width="280" height="96" rx="12" fill="none" stroke="#64748b" stroke-width="4" id="batteryOutline"/>
+<rect x="307" y="42" width="12" height="40" rx="3" fill="#64748b" id="batteryTip"/>
+<rect x="31" y="21" width="266" height="82" rx="6" fill="#1d3b5c"/>
+<rect x="31" y="21" width="0" height="82" rx="6" fill="#64748b" id="batteryFill"/>
+<rect x="104" y="37" width="120" height="50" rx="8" fill="#0d223b"/>
+<text x="164" y="73" text-anchor="middle" fill="white" font-size="32" font-weight="700" id="batteryPercent">—</text></svg>
+<div id="batteryValues" style="text-align:center;font-weight:700;margin-top:8px">Mesure indisponible</div></article>
+    <article class="card wide" id="fullBatteryCard" hidden>
+      <div class="label">Cycle batterie : plein, surplus et décharge</div>
+      <div id="fullBatteryStatus" class="hint" role="status">Chargement du bilan…</div>
+      <details><summary style="padding:12px 0">Voir le cycle d’aujourd’hui</summary><div id="fullBatteryToday"></div></details>
+      <details style="margin-top:12px"><summary>Historique des jours enregistrés</summary><div id="fullBatteryHistory"></div></details>
+      <a href="/battery-full.csv" download="surplus_apres_batterie_pleine.csv" style="display:inline-block;color:#93c5fd;padding:12px 0">Exporter le bilan CSV</a>
+      <div class="hint">Injection nette mesurée par Shelly après le premier 100 %. Les trous de mesure sont exclus.
+      Fin solaire estimée après 30 min à 10 W ou moins sur toutes les lignes mesurées ; sinon cumul provisoire jusqu’aux relevés disponibles, limité à minuit.
+      Une restitution batterie peut aussi contribuer au surplus. Le temps en décharge exclut les pauses et les trous de mesure. Décharge et recharge sont confirmées après 2 minutes au-dessus de 20 W nets ; une recharge le lendemain reste sur la ligne du plein de la veille.</div>
+    </article>
     <article class="card wide"><div class="label">Dernières heures</div><div class="legend"><span class="key" style="--c:#4f7cff">Production</span><span class="key" style="--c:#fff">Consommation</span><span class="key" style="--c:#22c55e">Soutirage</span><span class="key" style="--c:#ffd000">Injection</span></div><canvas id="chart"></canvas></article>
     <article class="card wide"><div class="label">État des appareils</div><div class="states"><div class="state" id="dtuState"><strong>DTU</strong><span>—</span></div><div class="state" id="linkyState"><strong>Dinky</strong><span>—</span></div><div class="state" id="shellyState"><strong>Shelly</strong><span>—</span></div></div></article>
   </section>
@@ -104,7 +127,42 @@ function showMonitoring(){
  }
 }
 setInterval(showMonitoring,1000);
-async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{},fresh=freshness(s.timestamp);$('batteryCard').hidden=!s.battery_enabled;$('batteryValues').textContent=`Niveau : ${s.battery_soc_pct==null?'—':Math.round(s.battery_soc_pct)+' %'} · Charge : ${s.battery_charge_w==null?'—':Math.round(s.battery_charge_w)+' W'} · Décharge : ${s.battery_discharge_w==null?'—':Math.round(s.battery_discharge_w)+' W'}`;$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=(s.grid_source||'Mesure réseau locale')+(exporting?' · injection':' · soutirage');$('updated').textContent=s.timestamp?`Dernière mesure ${ageLabel(fresh.age)} · ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';const equipment=s.equipment||{linky:true,shelly:true};$('linky').closest('article').hidden=!equipment.linky;$('home').closest('article').hidden=!equipment.shelly;$('flowCard').hidden=!equipment.shelly;$('linkyState').hidden=!equipment.linky;$('shellyState').hidden=!equipment.shelly;const labels={complete:'<strong>Mesures disponibles</strong>',backup:'<strong>Mesure de secours</strong> · DTU absente, Shelly utilisé',partial:'<strong>Données partielles</strong>',missing:'<strong>Données absentes</strong>'};$('quality').innerHTML=(!equipment.shelly&&s.dtu_state==='online')?'Mesures DTU disponibles':labels[s.quality]||'Qualité : en attente';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent=fresh.label;$('liveDot').style.background=fresh.color;draw(d.history);lastReceived=Date.now();lastMonitor=d.monitoring;failedSince=null;showMonitoring()}catch(e){if(failedSince===null)failedSince=Date.now();showMonitoring();$('liveText').textContent='Serveur inaccessible';$('liveDot').style.background='#ef4444'}}
+function drawBattery(s,fresh=true){
+ const valid=fresh&&Number.isFinite(s.battery_soc_pct)&&Number.isFinite(s.battery_charge_w)&&Number.isFinite(s.battery_discharge_w);
+ const soc=fresh&&Number.isFinite(s.battery_soc_pct)?Math.max(0,Math.min(100,s.battery_soc_pct)):null;
+ const net=valid?s.battery_charge_w-s.battery_discharge_w:0;
+ const color=valid&&net>20?'#22c55e':valid&&net< -20?'#ef4444':'#94a3b8';
+ $('batteryFill').setAttribute('width',soc==null?0:266*soc/100);
+ $('batteryFill').setAttribute('fill',color);$('batteryOutline').setAttribute('stroke',color);$('batteryTip').setAttribute('fill',color);
+ $('batteryPercent').textContent=soc==null?'—':Math.round(soc)+' %';
+ $('batteryValues').textContent=!valid?'Mesure indisponible ou ancienne':net>20?`En charge · ${Math.round(net)} W`:net< -20?`En décharge · ${Math.round(-net)} W`:soc>=100?'Pleine · au repos':'Au repos';
+ $('batteryValues').style.color=color;
+}
+let fullBatteryReceived=0;
+function fullBatteryText(r){
+ const d=r.display;
+ if(!d)return 'Cycle indisponible — actualisez le logiciel sur l’ordinateur.';
+ return `${d[0]} · Batterie pleine à ${d[1]}\nSurplus après plein : ${d[2]}\nFin solaire : ${d[3]}\nDécharge dès : ${d[4]}\nTemps en décharge : ${d[5]}\nRecharge dès : ${d[6]}`+(d[7]&&d[7]!=='—'?`\n${d[7]}`:'');
+}
+
+function renderFullBattery(d){
+ const days=d.days||[],today=days.find(r=>r.ongoing);
+ $('fullBatteryToday').style.whiteSpace='pre-line';
+ $('fullBatteryToday').style.marginTop='10px';
+ $('fullBatteryToday').textContent=today?fullBatteryText(today):'Aucun relevé batterie pour aujourd’hui.';
+ $('fullBatteryHistory').style.whiteSpace='pre-line';
+ $('fullBatteryHistory').textContent=days.filter(r=>!r.ongoing).map(fullBatteryText).join('\n\n')||'Pas encore de journée précédente enregistrée.';
+ $('fullBatteryStatus').textContent=d.updated_at?'Bilan actualisé le '+new Date(d.updated_at).toLocaleString('fr-FR'):'';
+}
+async function refreshFullBattery(){
+ if($('fullBatteryCard').hidden||Date.now()-fullBatteryReceived<30000)return;
+ try{
+  const r=await fetch('/api/battery-full',{cache:'no-store',signal:AbortSignal.timeout(10000)});
+  if(!r.ok)throw Error();
+  renderFullBattery(await r.json());fullBatteryReceived=Date.now();
+ }catch(e){$('fullBatteryStatus').textContent='Bilan non actualisé — connexion ou historique indisponible. Les valeurs précédentes sont conservées.'}
+}
+async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{},fresh=freshness(s.timestamp);$('batteryCard').hidden=!s.battery_enabled;$('fullBatteryCard').hidden=!s.battery_enabled;refreshFullBattery();drawBattery(s,fresh.age<=90);$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=(s.grid_source||'Mesure réseau locale')+(exporting?' · injection':' · soutirage');$('updated').textContent=s.timestamp?`Dernière mesure ${ageLabel(fresh.age)} · ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';const equipment=s.equipment||{linky:true,shelly:true};$('linky').closest('article').hidden=!equipment.linky;$('home').closest('article').hidden=!equipment.shelly;$('flowCard').hidden=!equipment.shelly;$('linkyState').hidden=!equipment.linky;$('shellyState').hidden=!equipment.shelly;const labels={complete:'<strong>Mesures disponibles</strong>',backup:'<strong>Mesure de secours</strong> · DTU absente, Shelly utilisé',partial:'<strong>Données partielles</strong>',missing:'<strong>Données absentes</strong>'};$('quality').innerHTML=(!equipment.shelly&&s.dtu_state==='online')?'Mesures DTU disponibles':labels[s.quality]||'Qualité : en attente';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent=fresh.label;$('liveDot').style.background=fresh.color;draw(d.history);lastReceived=Date.now();lastMonitor=d.monitoring;failedSince=null;showMonitoring()}catch(e){if(failedSince===null)failedSince=Date.now();showMonitoring();drawBattery({},false);$('liveText').textContent='Serveur inaccessible';$('liveDot').style.background='#ef4444'}}
 refresh();setInterval(refresh,5000);addEventListener('resize',refresh);
 </script></body></html>"""
 
@@ -152,6 +210,22 @@ def _clean_number(value):
     return number if math.isfinite(number) else None
 
 
+def _is_this_computer(address):
+    """True lorsque le navigateur tourne sur le même ordinateur que le suivi."""
+    local = {'127.0.0.1', '::1'}
+    try:
+        local.update(socket.gethostbyname_ex(socket.gethostname())[2])
+    except OSError:
+        pass
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(('192.0.2.1', 80))
+            local.add(sock.getsockname()[0])
+    except OSError:
+        pass
+    return address in local
+
+
 class MobileDashboard:
     def __init__(self, host="0.0.0.0", port=8765, max_history=360):
         self.host = str(host or "0.0.0.0")
@@ -163,6 +237,13 @@ class MobileDashboard:
         self._thread = None
         self.error = ""
         self.monitoring = None
+        self.battery_report = None
+        self.data_service = None
+        self.ui_action = None
+        self.csrf = secrets.token_urlsafe(32)
+        self._battery_lock = threading.Lock()
+        self._battery_cache = None
+        self._battery_cache_time = 0
 
     def start(self):
         dashboard = self
@@ -171,7 +252,52 @@ class MobileDashboard:
             def do_GET(self):
                 path = urlparse(self.path).path
                 if path in ("/", "/index.html"):
-                    self._send(MOBILE_HTML.encode("utf-8"), "text/html; charset=utf-8")
+                    source = Path(__file__).with_name('dashboard_ui.html')
+                    html = source.read_text(encoding='utf-8') if source.exists() else MOBILE_HTML
+                    self._send(html.replace('__ACTION_TOKEN__',dashboard.csrf).encode("utf-8"), "text/html; charset=utf-8")
+                    return
+                if path == '/classic-mobile':
+                    self._send(MOBILE_HTML.encode('utf-8'), 'text/html; charset=utf-8')
+                    return
+                if path in ('/api/report','/report.csv','/api/settings'):
+                    if dashboard.data_service is None:
+                        self.send_error(503, 'Reports are starting')
+                        return
+                    try:
+                        if path == '/api/settings':
+                            report = dashboard.data_service.settings()
+                            report['desktop_actions'] = _is_this_computer(self.client_address[0])
+                        else:
+                            period = parse_qs(urlparse(self.path).query).get('period',['today'])[0]
+                            report = dashboard.data_service.report(period)
+                        if path == '/report.csv':
+                            out=StringIO();writer=csv.writer(out,delimiter=';')
+                            writer.writerow(['Date','Production mesurée W','Maison W','Achat W','Injection W','Charge batterie W','Décharge batterie W'])
+                            for r in report['history']:
+                                writer.writerow([r.get(k) for k in ('timestamp','production_w','consumption_w','import_w','export_w','battery_charge_w','battery_discharge_w')])
+                            self._send(('\ufeff'+out.getvalue()).encode('utf-8'),'text/csv; charset=utf-8')
+                        else:
+                            self._send(json.dumps(report,ensure_ascii=False,allow_nan=False).encode('utf-8'),'application/json; charset=utf-8')
+                    except ValueError:
+                        self.send_error(400, 'Invalid period or data')
+                    except (OSError, csv.Error):
+                        self.send_error(503, 'History temporarily unavailable')
+                    return
+                if path in ("/api/battery-full", "/battery-full.csv"):
+                    try:
+                        report = dashboard.get_battery_report()
+                    except (OSError, ValueError, csv.Error):
+                        self.send_error(503, "Battery history temporarily unavailable")
+                        return
+                    if path.endswith('.csv'):
+                        out = StringIO()
+                        writer = csv.writer(out, delimiter=';')
+                        writer.writerow(CYCLE_HEADINGS)
+                        for row in report['days']:
+                            writer.writerow(cycle_values(row))
+                        self._send(('\ufeff'+out.getvalue()).encode('utf-8'), 'text/csv; charset=utf-8')
+                    else:
+                        self._send(json.dumps(report, ensure_ascii=False, allow_nan=False).encode('utf-8'), 'application/json; charset=utf-8')
                     return
                 if path == "/api/status":
                     with dashboard._lock:
@@ -206,6 +332,42 @@ class MobileDashboard:
                     return
                 self.send_error(404)
 
+            def do_POST(self):
+                if urlparse(self.path).path != '/api/action':
+                    self.send_error(404); return
+                if not secrets.compare_digest(self.headers.get('X-Action-Token',''),dashboard.csrf):
+                    self.send_error(403); return
+                origin = self.headers.get('Origin')
+                if origin and urlparse(origin).netloc != self.headers.get('Host'):
+                    self.send_error(403); return
+                try:
+                    length=int(self.headers.get('Content-Length','0'))
+                    if not 0 < length <= 16384:
+                        self.send_error(413); return
+                    data=json.loads(self.rfile.read(length))
+                    if not isinstance(data,dict):
+                        raise ValueError('Objet attendu')
+                    action=data.get('action')
+                    allowed={'settings','tariffs','pause','classic','diagnostic','capture','alarm','manual_edf','export','autostart'}
+                    if action not in allowed:
+                        raise ValueError('Action inconnue')
+                    if action == 'autostart':
+                        if not _is_this_computer(self.client_address[0]):
+                            self.send_error(403,'Open this page on the computer to change automatic startup');return
+                        if dashboard.data_service is None:
+                            self.send_error(503);return
+                        response=dashboard.data_service.set_autostart(data.get('values',{}).get('enabled'))
+                        self._send(json.dumps(response,ensure_ascii=False).encode('utf-8'),'application/json; charset=utf-8')
+                        return
+                    if action not in {'settings','tariffs','pause'} and self.client_address[0] not in ('127.0.0.1','::1'):
+                        self.send_error(403,'This action opens a window on the home computer');return
+                    if dashboard.ui_action is None:
+                        self.send_error(503);return
+                    response=dashboard.ui_action(action,data.get('values',{}))
+                    self._send(json.dumps(response,ensure_ascii=False).encode('utf-8'),'application/json; charset=utf-8')
+                except (ValueError,TypeError,KeyError) as exc:
+                    self._send(json.dumps({'error':str(exc)},ensure_ascii=False).encode('utf-8'),'application/json; charset=utf-8')
+
             def _send(self, body, content_type):
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
@@ -230,6 +392,18 @@ class MobileDashboard:
         except OSError as exc:
             self.error = str(exc)
             return False
+
+    def get_battery_report(self):
+        with self._battery_lock:
+            if self._battery_cache is not None and time.monotonic()-self._battery_cache_time < 30:
+                return deepcopy(self._battery_cache)
+            rows = self.battery_report() if self.battery_report else []
+            for row in rows:
+                for source, target in [('full_at', 'full_time'), ('end_at', 'end_time')]:
+                    row[target] = datetime.fromtimestamp(row[source]).strftime('%H:%M:%S') if row[source] is not None else None
+            self._battery_cache = {'days': rows, 'updated_at': datetime.now().isoformat(timespec='seconds')}
+            self._battery_cache_time = time.monotonic()
+            return deepcopy(self._battery_cache)
 
     def update(self, current, history):
         safe_current = {key: (_clean_number(value) if key.endswith("_w") else value) for key, value in current.items()}

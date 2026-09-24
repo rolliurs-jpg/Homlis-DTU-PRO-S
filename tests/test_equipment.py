@@ -71,11 +71,19 @@ class EquipmentTests(TestCase):
 
     def test_both_devices_keep_linky_indexes_as_billing_source(self):
         ns = self.namespace(True, True)
-        ns.update(times=[], ac_power=[], linky_hc_index=[], linky_hp_index=[],
-                  read_dinky_history=lambda *args: ([1] * 24, [2] * 24))
-        result = ns['automatic_energy_series']('24h', datetime(2026, 9, 12, 12))
-        self.assertEqual(sum(result[2]), 72)
-        self.assertIn('Dinky', result[6])
+        t = datetime(2026, 9, 12, 0)
+        u = datetime(2026, 9, 12, 12)
+        ns.update(times=[], ac_power=[],
+                  linky_hc_index=[(t, 100), (u, 100)],
+                  linky_hp_index=[(t, 200), (u, 200.025)],
+                  read_dinky_history=Mock(return_value=([1] * 24, [2] * 24)))
+        result = ns['automatic_energy_series']('24h', u)
+        self.assertAlmostEqual(sum(result[2]), 0.025)
+        ns['read_dinky_history'].assert_not_called()
+        self.assertIn('Index Linky', result[6])
+        ns['linky_hp_index'] = [(t, 200), (u, 200)]
+        result = ns['automatic_energy_series']('24h', u)
+        self.assertEqual(sum(result[2]), 0)
 
     def test_disabled_shelly_does_not_supply_mobile_backup_from_old_history(self):
         ns = self.namespace(True, False)

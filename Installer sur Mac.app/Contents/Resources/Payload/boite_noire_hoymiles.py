@@ -22,10 +22,14 @@ from urllib.parse import quote
 from urllib.request import urlopen
 
 import matplotlib
+WEB_ONLY = "--web-only" in sys.argv
 # Le backend natif macOS de Matplotlib peut planter avec Python 3.14 lors d'un
 # clic sur un bouton. TkAgg est stable sur Apple Silicon et permet les boîtes
 # de dialogue Tarifs EDF.
-if sys.platform == "darwin":
+if WEB_ONLY:
+    # Collecte et serveur web sans fenêtre, sans icône Python dans le Dock.
+    matplotlib.use("Agg")
+elif sys.platform == "darwin":
     matplotlib.use("TkAgg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -44,8 +48,10 @@ except ImportError:
 
 try:
     from mobile_dashboard import MobileDashboard
+    from dashboard_data import DashboardData
 except ImportError:
     MobileDashboard = None
+    DashboardData = None
 
 try:
     from energy_analysis import analyse_period, create_monthly_pdf, simulate_batteries
@@ -53,7 +59,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.51"
+VERSION = "7.0.54"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -241,8 +247,15 @@ if MobileDashboard is not None and mobile_cfg.get("enabled", True):
         port=mobile_cfg.get("port", 8765),
     )
     mobile_dashboard.monitoring = monitor.snapshot
-    mobile_dashboard.start()
+    mobile_dashboard.battery_report = battery_monitor.full_charge_report
+    if DashboardData is not None:
+        mobile_dashboard.data_service = DashboardData(BASE, CONFIG, battery_monitor)
+    dashboard_started = mobile_dashboard.start()
     atexit.register(mobile_dashboard.stop)
+    if not dashboard_started:
+        # Un autre collecteur utilise déjà le port : ne jamais enregistrer les
+        # mêmes mesures une seconde fois en arrière-plan.
+        raise SystemExit(0)
 
 # Une couleur par groupe de sources ; la forme du trait identifie la mesure.
 PRIMARY_COLOR = "#00008b"
@@ -848,7 +861,7 @@ def show_cursor(index):
     shelly_a = shelly_a_power[index]
     shelly_b = shelly_b_power[index]
     production_text = "— (DTU indisponible)" if production != production else f"{production:.0f} W"
-    grid_text = "— (DTU indisponible)" if grid != grid else f"{grid:+.0f} W"
+    grid_text = "— (mesure DDSU absente)" if grid != grid else f"{grid:+.0f} W"
     linky_text = "—" if linky != linky else f"{linky:.0f} W"
     shelly_a_text = "—" if shelly_a != shelly_a else f"{shelly_a:+.0f} W"
     shelly_b_text = "—" if shelly_b != shelly_b else f"{shelly_b:+.0f} W"
@@ -916,6 +929,41 @@ def move_cursor(event):
 
 fig.canvas.mpl_connect("motion_notify_event", move_cursor)
 
+ddsu_modbus_status = "lecture non effectuée"
+
+
+def read_ddsu_modbus(host):
+    """DTU-Pro/Pro-S REV1.2 : FC04 uniquement, aucune écriture.
+
+    Les puissances restent brutes : la notice indique uint32 / 0,01 kW,
+    sans convention de signe et les valeurs hors ligne peuvent être anciennes.
+    """
+    from pymodbus.client import ModbusTcpClient
+    result = {"status": "lecture indisponible", "power_w": None}
+    try:
+        with ModbusTcpClient(host, port=502, timeout=2, retries=0) as client:
+            def read(address, count):
+                reply = client.read_input_registers(address, count=count, device_id=1)
+                if reply.isError() or len(reply.registers) != count:
+                    raise RuntimeError(f"FC04 {address:#06x}: {reply}")
+                return reply.registers
+            info = read(0x3000, 5)
+            result["device_registers"] = info
+            if info[3] == 0:
+                result["status"] = "aucun compteur déclaré"
+                return result
+            raw = read(0x3160, 48)
+            result["meter_registers"] = raw
+            result["meter_serial"] = "".join(f"{v:04X}" for v in raw[:3])
+            result["status_register"] = raw[47]
+            result["status"] = ("hors ligne selon DTU" if raw[47] == 0 else
+                                "en ligne, décodage à valider" if raw[47] == 1 else
+                                "état compteur inconnu")
+    except Exception as exc:
+        result["error"] = str(exc)
+    return result
+
+
 def read_dtu():
     """Lecture DTU robuste : essaie l'adresse configurée puis les adresses connues."""
     global HOST
@@ -933,11 +981,15 @@ def read_dtu():
     if not str(HOST).startswith("10.10.100.") and HoymilesModbusTCP is not None:
         try:
             plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
+            global ddsu_modbus_status
+            ddsu = read_ddsu_modbus(HOST)
+            ddsu_modbus_status = ddsu["status"]
             return {
                 "_source": "modbus_tcp",
                 "_modbus_pv_w": float(plant.pv_power),
                 "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
-                "meterData": [{"phaseTotalPower": 0}],
+                "meterData": [{}],
+                "_ddsu_modbus": ddsu,
             }
         except Exception as exc:
             modbus_error = f"Modbus TCP {HOST}: {exc}"
@@ -1237,11 +1289,23 @@ def visible_plot_indexes():
     indexes = list(range(start_index, count))
     if len(indexes) <= MAX_VISIBLE_POINTS:
         return indexes
-    stride = max(1, (len(indexes) - 1) // (MAX_VISIBLE_POINTS - 1))
-    indexes = indexes[::stride]
-    if indexes[-1] != count - 1:
-        indexes.append(count - 1)
-    return indexes
+    # Préserve les extrêmes de chaque série au lieu de prélever un point
+    # arbitraire tous les N relevés (aliasing sur les longues périodes).
+    series = (ac_power, grid_power, power_limit, linky_power,
+              shelly_a_power, shelly_b_power)
+    bucket_size = max(1, math.ceil(len(indexes) / MAX_VISIBLE_POINTS))
+    selected = set()
+    for offset in range(0, len(indexes), bucket_size):
+        bucket = indexes[offset:offset + bucket_size]
+        selected.update((bucket[0], bucket[-1]))
+        for values in series:
+            valid = [i for i in bucket if math.isfinite(values[i])]
+            if valid:
+                selected.update((valid[0], valid[-1],
+                                 min(valid, key=lambda i: values[i]),
+                                 max(valid, key=lambda i: values[i])))
+    return sorted(selected)
+
 
 
 def series_with_visible_gaps(indexes, values):
@@ -1290,6 +1354,11 @@ def update_power_axis_limits(indexes):
 
 
 def redraw():
+    # Le service web invisible n'a aucun graphique de bureau à produire.
+    # Avec le backend Agg, dessiner l'historique complet peut dépasser la
+    # surface raster maximale et arrêter entièrement le serveur HTTP.
+    if WEB_ONLY:
+        return
     indexes = visible_plot_indexes()
     for line, values in (
         (line_ac, ac_power),
@@ -1671,6 +1740,12 @@ def collect_dtu_diagnostic():
         "",
     ]
     lines.extend(summarize_local_observations())
+    if not str(HOST).startswith("10.10.100."):
+        lines.extend(("", "DDSU MODBUS TCP — FC04, lecture seule",
+                      json.dumps(read_ddsu_modbus(HOST), ensure_ascii=False, indent=2),
+                      "Les valeurs brutes ne sont pas des mesures valides si le compteur est hors ligne.",
+                      "Le signe et le facteur de puissance réseau restent à vérifier avant affichage."))
+        return "\n".join(lines) + "\n"
     lines.extend(("", "RÉPONSES BRUTES DU DTU"))
 
     # Ces commandes commencent toutes par « get » : elles lisent les données
@@ -2025,8 +2100,7 @@ def automatic_energy_series(period, now):
         return labels, production, [a + b for a, b in zip(hc, hp)], hc, hp, title, source, start
 
     # Achat EDF : seule la Téléinfo du Linky (Dinky 4) fait foi, jamais le DDSU.
-    # Certains firmwares Dinky n'affichent qu'une des deux series HC/HP dans
-    # l'historique SVG. On calcule toujours un secours avec les index locaux.
+    # Le bilan repose sur les variations des index cumulés enregistrés.
     index_hc, index_hp = [0.0] * len(labels), [0.0] * len(labels)
     index_samples = list(zip(linky_hc_index, linky_hp_index))
     index_samples = [(when_hc, value_hc, value_hp) for ((when_hc, value_hc), (when_hp, value_hp)) in index_samples
@@ -2045,31 +2119,11 @@ def automatic_energy_series(period, now):
         except (IndexError, TypeError, ValueError):
             continue
 
-    historic = read_dinky_history(period, labels)
-    if historic is not None and sum(historic[0]) + sum(historic[1]) > 0:
-        historic_hc, historic_hp = historic
-        hc = historic_hc if sum(historic_hc) > 0 else index_hc
-        hp = historic_hp if sum(historic_hp) > 0 else index_hp
-        source = "Historique Dinky 4 / Linky + index HC/HP"
-    else:
-        hc, hp = [0.0] * len(labels), [0.0] * len(labels)
-        samples = list(zip(linky_hc_index, linky_hp_index))
-        samples = [(when_hc, value_hc, value_hp) for ((when_hc, value_hc), (when_hp, value_hp)) in samples
-                   if when_hc == when_hp]
-        for previous, current in zip(samples, samples[1:]):
-            when, previous_hc, previous_hp = previous
-            current_when, current_hc, current_hp = current
-            if current_when < start or current_when > now:
-                continue
-            try:
-                bucket = index_for(current_when)
-                if not 0 <= bucket < len(labels):
-                    continue
-                hc[bucket] += max(0.0, float(current_hc) - float(previous_hc))
-                hp[bucket] += max(0.0, float(current_hp) - float(previous_hp))
-            except (IndexError, TypeError, ValueError):
-                continue
-        source = "Index Dinky 4 depuis le démarrage"
+    # Les index cumulés sont la référence de facturation. Les barres SVG
+    # du Dinky ne garantissent pas la même période et ne doivent jamais
+    # remplacer ces relevés, même lorsqu'ils indiquent zéro achat.
+    hc, hp = index_hc, index_hp
+    source = "Index Linky HC/HP enregistrés — périodes couvertes uniquement"
     achat_edf = [hc_value + hp_value for hc_value, hp_value in zip(hc, hp)]
     return labels, production, achat_edf, hc, hp, title, source, start
 
@@ -3498,7 +3552,7 @@ def update(_):
         # Certains firmwares ne renvoient temporairement que la valeur de phase.
         # Les deux champs représentent la même mesure sur cette installation monophasée.
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
-        if grid_raw is None:
+        if grid_raw is None and source != "modbus_tcp":
             raise RuntimeError("puissance réseau absente de la réponse DTU")
         if source == "modbus_tcp":
             grid = float("nan")
@@ -3546,7 +3600,7 @@ def update(_):
             linky_card_txt = f"LINKY DINKY\n{lky:.0f} W (TIC)"
         live_cards[0].set_text(f"PRODUCTION PV\n{ac:.0f} W")
         live_cards[1].set_text(
-            f"RÉSEAU DDSU\n{grid:+.0f} W" if source != "modbus_tcp" else "RÉSEAU DDSU\nN/D (Modbus)"
+            f"RÉSEAU DDSU\n{grid:+.0f} W" if source != "modbus_tcp" else f"RÉSEAU DDSU\n{ddsu_modbus_status}"
         )
         live_cards[2].set_text(
             f"LIMITE DTU\n{limit_w:.0f} %" if source != "modbus_tcp" else "LIMITE DTU\nN/D (Modbus)"
@@ -3717,7 +3771,7 @@ for monitor_index in range(len(times) - 1, -1, -1):
 update(None)
 
 # Puis une lecture chaque minute.
-ani = FuncAnimation(fig, update, interval=INTERVAL_MS, cache_frame_data=False)
+ani = None if WEB_ONLY else FuncAnimation(fig, update, interval=INTERVAL_MS, cache_frame_data=False)
 
 def enable_full_window_resize():
     """Agrandit le canevas avec la fenÃªtre Tk, y compris aprÃ¨s un plein Ã©cran."""
@@ -3805,5 +3859,14 @@ alarm_timer = fig.canvas.new_timer(interval=5000)
 alarm_timer.add_callback(refresh_alarm)
 alarm_timer.start()
 fig.canvas.mpl_connect("close_event", lambda event: monitor.stop())
-plt.show()
-
+if WEB_ONLY:
+    try:
+        while True:
+            sleep(INTERVAL_MS / 1000.0)
+            update(None)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        monitor.stop()
+else:
+    plt.show()
