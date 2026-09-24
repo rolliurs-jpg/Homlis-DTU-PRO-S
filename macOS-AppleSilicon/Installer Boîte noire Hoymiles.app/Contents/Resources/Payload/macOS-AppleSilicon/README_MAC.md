@@ -1,4 +1,4 @@
-# Installation Mac — version 7.0.54
+# Installation Mac — version 7.0.55
 
 1. Téléchargez et décompressez le ZIP complet directement sur le Mac.
 2. Ouvrez `macOS-AppleSilicon`, puis double-cliquez sur **Installer Boîte noire Hoymiles.app**.
@@ -45,6 +45,8 @@ sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddre
 Le mot de passe administrateur reste invisible pendant sa saisie. Redémarrez complètement le Mac, puis ouvrez le logiciel depuis `/Applications`. Cette exception système autorise toutes les applications à joindre le sous-réseau `192.168.1.x`. Elle a été validée avec macOS 27.0. Référence : [Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 
 L’installateur crée un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Le logo des panneaux solaires est utilisé et les boutons gardent la forme rectangulaire de Windows.
+
+À chaque ouverture, ce lanceur propose **Nouvelle interface web** ou **Ancien logiciel**. Le service invisible est suspendu pendant l’utilisation de l’ancienne fenêtre, puis relancé à sa fermeture lorsque le démarrage automatique est activé.
 
 Les mises à jour conservent les réglages et historiques dans :
 

@@ -73,6 +73,7 @@ def windows_archive():
         "battery_monitor.py", "requirements.txt", "fond_solaire.png",
         "icone_panneau_solaire.ico", "config.example.json", "CHOISIR_RESEAU.ps1",
         "INSTALLER_WINDOWS.vbs", "LANCER.vbs", "LANCER_INTERFACE_WEB.vbs",
+        "CHOISIR_INTERFACE.vbs",
         f"RELEASE_NOTES_{release}.md",
     ]
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:

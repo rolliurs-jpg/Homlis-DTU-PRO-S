@@ -18,7 +18,7 @@ If Not fso.FileExists(folder & "\requirements.txt") Then
     WScript.Quit 1
 End If
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.54 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.55 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dependances sans fenetre de terminal.
@@ -146,12 +146,13 @@ fso.CopyFile folder & "\fond_solaire.png", appData & "\fond_solaire.png", True
 fso.CopyFile folder & "\icone_panneau_solaire.ico", appData & "\icone_panneau_solaire.ico", True
 fso.CopyFile folder & "\LANCER.vbs", appData & "\LANCER.vbs", True
 fso.CopyFile folder & "\LANCER_INTERFACE_WEB.vbs", appData & "\LANCER_INTERFACE_WEB.vbs", True
+fso.CopyFile folder & "\CHOISIR_INTERFACE.vbs", appData & "\CHOISIR_INTERFACE.vbs", True
 
 desktop = shell.SpecialFolders("Desktop")
 Set shortcut = shell.CreateShortcut(desktop & "\Boite noire Hoymiles.lnk")
 shortcut.TargetPath = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\wscript.exe"
-shortcut.Arguments = Chr(34) & appData & "\LANCER_INTERFACE_WEB.vbs" & Chr(34)
+shortcut.Arguments = Chr(34) & appData & "\CHOISIR_INTERFACE.vbs" & Chr(34)
 shortcut.WorkingDirectory = appData
 shortcut.IconLocation = appData & "\icone_panneau_solaire.ico,0"
 shortcut.Save
-MsgBox "Installation terminee." & vbCrLf & "Un raccourci Boite noire Hoymiles a ete cree sur le Bureau." & vbCrLf & vbCrLf & "Les historiques et reglages existants sont conserves.", vbInformation, "Boite noire Hoymiles"
+MsgBox "Installation terminee." & vbCrLf & "Le raccourci du Bureau permet maintenant de choisir entre la nouvelle interface web et l'ancien logiciel." & vbCrLf & vbCrLf & "Les historiques et reglages existants sont conserves.", vbInformation, "Boite noire Hoymiles"

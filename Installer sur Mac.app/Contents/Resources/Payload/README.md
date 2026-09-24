@@ -1,15 +1,15 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Version 7.0.54 : nouvelle interface, suivi Zendure, seconde production solaire, curseur détaillé et cycle de batterie continu après minuit.**
+**Version 7.0.55 : choix au lancement entre la nouvelle interface web et l’ancien logiciel, suivi Zendure et cycle de batterie continu après minuit.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Suivi solaire local sur Windows et macOS, consultable depuis Android et iPhone avec la nouvelle interface web privée.
 
-[![Version](https://img.shields.io/badge/version-7.0.54-2563eb)](RELEASE_NOTES_7.0.54.md)
+[![Version](https://img.shields.io/badge/version-7.0.55-2563eb)](RELEASE_NOTES_7.0.55.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[Télécharger pour Windows](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.54-WINDOWS-SEULEMENT.zip)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.54-MAC-INSTALLATEUR-AUTONOME.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger pour Windows](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.55-WINDOWS-SEULEMENT.zip)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.55-MAC-INSTALLATEUR-AUTONOME.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 ![Suivi de production](docs/assets/suivi-production-v7.png)
 
@@ -41,6 +41,8 @@ Le choix se fait pendant l’installation Windows. L’installation Mac demande 
 3. Choisissez l’une des deux configurations réseau du tableau ci-dessus.
 4. Saisissez les adresses IP demandées, puis lancez le raccourci créé sur le Bureau.
 
+À chaque clic sur le raccourci, choisissez **Nouvelle interface web** ou **Ancien logiciel avec sa fenêtre**. Le changement de mode arrête proprement le service invisible afin d’éviter deux collectes simultanées.
+
 Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou plus récent est requis.
 
 ## Installation macOS Apple Silicon
@@ -64,6 +66,8 @@ sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddre
 Le mot de passe ne s’affiche pas pendant la saisie. Redémarrez ensuite complètement le Mac. Cette exception concerne toutes les applications qui accèdent au sous-réseau `192.168.1.x`, pas uniquement Boîte noire Hoymiles. Procédure validée sous macOS 27.0. Voir la [note technique Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 
 L’installateur place un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Avant chaque mise à jour, il sauvegarde les CSV, JSON et journaux dans `~/Library/Application Support/BoiteNoireHoymiles/Sauvegardes`. Voir le [guide Mac détaillé](macOS-AppleSilicon/README_MAC.md).
+
+Le lanceur Mac propose lui aussi **Nouvelle interface web** ou **Ancien logiciel**. Lorsque l’ancienne fenêtre est ouverte, le service invisible est suspendu puis réactivé à sa fermeture si le démarrage automatique est activé.
 
 Le paquet communautaire n’est pas notarisé par Apple. La première ouverture peut donc demander une validation et l’autorisation d’accéder au réseau local.
 
@@ -108,7 +112,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Android, iPhone et accès à distance
 
-La version 7.0.54 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.55 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.

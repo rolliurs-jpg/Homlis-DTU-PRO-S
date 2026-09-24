@@ -29,12 +29,12 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(all(m.mode & 0o111 for m in launchers))
                     self.assertTrue(all("\\" not in m.name for m in archive.getmembers()))
                     self.assertIn(
-                        "Hoymiles-7.0.54-Mac/INSTALLER HOYMILES MAC 7.0.54.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
+                        "Hoymiles-7.0.55-Mac/INSTALLER HOYMILES MAC 7.0.55.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
                         names,
                     )
                 with tarfile.open(mac_full, "r:gz") as archive:
                     names = {m.name for m in archive.getmembers()}
-                    prefix = "Homlis-DTU-PRO-S-7.0.54-Mac/"
+                    prefix = "Homlis-DTU-PRO-S-7.0.55-Mac/"
                     self.assertIn(prefix + "battery_monitor.py", names)
                     self.assertIn(prefix + "dashboard_ui.html", names)
                     self.assertIn(
@@ -45,6 +45,8 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertIsNone(archive.testzip())
                     self.assertFalse(any("Mac.app" in n or "macOS-" in n
                                          for n in archive.namelist()))
+                    self.assertTrue(any(n.endswith('/CHOISIR_INTERFACE.vbs')
+                                        for n in archive.namelist()))
                 with zipfile.ZipFile(mac_zip) as archive:
                     launchers = [i for i in archive.infolist() if "/MacOS/" in i.filename]
                     self.assertTrue(launchers)

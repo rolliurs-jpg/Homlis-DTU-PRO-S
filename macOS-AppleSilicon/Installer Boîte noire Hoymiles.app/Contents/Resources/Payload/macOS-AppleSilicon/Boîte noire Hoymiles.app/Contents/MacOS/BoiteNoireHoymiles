@@ -11,7 +11,51 @@ fi
 export MPLCONFIGDIR="$BASE/.matplotlib"
 mkdir -p "$MPLCONFIGDIR"
 cd "$BASE"
+PLIST="$HOME/Library/LaunchAgents/fr.boitenoirehoymiles.web.plist"
+SERVICE="gui/$UID/fr.boitenoirehoymiles.web"
+
+CHOICE=$(/usr/bin/osascript <<'APPLESCRIPT'
+display dialog "Choisissez l’interface à ouvrir :" with title "Boîte noire Hoymiles" buttons {"Annuler", "Ancien logiciel", "Nouvelle interface web"} default button "Nouvelle interface web" cancel button "Annuler" with icon note
+return button returned of result
+APPLESCRIPT
+) || exit 0
+
+if [ "$CHOICE" = "Nouvelle interface web" ]; then
+  if ! /usr/bin/curl -fsS --max-time 2 "http://127.0.0.1:8765/api/status" >/dev/null 2>&1; then
+    if [ -f "$PLIST" ]; then
+      /bin/launchctl bootstrap "gui/$UID" "$PLIST" >/dev/null 2>&1 || true
+      /bin/launchctl enable "$SERVICE" >/dev/null 2>&1 || true
+      /bin/launchctl kickstart -k "$SERVICE" >/dev/null 2>&1 || true
+    else
+      /usr/bin/nohup "$BASE/LANCER_INTERFACE_WEB.command" >>"$BASE/service_web.log" 2>>"$BASE/service_web_erreur.log" &
+    fi
+    for _ in 1 2 3 4 5 6; do
+      /usr/bin/curl -fsS --max-time 1 "http://127.0.0.1:8765/api/status" >/dev/null 2>&1 && break
+      /bin/sleep 1
+    done
+  fi
+  /usr/bin/open "http://127.0.0.1:8765"
+  exit 0
+fi
+
+# Pour afficher l'ancienne fenêtre, le service sans fenêtre doit libérer les
+# appareils et le port web. Il sera réactivé à la fermeture si le démarrage
+# automatique est configuré.
+/bin/launchctl bootout "$SERVICE" >/dev/null 2>&1 || true
+/usr/bin/pkill -f "boite_noire_hoymiles.py --web-only" >/dev/null 2>&1 || true
+/bin/sleep 1
+if /usr/bin/pgrep -f "$PROGRAM" >/dev/null 2>&1; then
+  /usr/bin/osascript -e 'display dialog "L’ancien logiciel est déjà ouvert." with title "Boîte noire Hoymiles" buttons {"OK"} default button "OK" with icon note' >/dev/null
+  exit 0
+fi
+
 # Conserver ce processus, lancé et identifié par LaunchServices, pendant toute
 # l'exécution. Si `exec` le remplace par Python, macOS peut perdre l'identité du
 # bundle et refuser l'accès au réseau local sans afficher de demande.
 "$PYTHON" "$PROGRAM"
+
+if [ -f "$PLIST" ]; then
+  /bin/launchctl bootstrap "gui/$UID" "$PLIST" >/dev/null 2>&1 || true
+  /bin/launchctl enable "$SERVICE" >/dev/null 2>&1 || true
+  /bin/launchctl kickstart -k "$SERVICE" >/dev/null 2>&1 || true
+fi
