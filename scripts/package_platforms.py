@@ -20,22 +20,24 @@ def executable(path):
 
 
 def mac_archive():
+    """Archive Unix principale : conserve les autorisations d'exécution Mac."""
     release = version()
-    target = OUTPUTS / f"Hoymiles-{release}-MAC-COMPLET-APPLICATION-UNIQUE.tar.gz"
-    app = ROOT / "Installer sur Mac.app"
+    target = OUTPUTS / f"Hoymiles-{release}-MAC-INSTALLATEUR-AUTONOME.tar.gz"
+    app = ROOT / "macOS-AppleSilicon" / "Installer Boîte noire Hoymiles.app"
     root_name = f"Hoymiles-{release}-Mac"
-    app_name = f"INSTALLER HOYMILES MAC {release}.app"
+    app_name = "1 - INSTALLER BOITE NOIRE HOYMILES.app"
     help_text = (
-        "INSTALLATION MAC\n\n"
+        f"BOITE NOIRE HOYMILES {release} - INSTALLATION MAC\n\n"
+        "Cette archive TAR.GZ conserve les autorisations d'exécution de macOS.\n\n"
         "1. Décompressez cette archive directement sur le Mac.\n"
-        "2. Double-cliquez sur « Installer sur Mac.app ».\n"
-        "3. Les réglages et historiques existants seront conservés.\n\n"
-        "N'extrayez pas cette archive sur Windows avant de la copier sur le Mac : "
-        "les autorisations Mac seraient perdues.\n"
+        "2. Faites un clic droit sur « 1 - INSTALLER BOITE NOIRE HOYMILES.app ».\n"
+        "3. Choisissez Ouvrir, puis confirmez Ouvrir.\n"
+        "4. Les réglages et historiques existants seront conservés.\n\n"
+        "Ne décompressez pas l'archive sur Windows avant de la transférer.\n"
     ).encode("utf-8")
     OUTPUTS.mkdir(exist_ok=True)
     with tarfile.open(target, "w:gz", format=tarfile.PAX_FORMAT) as archive:
-        info = tarfile.TarInfo(f"{root_name}/LIRE-MOI-MAC.txt")
+        info = tarfile.TarInfo(f"{root_name}/2 - LIRE-MOI-MAC.txt")
         info.size = len(help_text)
         info.mode = 0o644
         archive.addfile(info, io.BytesIO(help_text))
@@ -60,6 +62,13 @@ def mac_archive():
             raise RuntimeError("L'installateur Mac interne est absent")
         if any("\\" in m.name for m in members):
             raise RuntimeError("Chemin Windows détecté dans l'archive Mac")
+        visible = {
+            member.name.split("/", 2)[1]
+            for member in members
+            if member.name.startswith(root_name + "/") and len(member.name.split("/", 2)) > 1
+        }
+        if visible != {app_name, "2 - LIRE-MOI-MAC.txt"}:
+            raise RuntimeError("Le dossier Mac doit contenir seulement l'installateur et le mode d'emploi")
     return target
 
 
@@ -209,5 +218,5 @@ def mac_full_zip():
 
 
 if __name__ == "__main__":
-    print(mac_full_zip())
+    print(mac_archive())
     print(windows_archive())

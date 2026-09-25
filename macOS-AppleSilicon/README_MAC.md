@@ -1,6 +1,6 @@
-# Installation Mac — version 7.0.56
+# Installation Mac — version 7.0.57
 
-1. Téléchargez et décompressez le ZIP directement sur le Mac.
+1. Téléchargez et décompressez l’archive **TAR.GZ** directement sur le Mac. Ce format conserve les autorisations d’exécution.
 2. Le dossier extrait contient uniquement **1 - INSTALLER BOITE NOIRE HOYMILES.app** et **2 - LIRE-MOI-MAC.txt**.
 3. Faites un clic droit sur l’installateur, choisissez **Ouvrir**, puis suivez les fenêtres de l’assistant.
 
@@ -26,8 +26,8 @@ Selon le firmware Hoymiles, le mode Modbus peut rendre le DDSU et la gestion d�
 
 ## Installation
 
-1. Téléchargez et décompressez le ZIP GitHub directement sur le Mac.
-2. Ouvrez le dossier `Hoymiles-7.0.56-Mac`.
+1. Téléchargez et décompressez l’archive TAR.GZ GitHub directement sur le Mac.
+2. Ouvrez le dossier `Hoymiles-7.0.57-Mac`.
 3. Faites un clic droit sur `1 - INSTALLER BOITE NOIRE HOYMILES.app`, puis choisissez **Ouvrir**.
 4. Saisissez l’adresse IP du DTU, puis configurez si nécessaire le Dinky et le Shelly.
 5. Choisissez **Lancer maintenant** à la fin.

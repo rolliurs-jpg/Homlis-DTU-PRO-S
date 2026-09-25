@@ -1,15 +1,15 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Version 7.0.56 : installateur Mac simplifié, choix entre la nouvelle interface web et l’ancien logiciel, suivi Zendure et cycle continu après minuit.**
+**Version 7.0.57 : archive Mac avec autorisations conservées, installateur simplifié et choix entre les deux interfaces.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Suivi solaire local sur Windows et macOS, consultable depuis Android et iPhone avec la nouvelle interface web privée.
 
-[![Version](https://img.shields.io/badge/version-7.0.56-2563eb)](RELEASE_NOTES_7.0.56.md)
+[![Version](https://img.shields.io/badge/version-7.0.57-2563eb)](RELEASE_NOTES_7.0.57.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[Télécharger pour Windows](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.56-WINDOWS-SEULEMENT.zip)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.56-MAC-INSTALLATEUR-AUTONOME.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger pour Windows](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.57-WINDOWS-SEULEMENT.zip)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.57-MAC-INSTALLATEUR-AUTONOME.tar.gz)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 ![Suivi de production](docs/assets/suivi-production-v7.png)
 
@@ -49,7 +49,7 @@ Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou
 
 1. Configurez d’abord le nano-routeur en **mode Client/Pont** sur le Wi-Fi 2,4 GHz de la box.
 2. Reliez le port Ethernet du DTU au nano-routeur.
-3. Téléchargez le paquet **Mac – installateur autonome**, transférez le ZIP intact sur le Mac et décompressez-le sur le Mac.
+3. Téléchargez le paquet **Mac – installateur autonome TAR.GZ**, transférez-le intact sur le Mac et décompressez-le sur le Mac. Ce format conserve les autorisations d’exécution.
 4. Le dossier décompressé contient seulement **1 - INSTALLER BOITE NOIRE HOYMILES.app** et **2 - LIRE-MOI-MAC.txt**. Faites un clic droit sur l’installateur, puis choisissez **Ouvrir**. Tous les fichiers techniques sont intégrés dans l’application.
 5. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
 
@@ -112,7 +112,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Android, iPhone et accès à distance
 
-La version 7.0.56 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.57 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
