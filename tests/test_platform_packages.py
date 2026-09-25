@@ -29,12 +29,12 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(all(m.mode & 0o111 for m in launchers))
                     self.assertTrue(all("\\" not in m.name for m in archive.getmembers()))
                     self.assertIn(
-                        "Hoymiles-7.0.55-Mac/INSTALLER HOYMILES MAC 7.0.55.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
+                        "Hoymiles-7.0.56-Mac/INSTALLER HOYMILES MAC 7.0.56.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
                         names,
                     )
                 with tarfile.open(mac_full, "r:gz") as archive:
                     names = {m.name for m in archive.getmembers()}
-                    prefix = "Homlis-DTU-PRO-S-7.0.55-Mac/"
+                    prefix = "Homlis-DTU-PRO-S-7.0.56-Mac/"
                     self.assertIn(prefix + "battery_monitor.py", names)
                     self.assertIn(prefix + "dashboard_ui.html", names)
                     self.assertIn(
@@ -52,6 +52,13 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(launchers)
                     self.assertTrue(all((i.external_attr >> 16) & 0o111 for i in launchers))
                     self.assertTrue(all(b"\r\n" not in archive.read(i) for i in launchers))
+                    root = "Hoymiles-7.0.56-Mac/"
+                    visible = {n.split("/", 2)[1] for n in archive.namelist()
+                               if n.startswith(root)}
+                    self.assertEqual(visible, {
+                        "1 - INSTALLER BOITE NOIRE HOYMILES.app",
+                        "2 - LIRE-MOI-MAC.txt",
+                    })
         finally:
             package_platforms.OUTPUTS = old
 

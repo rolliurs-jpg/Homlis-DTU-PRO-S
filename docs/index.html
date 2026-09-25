@@ -29,12 +29,12 @@
       </div>
     </nav>
     <div id="accueil" class="hero-content">
-<p class="eyebrow">VERSION 7.0.55 · WINDOWS · macOS · ANDROID · iPHONE</p>
+<p class="eyebrow">VERSION 7.0.56 · WINDOWS · macOS · ANDROID · iPHONE</p>
       <h1>Vos données Hoymiles.<br><span>Enfin comparées au vrai compteur.</span></h1>
       <p class="lead">Une interface moderne pour réunir DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure. La collecte fonctionne sur Windows ou Mac et le suivi est accessible depuis Android et iPhone.</p>
       <div class="actions">
-        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.55-WINDOWS-SEULEMENT.zip">Télécharger — Windows</a>
-        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.55-MAC-INSTALLATEUR-AUTONOME.zip">Télécharger — Mac</a>
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.56-WINDOWS-SEULEMENT.zip">Télécharger — Windows</a>
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/Hoymiles-7.0.56-MAC-INSTALLATEUR-AUTONOME.zip">Télécharger — Mac</a>
         <a class="button secondary" href="#mobile">Android et iPhone</a>
         <a class="button secondary" href="#installation">Guide d’installation</a>
       </div>
@@ -104,7 +104,7 @@
         <li><strong>3. Choisissez</strong><span><strong>Deux connexions Wi-Fi</strong>, ou <strong>réseau unique nano-routeur/LAN</strong> recommandé.</span></li>
         <li><strong>4. Shelly facultatif</strong><span>Saisissez son IP si présent. Lors d’une mise à jour, « Non » conserve ses réglages actuels.</span></li>
         <li><strong>5. Choisissez l’interface</strong><span>Le raccourci Boîte noire Hoymiles propose la nouvelle interface web ou l’ancien logiciel avec sa fenêtre, sur Windows comme sur Mac.</span></li>
-        <li><strong>6. Mac Apple Silicon</strong><span>Transférez le ZIP intact sur le Mac, décompressez-le sur le Mac puis ouvrez <code>macOS-AppleSilicon/Installer Boîte noire Hoymiles.app</code>. L’installateur autonome contient toutes ses ressources et sauvegarde les données avant la mise à jour. Une autorisation de première ouverture peut rester nécessaire : le paquet communautaire n’est pas notarisé par Apple.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
+        <li><strong>6. Mac Apple Silicon</strong><span>Transférez le ZIP intact sur le Mac et décompressez-le sur le Mac. Le dossier contient seulement <code>1 - INSTALLER BOITE NOIRE HOYMILES.app</code> et <code>2 - LIRE-MOI-MAC.txt</code>. Faites un clic droit sur l’installateur puis choisissez Ouvrir. Une autorisation de première ouverture peut rester nécessaire : le paquet communautaire n’est pas notarisé par Apple.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
       </ol>
       <aside class="mac-network-note"><strong>macOS 15.5 ou plus récent — erreur « No route to host »</strong><p>Si les appareils répondent depuis Terminal mais restent hors ligne dans l’application, autorisez le réseau Wi-Fi local puis redémarrez le Mac :</p><code>sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"</code><p>Cette exception système concerne toutes les applications utilisant le réseau <code>192.168.1.x</code>. Procédure validée sous macOS 27.0. <a href="https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy">Explication officielle Apple</a>.</p></aside>
     </section>
@@ -156,7 +156,7 @@
   <section><h2>Choisissez vos équipements</h2>
 <p>Avec le DTU Hoymiles : Dinky seul pour les index Linky, Shelly Pro EM seul pour les mesures indépendantes, ou les deux ensemble. Le bouton Équipements permet d’activer les appareils utilisés et de renseigner leurs adresses. Après enregistrement, relancez le logiciel.</p>
 <p>Courbes, bulles et cartes mobiles s’adaptent au choix. Un appareil en panne reste visible. Avec le Shelly seul, le bilan est une estimation sur les mesures enregistrées ; avec le Dinky, il utilise les index Linky. Les mesures réseau ne sont jamais additionnées.</p></section>
-<section><h2>7.0.55 — choisissez votre interface</h2><p>Le raccourci principal permet maintenant d’ouvrir la nouvelle interface web ou l’ancien logiciel avec sa fenêtre. Le service invisible est suspendu proprement lorsque l’ancienne interface est utilisée afin d’éviter deux collectes simultanées.</p><p>Le suivi du SolarFlow 2400 AC reste disponible en lecture seule : niveau, charge, décharge, cycles traversant minuit, historique et export CSV.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.55.md">Consulter les notes de la version 7.0.55</a>.</p></section></main>
+<section><h2>7.0.56 — installation Mac simplifiée</h2><p>Le téléchargement Mac ne présente plus les sources Python ni plusieurs applications. Le dossier contient un seul installateur autonome clairement numéroté et un fichier LIRE-MOI.</p><p>Le raccourci principal permet toujours d’ouvrir la nouvelle interface web ou l’ancien logiciel avec sa fenêtre.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.56.md">Consulter les notes de la version 7.0.56</a>.</p></section></main>
 
   <footer>
     <div><strong>Boîte noire Hoymiles</strong><p>Projet communautaire indépendant, non affilié à Hoymiles, Enedis, EDF, Tasmota ou S-Miles Cloud.</p></div>

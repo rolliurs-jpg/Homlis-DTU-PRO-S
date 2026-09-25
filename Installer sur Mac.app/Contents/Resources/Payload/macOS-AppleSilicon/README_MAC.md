@@ -1,8 +1,8 @@
-# Installation Mac — version 7.0.55
+# Installation Mac — version 7.0.56
 
-1. Téléchargez et décompressez le ZIP complet directement sur le Mac.
-2. Ouvrez `macOS-AppleSilicon`, puis double-cliquez sur **Installer Boîte noire Hoymiles.app**.
-3. Suivez les fenêtres de l’assistant, puis cliquez sur **Lancer maintenant**.
+1. Téléchargez et décompressez le ZIP directement sur le Mac.
+2. Le dossier extrait contient uniquement **1 - INSTALLER BOITE NOIRE HOYMILES.app** et **2 - LIRE-MOI-MAC.txt**.
+3. Faites un clic droit sur l’installateur, choisissez **Ouvrir**, puis suivez les fenêtres de l’assistant.
 
 L’installateur contient tous ses fichiers et fonctionne même lorsque macOS l’isole au premier lancement. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés, avec une sauvegarde datée avant chaque mise à jour.
 
@@ -26,9 +26,9 @@ Selon le firmware Hoymiles, le mode Modbus peut rendre le DDSU et la gestion d�
 
 ## Installation
 
-1. Téléchargez et décompressez le ZIP GitHub.
-2. Ouvrez le dossier `macOS-AppleSilicon`.
-3. Faites un clic droit sur `Installer Boîte noire Hoymiles.app`, puis choisissez **Ouvrir**.
+1. Téléchargez et décompressez le ZIP GitHub directement sur le Mac.
+2. Ouvrez le dossier `Hoymiles-7.0.56-Mac`.
+3. Faites un clic droit sur `1 - INSTALLER BOITE NOIRE HOYMILES.app`, puis choisissez **Ouvrir**.
 4. Saisissez l’adresse IP du DTU, puis configurez si nécessaire le Dinky et le Shelly.
 5. Choisissez **Lancer maintenant** à la fin.
 

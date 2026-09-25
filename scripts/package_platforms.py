@@ -153,33 +153,37 @@ def mac_full_archive():
 
 
 def mac_full_zip():
-    """ZIP Mac complet avec modes Unix, pour l'Utilitaire d'archive de macOS."""
+    """ZIP Mac simple : un installateur autonome et un mode d'emploi visible."""
     release = version()
     OUTPUTS.mkdir(exist_ok=True)
     target = OUTPUTS / f"Hoymiles-{release}-MAC-INSTALLATEUR-AUTONOME.zip"
-    root_name = f"Homlis-DTU-PRO-S-{release}-Mac"
-    root_files = [
-        "boite_noire_hoymiles.py", "mobile_dashboard.py", "dashboard_data.py",
-        "dashboard_ui.html", "autostart.py", "monitoring.py", "energy_analysis.py",
-        "battery_monitor.py", "requirements.txt", "fond_solaire.png",
-        "icone_panneau_solaire.ico", "config.example.json", "README.md",
-        f"RELEASE_NOTES_{release}.md",
-    ]
-    mac_root = ROOT / "macOS-AppleSilicon"
-    files = [ROOT / name for name in root_files]
-    files.extend([
-        mac_root / "installer_mac.sh",
-        mac_root / "LANCER_INTERFACE_WEB.command",
-        mac_root / "README_MAC.md",
-    ])
-    for app_name in ("Installer Boîte noire Hoymiles.app", "Boîte noire Hoymiles.app"):
-        files.extend(p for p in (mac_root / app_name).rglob("*") if p.is_file())
+    root_name = f"Hoymiles-{release}-Mac"
+    app = ROOT / "macOS-AppleSilicon" / "Installer Boîte noire Hoymiles.app"
+    app_name = "1 - INSTALLER BOITE NOIRE HOYMILES.app"
+    help_name = f"{root_name}/2 - LIRE-MOI-MAC.txt"
+    help_text = (
+        f"BOITE NOIRE HOYMILES {release} - INSTALLATION MAC\n\n"
+        "Le dossier contient volontairement un seul installateur.\n\n"
+        "1. Sur le Mac, faites un clic droit sur « 1 - INSTALLER BOITE NOIRE "
+        "HOYMILES.app ».\n"
+        "2. Choisissez Ouvrir, puis confirmez Ouvrir.\n"
+        "3. Cliquez sur Continuer et laissez l'installation se terminer.\n\n"
+        "Les réglages et historiques existants sont conservés.\n"
+        "Ne sortez aucun fichier du contenu de l'application.\n"
+    ).encode("utf-8")
+    files = [p for p in app.rglob("*") if p.is_file()]
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
+        readme = zipfile.ZipInfo(help_name)
+        readme.create_system = 3
+        readme.flag_bits |= 0x800
+        readme.external_attr = 0o100644 << 16
+        readme.compress_type = zipfile.ZIP_DEFLATED
+        archive.writestr(readme, help_text)
         for path in sorted(files):
             if not path.is_file():
                 raise FileNotFoundError(path)
-            relative = path.relative_to(ROOT).as_posix()
-            entry = zipfile.ZipInfo(f"{root_name}/{relative}")
+            relative = path.relative_to(app).as_posix()
+            entry = zipfile.ZipInfo(f"{root_name}/{app_name}/{relative}")
             entry.create_system = 3
             entry.flag_bits |= 0x800
             entry.external_attr = (0o100755 if executable(path) else 0o100644) << 16
@@ -193,6 +197,14 @@ def mac_full_zip():
             raise RuntimeError("Droits d'exécution absents du ZIP Mac")
         if any(b"\r\n" in archive.read(i) for i in launchers):
             raise RuntimeError("Fins de ligne Windows détectées dans un lanceur Mac")
+        visible = {
+            name.split("/", 2)[1]
+            for name in archive.namelist()
+            if name.startswith(root_name + "/") and len(name.split("/", 2)) > 1
+        }
+        expected = {app_name, "2 - LIRE-MOI-MAC.txt"}
+        if visible != expected:
+            raise RuntimeError("Le dossier Mac doit contenir seulement l'installateur et le mode d'emploi")
     return target
 
 

@@ -83,7 +83,7 @@ class MacPackageTests(unittest.TestCase):
             with self.subTest(path=str(path.relative_to(ROOT))):
                 info = plistlib.loads(path.read_bytes())
                 self.assertTrue((path.parent/'MacOS'/info['CFBundleExecutable']).is_file())
-                self.assertEqual(info['CFBundleShortVersionString'], '7.0.55')
+                self.assertEqual(info['CFBundleShortVersionString'], '7.0.56')
 
     def test_main_mac_app_offers_both_interfaces(self):
         launcher = (ROOT/'macOS-AppleSilicon/Boîte noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles').read_text(encoding='utf-8')
