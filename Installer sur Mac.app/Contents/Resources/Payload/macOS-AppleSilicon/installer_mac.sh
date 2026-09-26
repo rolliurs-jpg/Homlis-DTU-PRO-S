@@ -47,7 +47,7 @@ if [ ! -f "$PACKAGE_DIR/LANCER_INTERFACE_WEB.command" ]; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.57 pour macOS ?\n\nL’archive Mac conserve maintenant directement les autorisations d’exécution. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.58 pour macOS ?\n\nL’archive Mac conserve maintenant directement les autorisations d’exécution. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
