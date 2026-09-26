@@ -1,8 +1,11 @@
 # Installation Mac — version 7.0.59
 
-1. Téléchargez et décompressez l’archive **TAR.GZ** directement sur le Mac. Ce format conserve les autorisations d’exécution.
-2. Le dossier extrait contient uniquement **1 - INSTALLER BOITE NOIRE HOYMILES.app** et **2 - LIRE-MOI-MAC.txt**.
-3. Faites un clic droit sur l’installateur, choisissez **Ouvrir**, puis suivez les fenêtres de l’assistant.
+> **Important — procédure validée lors des essais réels :** téléchargez l’archive depuis GitHub directement sur le Mac et décompressez-la avec l’utilitaire d’archive intégré à macOS. Ne la téléchargez pas d’abord sous Windows et n’utilisez pas **The Unarchiver** : ce passage a déjà produit une application incomplète impossible à ouvrir.
+
+1. Téléchargez l’archive **TAR.GZ directement sur le Mac**.
+2. Décompressez-la sur ce même Mac avec l’utilitaire d’archive intégré.
+3. Le dossier contient **1 - INSTALLER BOITE NOIRE HOYMILES.app**, **2 - SI LE MAC REFUSE - INSTALLER.command** et **3 - LIRE-MOI-MAC.txt**.
+4. Faites un clic droit sur le premier installateur, choisissez **Ouvrir**, puis suivez les fenêtres de l’assistant. Si macOS refuse l’application, faites un clic droit sur le deuxième lanceur et choisissez **Ouvrir**.
 
 L’installateur contient tous ses fichiers et fonctionne même lorsque macOS l’isole au premier lancement. Aucune commande Terminal n’est nécessaire dans le parcours normal. L’application est communautaire, sans signature Developer ID ni notarisation Apple : une autorisation initiale dans Confidentialité et sécurité peut rester nécessaire. Les historiques, adresses réseau et réglages d’alarmes sont conservés, avec une sauvegarde datée avant chaque mise à jour.
 
@@ -26,11 +29,12 @@ Selon le firmware Hoymiles, le mode Modbus peut rendre le DDSU et la gestion d�
 
 ## Installation
 
-1. Téléchargez et décompressez l’archive TAR.GZ GitHub directement sur le Mac.
-2. Ouvrez le dossier `Hoymiles-7.0.59-Mac`.
-3. Faites un clic droit sur `1 - INSTALLER BOITE NOIRE HOYMILES.app`, puis choisissez **Ouvrir**.
-4. Saisissez l’adresse IP du DTU, puis configurez si nécessaire le Dinky et le Shelly.
-5. Choisissez **Lancer maintenant** à la fin.
+1. Téléchargez l’archive TAR.GZ GitHub directement depuis le navigateur du Mac. Ne passez pas par Windows.
+2. Décompressez-la avec l’utilitaire d’archive intégré à macOS, pas avec The Unarchiver.
+3. Ouvrez le dossier `Hoymiles-7.0.59-Mac`.
+4. Faites un clic droit sur `1 - INSTALLER BOITE NOIRE HOYMILES.app`, puis choisissez **Ouvrir**. En cas de refus, utilisez `2 - SI LE MAC REFUSE - INSTALLER.command` par clic droit → **Ouvrir**.
+5. Saisissez l’adresse IP du DTU, puis configurez si nécessaire le Dinky et le Shelly.
+6. Choisissez **Lancer maintenant** à la fin.
 
 Le lanceur ouvre le script avec `/bin/bash` et reste actif comme processus parent. macOS conserve ainsi l’identité de l’application pour l’autorisation réseau locale, même si le ZIP retire le droit d’exécution du script interne.
 
@@ -97,6 +101,6 @@ Lorsque l’injection dépasse −500 W, l’échelle verticale descend automati
 
 ### Si macOS refuse l’ouverture de l’installateur
 
-Utilisez le ZIP Mac autonome de la version publiée et décompressez-le directement sur le Mac. Faites un clic droit sur **Installer Boîte noire Hoymiles.app**, puis choisissez **Ouvrir**. Si nécessaire, validez ensuite l’application dans **Réglages Système → Confidentialité et sécurité**.
+Retéléchargez l’archive TAR.GZ directement sur le Mac et décompressez-la avec l’utilitaire intégré à macOS. N’utilisez ni Windows ni The Unarchiver pour cette opération. Faites ensuite un clic droit sur **1 - INSTALLER BOITE NOIRE HOYMILES.app**, puis choisissez **Ouvrir**. Si l’application reste refusée, lancez **2 - SI LE MAC REFUSE - INSTALLER.command** par clic droit → **Ouvrir**. Si nécessaire, validez ensuite l’application dans **Réglages Système → Confidentialité et sécurité**.
 
 L’installateur est autonome : macOS peut l’isoler sans lui faire perdre l’accès à ses ressources. Il n’est pas nécessaire de déplacer des scripts ni de désactiver globalement Gatekeeper.

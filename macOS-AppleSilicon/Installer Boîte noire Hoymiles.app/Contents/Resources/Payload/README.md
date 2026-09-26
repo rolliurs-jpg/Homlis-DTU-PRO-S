@@ -47,11 +47,14 @@ Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou
 
 ## Installation macOS Apple Silicon
 
+> **Découverte importante lors des essais réels :** téléchargez l’archive depuis GitHub **directement sur le Mac**, puis décompressez-la sur ce même Mac avec l’utilitaire d’archive intégré à macOS. Un téléchargement ou une extraction passant par Windows peut rendre l’application impossible à ouvrir. N’utilisez pas **The Unarchiver** pour ce paquet : il a déjà produit une extraction incomplète.
+
 1. Configurez d’abord le nano-routeur en **mode Client/Pont** sur le Wi-Fi 2,4 GHz de la box.
 2. Reliez le port Ethernet du DTU au nano-routeur.
-3. Téléchargez le paquet **Mac – installateur autonome TAR.GZ**, transférez-le intact sur le Mac et décompressez-le sur le Mac. Ce format conserve les autorisations d’exécution.
-4. Le dossier décompressé contient seulement **1 - INSTALLER BOITE NOIRE HOYMILES.app** et **2 - LIRE-MOI-MAC.txt**. Faites un clic droit sur l’installateur, puis choisissez **Ouvrir**. Tous les fichiers techniques sont intégrés dans l’application.
-5. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
+3. Depuis le navigateur du Mac, téléchargez le paquet **Mac – installateur autonome TAR.GZ** directement sur le Mac. Ne le téléchargez pas d’abord sous Windows et ne transférez pas une application déjà extraite.
+4. Décompressez-le avec l’utilitaire d’archive intégré à macOS. Le dossier contient **1 - INSTALLER BOITE NOIRE HOYMILES.app**, **2 - SI LE MAC REFUSE - INSTALLER.command** et **3 - LIRE-MOI-MAC.txt**.
+5. Faites un clic droit sur le premier installateur, puis choisissez **Ouvrir**. Si macOS le refuse, utilisez le deuxième lanceur par **clic droit → Ouvrir** : il répare les autorisations avant l’installation.
+6. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
 
 Le lanceur appelle explicitement Bash et conserve l’identité de l’application pendant l’exécution : l’installation résiste à la perte des droits du ZIP et macOS peut attribuer correctement l’autorisation de réseau local.
 
@@ -195,7 +198,7 @@ carte Dinky affiche sa mesure de téléinformation. Aucun flux d’injection n�
 
 ### Si macOS refuse l’ouverture de l’installateur
 
-Utilisez exclusivement le ZIP Mac autonome de la version publiée. Après décompression sur le Mac, faites un clic droit sur **Installer Boîte noire Hoymiles.app**, puis choisissez **Ouvrir**. Si macOS le bloque, autorisez-le dans **Réglages Système → Confidentialité et sécurité**. Il n’est pas nécessaire de désactiver globalement Gatekeeper.
+Retéléchargez exclusivement l’archive **TAR.GZ directement sur le Mac**. Ne passez pas par Windows et n’utilisez pas **The Unarchiver** : une extraction incomplète provoque précisément le message « Impossible d’ouvrir l’application ». Après décompression avec l’utilitaire intégré à macOS, faites un clic droit sur **1 - INSTALLER BOITE NOIRE HOYMILES.app**, puis choisissez **Ouvrir**. Si nécessaire, utilisez **2 - SI LE MAC REFUSE - INSTALLER.command** par clic droit → Ouvrir. Il n’est pas nécessaire de désactiver globalement Gatekeeper.
 
 L’installateur conserve toutes ses ressources dans l’application : l’isolation de sécurité de macOS ne coupe plus l’accès aux fichiers nécessaires.
 
