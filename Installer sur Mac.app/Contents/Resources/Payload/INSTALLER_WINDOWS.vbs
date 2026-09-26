@@ -18,7 +18,7 @@ If Not fso.FileExists(folder & "\requirements.txt") Then
     WScript.Quit 1
 End If
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.58 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.59 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dependances sans fenetre de terminal.

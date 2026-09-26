@@ -29,18 +29,27 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(all(m.mode & 0o111 for m in launchers))
                     self.assertTrue(all("\\" not in m.name for m in archive.getmembers()))
                     self.assertIn(
-                        "Hoymiles-7.0.58-Mac/1 - INSTALLER BOITE NOIRE HOYMILES.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
+                        "Hoymiles-7.0.59-Mac/1 - INSTALLER BOITE NOIRE HOYMILES.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
                         names,
                     )
                     visible = {m.name.split("/", 2)[1] for m in archive.getmembers()
-                               if m.name.startswith("Hoymiles-7.0.58-Mac/")}
+                               if m.name.startswith("Hoymiles-7.0.59-Mac/")}
                     self.assertEqual(visible, {
                         "1 - INSTALLER BOITE NOIRE HOYMILES.app",
-                        "2 - LIRE-MOI-MAC.txt",
+                        "2 - SI LE MAC REFUSE - INSTALLER.command",
+                        "3 - LIRE-MOI-MAC.txt",
                     })
+                    repair = archive.extractfile(
+                        "Hoymiles-7.0.59-Mac/2 - SI LE MAC REFUSE - INSTALLER.command"
+                    ).read()
+                    self.assertTrue(repair.startswith(b"#!/bin/bash\n"))
+                    self.assertNotIn(b"\r", repair)
+                    self.assertIn(b"chmod +x", repair)
+                    self.assertIn(b"xattr -dr com.apple.quarantine", repair)
+                    self.assertIn(b"exec /bin/bash", repair)
                 with tarfile.open(mac_full, "r:gz") as archive:
                     names = {m.name for m in archive.getmembers()}
-                    prefix = "Homlis-DTU-PRO-S-7.0.58-Mac/"
+                    prefix = "Homlis-DTU-PRO-S-7.0.59-Mac/"
                     self.assertIn(prefix + "battery_monitor.py", names)
                     self.assertIn(prefix + "dashboard_ui.html", names)
                     self.assertIn(
@@ -58,7 +67,7 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(launchers)
                     self.assertTrue(all((i.external_attr >> 16) & 0o111 for i in launchers))
                     self.assertTrue(all(b"\r\n" not in archive.read(i) for i in launchers))
-                    root = "Hoymiles-7.0.58-Mac/"
+                    root = "Hoymiles-7.0.59-Mac/"
                     visible = {n.split("/", 2)[1] for n in archive.namelist()
                                if n.startswith(root)}
                     self.assertEqual(visible, {

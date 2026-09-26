@@ -26,21 +26,42 @@ def mac_archive():
     app = ROOT / "macOS-AppleSilicon" / "Installer Boîte noire Hoymiles.app"
     root_name = f"Hoymiles-{release}-Mac"
     app_name = "1 - INSTALLER BOITE NOIRE HOYMILES.app"
+    repair_name = "2 - SI LE MAC REFUSE - INSTALLER.command"
     help_text = (
         f"BOITE NOIRE HOYMILES {release} - INSTALLATION MAC\n\n"
-        "Cette archive TAR.GZ conserve les autorisations d'exécution de macOS.\n\n"
+        "Cette archive TAR.GZ conserve les autorisations d’exécution de macOS.\n\n"
         "1. Décompressez cette archive directement sur le Mac.\n"
         "2. Faites un clic droit sur « 1 - INSTALLER BOITE NOIRE HOYMILES.app ».\n"
         "3. Choisissez Ouvrir, puis confirmez Ouvrir.\n"
-        "4. Les réglages et historiques existants seront conservés.\n\n"
-        "Ne décompressez pas l'archive sur Windows avant de la transférer.\n"
+        f"4. Si macOS refuse encore l’application, faites un clic droit sur « {repair_name} », puis Ouvrir. Ce lanceur répare les autorisations avant l’installation.\n"
+        "5. Les réglages et historiques existants seront conservés.\n\n"
+        "Ne décompressez pas l’archive sur Windows avant de la transférer.\n"
+    ).encode("utf-8")
+    repair_script = (
+        "#!/bin/bash\n"
+        "set -u\n"
+        "ROOT=\"$(cd \"$(/usr/bin/dirname \"$0\")\" && pwd)\"\n"
+        f"APP=\"$ROOT/{app_name}\"\n"
+        "PAYLOAD=\"$APP/Contents/Resources/Payload\"\n"
+        "if [ ! -f \"$PAYLOAD/macOS-AppleSilicon/installer_mac.sh\" ]; then\n"
+        "  /usr/bin/osascript -e 'display alert \"Paquet incomplet\" message \"Retéléchargez l’installateur Mac complet depuis GitHub.\"'\n"
+        "  exit 1\n"
+        "fi\n"
+        "/bin/chmod +x \"$APP/Contents/MacOS/InstallerBoiteNoireHoymiles\" 2>/dev/null || true\n"
+        "/bin/chmod +x \"$PAYLOAD/macOS-AppleSilicon/Boîte noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles\" 2>/dev/null || true\n"
+        "/usr/bin/xattr -dr com.apple.quarantine \"$APP\" 2>/dev/null || true\n"
+        "exec /bin/bash \"$PAYLOAD/macOS-AppleSilicon/installer_mac.sh\"\n"
     ).encode("utf-8")
     OUTPUTS.mkdir(exist_ok=True)
     with tarfile.open(target, "w:gz", format=tarfile.PAX_FORMAT) as archive:
-        info = tarfile.TarInfo(f"{root_name}/2 - LIRE-MOI-MAC.txt")
+        info = tarfile.TarInfo(f"{root_name}/3 - LIRE-MOI-MAC.txt")
         info.size = len(help_text)
         info.mode = 0o644
         archive.addfile(info, io.BytesIO(help_text))
+        info = tarfile.TarInfo(f"{root_name}/{repair_name}")
+        info.size = len(repair_script)
+        info.mode = 0o755
+        archive.addfile(info, io.BytesIO(repair_script))
         for path in sorted(app.rglob("*")):
             relative = path.relative_to(app).as_posix()
             info = archive.gettarinfo(str(path), f"{root_name}/{app_name}/{relative}")
@@ -61,14 +82,19 @@ def mac_archive():
         if expected not in {m.name for m in members}:
             raise RuntimeError("L'installateur Mac interne est absent")
         if any("\\" in m.name for m in members):
-            raise RuntimeError("Chemin Windows détecté dans l'archive Mac")
+            raise RuntimeError("Chemin Windows détecté dans l’archive Mac")
+        if any(m.name.lower().endswith((".vbs", ".ps1", ".bat", ".cmd")) for m in members):
+            raise RuntimeError("Lanceur Windows détecté dans l’archive Mac")
+        repair = next((m for m in members if m.name == f"{root_name}/{repair_name}"), None)
+        if repair is None or not (repair.mode & 0o111):
+            raise RuntimeError("Le lanceur de réparation Mac est absent ou non exécutable")
         visible = {
             member.name.split("/", 2)[1]
             for member in members
             if member.name.startswith(root_name + "/") and len(member.name.split("/", 2)) > 1
         }
-        if visible != {app_name, "2 - LIRE-MOI-MAC.txt"}:
-            raise RuntimeError("Le dossier Mac doit contenir seulement l'installateur et le mode d'emploi")
+        if visible != {app_name, repair_name, "3 - LIRE-MOI-MAC.txt"}:
+            raise RuntimeError("Le dossier Mac doit contenir seulement les deux lanceurs et le mode d’emploi")
     return target
 
 
