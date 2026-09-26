@@ -22,7 +22,7 @@ def executable(path):
 def mac_archive():
     """Archive Unix principale : conserve les autorisations d'exécution Mac."""
     release = version()
-    target = OUTPUTS / f"Hoymiles-{release}-MAC-INSTALLATEUR-AUTONOME.tar.gz"
+    target = OUTPUTS / f"1-MAC-Hoymiles-{release}-INSTALLATEUR.tar.gz"
     app = ROOT / "macOS-AppleSilicon" / "Installer Boîte noire Hoymiles.app"
     root_name = f"Hoymiles-{release}-Mac"
     app_name = "1 - INSTALLER BOITE NOIRE HOYMILES.app"
@@ -100,7 +100,7 @@ def mac_archive():
 
 def windows_archive():
     release = version()
-    target = OUTPUTS / f"Hoymiles-{release}-WINDOWS-SEULEMENT.zip"
+    target = OUTPUTS / f"2-WINDOWS-Hoymiles-{release}-COMPLET.zip"
     root_name = f"Hoymiles-{release}-Windows"
     required = [
         "boite_noire_hoymiles.py", "mobile_dashboard.py", "dashboard_data.py",
