@@ -47,7 +47,7 @@ if [ ! -f "$PACKAGE_DIR/LANCER_INTERFACE_WEB.command" ]; then
   exit 1
 fi
 
-if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.59 pour macOS ?\n\nL’archive Mac conserve maintenant directement les autorisations d’exécution. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
+if ! /usr/bin/osascript -e 'display dialog "Installer ou mettre à jour Boîte noire Hoymiles 7.0.60 pour macOS ?\n\nL’archive Mac conserve directement les autorisations d’exécution. Les historiques et réglages existants seront conservés." with title "Boîte noire Hoymiles" buttons {"Annuler", "Continuer"} default button "Continuer" with icon note' >/dev/null; then
   exit 0
 fi
 
@@ -72,9 +72,11 @@ EXISTING_CONFIG="no"
 DTU_MODE="keep"
 DINKY_MODE="keep"
 SHELLY_MODE="keep"
+SHELLY2_MODE="keep"
 DTU_HOST=""
 DINKY_HOST=""
 SHELLY_HOST=""
+SHELLY2_HOST=""
 
 if [ "$EXISTING_CONFIG" = "yes" ]; then
   if /usr/bin/osascript -e 'display dialog "Les réglages réseau existants sont conservés.\n\nVoulez-vous modifier la connexion du DTU ?" with title "Boîte noire Hoymiles" buttons {"Conserver", "Modifier"} default button "Conserver" with icon note' | /usr/bin/grep -q "Modifier"; then
@@ -124,7 +126,22 @@ case "$shelly_selection" in
   *"sans Shelly"*|*"Désactiver"*) SHELLY_MODE="disable" ;;
 esac
 
-DTU_MODE="$DTU_MODE" DTU_HOST="$DTU_HOST" DINKY_MODE="$DINKY_MODE" DINKY_HOST="$DINKY_HOST" SHELLY_MODE="$SHELLY_MODE" SHELLY_HOST="$SHELLY_HOST" CONFIG_FILE="$CONFIG_FILE" "$PYTHON_BIN" - <<'PY'
+if [ "$EXISTING_CONFIG" = "yes" ]; then
+  shelly2_selection=$(/usr/bin/osascript -e 'choose from list {"Conserver le réglage Production 2 actuel", "Configurer le Shelly EM Gen3 des nouveaux panneaux", "Désactiver la Production 2"} with title "Shelly EM Gen3 — production 2" with prompt "La pince A mesure les deux nouveaux panneaux. Que souhaitez-vous faire ?" default items {"Conserver le réglage Production 2 actuel"} OK button name "Continuer" Cancel button name "Annuler"') || exit 0
+else
+  shelly2_selection=$(/usr/bin/osascript -e 'choose from list {"Configurer le Shelly EM Gen3 des nouveaux panneaux", "Continuer sans Production 2"} with title "Shelly EM Gen3 — production 2" with prompt "Le second Shelly est-il présent sur le réseau de la box ?" default items {"Continuer sans Production 2"} OK button name "Continuer" Cancel button name "Annuler"') || exit 0
+fi
+
+case "$shelly2_selection" in
+  *"Configurer"*)
+    SHELLY2_MODE="enable"
+    SHELLY2_HOST=$(/usr/bin/osascript -e 'text returned of (display dialog "Adresse IP du Shelly EM Gen3 des nouveaux panneaux :" default answer "192.168.1.128" with title "Production 2" buttons {"Annuler", "Continuer"} default button "Continuer")') || exit 0
+    [ -n "$SHELLY2_HOST" ] || { dialog "L'adresse IP du Shelly Production 2 est nécessaire."; exit 1; }
+    ;;
+  *"sans Production 2"*|*"Désactiver"*) SHELLY2_MODE="disable" ;;
+esac
+
+DTU_MODE="$DTU_MODE" DTU_HOST="$DTU_HOST" DINKY_MODE="$DINKY_MODE" DINKY_HOST="$DINKY_HOST" SHELLY_MODE="$SHELLY_MODE" SHELLY_HOST="$SHELLY_HOST" SHELLY2_MODE="$SHELLY2_MODE" SHELLY2_HOST="$SHELLY2_HOST" CONFIG_FILE="$CONFIG_FILE" "$PYTHON_BIN" - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -170,6 +187,18 @@ if shelly_mode == "enable":
 elif shelly_mode == "disable":
     shelly = config.get("shelly", {}) if isinstance(config.get("shelly"), dict) else {}
     config["shelly"] = {**shelly, "enabled": False}
+
+shelly2_mode = os.environ.get("SHELLY2_MODE", "keep")
+if shelly2_mode == "enable":
+    config["shelly2"] = {
+        "enabled": True, "host": os.environ["SHELLY2_HOST"], "port": 80,
+        "timeout_s": 2, "channel": 0, "reverse": False,
+    }
+    config["production_complete"] = bool(config.get("shelly", {}).get("enabled"))
+elif shelly2_mode == "disable":
+    shelly2 = config.get("shelly2", {}) if isinstance(config.get("shelly2"), dict) else {}
+    config["shelly2"] = {**shelly2, "enabled": False}
+    config["production_complete"] = False
 
 path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 PY

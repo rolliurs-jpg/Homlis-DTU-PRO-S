@@ -60,12 +60,16 @@ class MacPackageTests(unittest.TestCase):
             self.assertFalse((Path(folder)/'boite_noire_hoymiles.py').exists())
 
     def test_payload_matches_installation_sources(self):
-        payload = ROOT/'Installer sur Mac.app/Contents/Resources/Payload'
-        for path in payload.rglob('*'):
-            if path.is_file():
-                relative = path.relative_to(payload)
-                with self.subTest(path=str(relative)):
-                    self.assertEqual(path.read_bytes(), (ROOT/relative).read_bytes())
+        payloads = (
+            ROOT/'Installer sur Mac.app/Contents/Resources/Payload',
+            ROOT/'macOS-AppleSilicon/Installer Boîte noire Hoymiles.app/Contents/Resources/Payload',
+        )
+        for payload in payloads:
+            for path in payload.rglob('*'):
+                if path.is_file():
+                    relative = path.relative_to(payload)
+                    with self.subTest(payload=str(payload), path=str(relative)):
+                        self.assertEqual(path.read_bytes(), (ROOT/relative).read_bytes())
 
     def test_mac_scripts_have_unix_newlines(self):
         scripts = [p for p in ROOT.rglob('*') if p.is_file() and
@@ -83,7 +87,7 @@ class MacPackageTests(unittest.TestCase):
             with self.subTest(path=str(path.relative_to(ROOT))):
                 info = plistlib.loads(path.read_bytes())
                 self.assertTrue((path.parent/'MacOS'/info['CFBundleExecutable']).is_file())
-                self.assertEqual(info['CFBundleShortVersionString'], '7.0.59')
+                self.assertEqual(info['CFBundleShortVersionString'], '7.0.60')
 
     def test_main_mac_app_offers_both_interfaces(self):
         launcher = (ROOT/'macOS-AppleSilicon/Boîte noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles').read_text(encoding='utf-8')
@@ -91,3 +95,10 @@ class MacPackageTests(unittest.TestCase):
         self.assertIn('Ancien logiciel', launcher)
         self.assertIn('launchctl bootout', launcher)
         self.assertIn('launchctl kickstart', launcher)
+        self.assertIn('${1:-}" = "--classic"', launcher)
+
+    def test_mac_installer_configures_second_shelly(self):
+        installer = (ROOT/'macOS-AppleSilicon/installer_mac.sh').read_text(encoding='utf-8')
+        self.assertIn('Shelly EM Gen3 — production 2', installer)
+        self.assertIn('SHELLY2_HOST', installer)
+        self.assertIn('config["shelly2"]', installer)

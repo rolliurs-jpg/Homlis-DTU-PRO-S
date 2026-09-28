@@ -1,24 +1,32 @@
 Option Explicit
 
-Dim shell, fso, folder, scriptPath, classicLauncher, webLauncher, answer
+Dim shell, fso, folder, scriptPath, classicLauncher, webLauncher, answer, forceClassic
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 folder = fso.GetParentFolderName(WScript.ScriptFullName)
 scriptPath = folder & "\boite_noire_hoymiles.py"
 classicLauncher = folder & "\LANCER.vbs"
 webLauncher = folder & "\LANCER_INTERFACE_WEB.vbs"
+forceClassic = False
+If WScript.Arguments.Count > 0 Then
+    forceClassic = (LCase(WScript.Arguments(0)) = "/classic")
+End If
 
 If Not fso.FileExists(scriptPath) Then
     MsgBox "Le fichier du logiciel est introuvable.", vbExclamation, "Boite noire Hoymiles"
     WScript.Quit 1
 End If
 
-answer = MsgBox( _
-    "Choisissez l'interface a ouvrir :" & vbCrLf & vbCrLf & _
-    "OUI  = Nouvelle interface web" & vbCrLf & _
-    "NON = Ancien logiciel avec sa fenetre" & vbCrLf & _
-    "ANNULER = Ne rien ouvrir", _
-    vbYesNoCancel + vbQuestion, "Boite noire Hoymiles")
+If forceClassic Then
+    answer = vbNo
+Else
+    answer = MsgBox( _
+        "Choisissez l'interface a ouvrir :" & vbCrLf & vbCrLf & _
+        "OUI  = Nouvelle interface web" & vbCrLf & _
+        "NON = Ancien logiciel avec sa fenetre" & vbCrLf & _
+        "ANNULER = Ne rien ouvrir", _
+        vbYesNoCancel + vbQuestion, "Boite noire Hoymiles")
+End If
 
 If answer = vbYes Then
     If Not MainProgramRunning() Then

@@ -1,7 +1,7 @@
 Option Explicit
 
 Dim shell, fso, folder, appData, backup, configFile, choice
-Dim dtuHost, dinkyHost, shellyHost, shellyChoice, shellyJson, json, outputFile, inputFile, shortcut, desktop, result, q, modeFile, dtuMode, chooser, re, existingConfig
+Dim dtuHost, dinkyHost, shellyHost, shellyChoice, shellyJson, shelly2Host, shelly2Choice, shelly2Json, json, outputFile, inputFile, shortcut, desktop, result, q, modeFile, dtuMode, chooser, re, existingConfig
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -18,7 +18,7 @@ If Not fso.FileExists(folder & "\requirements.txt") Then
     WScript.Quit 1
 End If
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.59 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.60 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dependances sans fenetre de terminal.
@@ -127,6 +127,43 @@ If shellyChoice = vbYes Then
             json = re.Replace(json, shellyJson)
         Else
             json = Left(Trim(json), Len(Trim(json)) - 1) & "," & shellyJson & "}"
+        End If
+        Set outputFile = fso.CreateTextFile(configFile, True, False)
+        outputFile.Write json
+        outputFile.Close
+    End If
+End If
+
+' Le second Shelly mesure exclusivement les nouveaux panneaux sur le canal A.
+shelly2Choice = MsgBox("Souhaitez-vous configurer ou modifier le Shelly EM Gen3 des nouveaux panneaux ?" & vbCrLf & vbCrLf & _
+                       "Oui : saisir son adresse IP et activer la production 2." & vbCrLf & _
+                       "Non : conserver le reglage actuel sans changement.", _
+                       vbYesNo + vbQuestion, "Shelly EM Gen3 - production 2")
+If shelly2Choice = vbYes Then
+    shelly2Host = Trim(InputBox("Adresse IP du Shelly EM Gen3 :", "Nouveaux panneaux - production 2", "192.168.1.128"))
+    If shelly2Host <> "" Then
+        If json = "" And fso.FileExists(configFile) Then
+            Set inputFile = fso.OpenTextFile(configFile, 1, False)
+            json = inputFile.ReadAll
+            inputFile.Close
+        End If
+        shelly2Json = q & "shelly2" & q & ":{" & q & "enabled" & q & ":true," & _
+                      q & "host" & q & ":" & q & shelly2Host & q & "," & _
+                      q & "port" & q & ":80," & q & "timeout_s" & q & ":2," & _
+                      q & "channel" & q & ":0," & q & "reverse" & q & ":false}"
+        Set re = New RegExp
+        re.Global = False
+        re.Pattern = q & "shelly2" & q & "\s*:\s*\{[^}]*\}"
+        If re.Test(json) Then
+            json = re.Replace(json, shelly2Json)
+        Else
+            json = Left(Trim(json), Len(Trim(json)) - 1) & "," & shelly2Json & "}"
+        End If
+        re.Pattern = q & "production_complete" & q & "\s*:\s*(true|false)"
+        If re.Test(json) Then
+            json = re.Replace(json, q & "production_complete" & q & ":true")
+        Else
+            json = Left(Trim(json), Len(Trim(json)) - 1) & "," & q & "production_complete" & q & ":true}"
         End If
         Set outputFile = fso.CreateTextFile(configFile, True, False)
         outputFile.Write json

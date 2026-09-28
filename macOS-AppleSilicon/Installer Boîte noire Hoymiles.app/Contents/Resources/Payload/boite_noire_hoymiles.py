@@ -6,6 +6,7 @@ import re
 import shutil
 import socket
 import subprocess
+import threading
 import calendar
 import atexit
 import math
@@ -59,7 +60,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.59"
+VERSION = "7.0.60"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -241,6 +242,41 @@ SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau ED
 
 mobile_dashboard = None
 mobile_cfg = CONFIG.get("mobile_dashboard", {})
+
+
+def _launch_classic_interface():
+    """Passe du service web invisible au véritable logiciel de bureau."""
+    try:
+        if sys.platform == "win32":
+            chooser = BASE / "CHOISIR_INTERFACE.vbs"
+            if not chooser.is_file():
+                raise FileNotFoundError(chooser)
+            subprocess.Popen(["wscript.exe", str(chooser), "/classic"])
+        elif sys.platform == "darwin":
+            app = Path("/Applications/Boîte noire Hoymiles.app")
+            if not app.is_dir():
+                raise FileNotFoundError(app)
+            subprocess.Popen(["/usr/bin/open", "-a", str(app), "--args", "--classic"])
+        else:
+            raise OSError("Système non pris en charge")
+    except OSError as exc:
+        try:
+            (BASE / "lancement_interface_classique.log").write_text(str(exc), encoding="utf-8")
+        except OSError:
+            pass
+
+
+def dashboard_ui_action(action, _values=None):
+    if action != "classic":
+        return {"error": "Cette action nécessite le logiciel de bureau."}
+    # Laisser le temps au serveur de répondre avant que le lanceur arrête le
+    # service invisible et libère le port 8765.
+    timer = threading.Timer(0.8, _launch_classic_interface)
+    timer.daemon = True
+    timer.start()
+    return {"ok": True}
+
+
 if MobileDashboard is not None and mobile_cfg.get("enabled", True):
     mobile_dashboard = MobileDashboard(
         host=mobile_cfg.get("host", "0.0.0.0"),
@@ -248,6 +284,7 @@ if MobileDashboard is not None and mobile_cfg.get("enabled", True):
     )
     mobile_dashboard.monitoring = monitor.snapshot
     mobile_dashboard.battery_report = battery_monitor.full_charge_report
+    mobile_dashboard.ui_action = dashboard_ui_action
     if DashboardData is not None:
         mobile_dashboard.data_service = DashboardData(BASE, CONFIG, battery_monitor)
     dashboard_started = mobile_dashboard.start()

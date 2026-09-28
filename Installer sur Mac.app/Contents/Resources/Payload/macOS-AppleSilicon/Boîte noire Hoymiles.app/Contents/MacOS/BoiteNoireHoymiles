@@ -14,11 +14,15 @@ cd "$BASE"
 PLIST="$HOME/Library/LaunchAgents/fr.boitenoirehoymiles.web.plist"
 SERVICE="gui/$UID/fr.boitenoirehoymiles.web"
 
+if [ "${1:-}" = "--classic" ]; then
+  CHOICE="Ancien logiciel"
+else
 CHOICE=$(/usr/bin/osascript <<'APPLESCRIPT'
 display dialog "Choisissez l’interface à ouvrir :" with title "Boîte noire Hoymiles" buttons {"Annuler", "Ancien logiciel", "Nouvelle interface web"} default button "Nouvelle interface web" cancel button "Annuler" with icon note
 return button returned of result
 APPLESCRIPT
 ) || exit 0
+fi
 
 if [ "$CHOICE" = "Nouvelle interface web" ]; then
   if ! /usr/bin/curl -fsS --max-time 2 "http://127.0.0.1:8765/api/status" >/dev/null 2>&1; then
