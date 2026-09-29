@@ -1,15 +1,15 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Version 7.0.60 : bascule fiable entre l’interface web et le logiciel classique, avec configuration du second Shelly sur Windows et macOS.**
+**Version 7.0.61 : historique batterie Windows restauré et état du Shelly 2 corrigé sur Windows et macOS.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Suivi solaire local sur Windows et macOS, consultable depuis Android et iPhone avec la nouvelle interface web privée.
 
-[![Version](https://img.shields.io/badge/version-7.0.60-2563eb)](RELEASE_NOTES_7.0.60.md)
+[![Version](https://img.shields.io/badge/version-7.0.61-2563eb)](RELEASE_NOTES_7.0.61.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[1 — Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.60-INSTALLATEUR.tar.gz)** · **[2 — Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.60-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[1 — Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.61-INSTALLATEUR.tar.gz)** · **[2 — Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.61-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** ou **2-WINDOWS**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
@@ -117,7 +117,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Android, iPhone et accès à distance
 
-La version 7.0.60 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.61 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.

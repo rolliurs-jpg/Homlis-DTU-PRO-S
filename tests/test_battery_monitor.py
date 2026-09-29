@@ -104,6 +104,14 @@ class FullChargeTests(unittest.TestCase):
         self.assertIsNone(results[0]['full_at'])
         self.assertAlmostEqual(results[1]['export_kwh'], 1000*15/3600000)
 
+    def test_invalid_epoch_row_does_not_hide_windows_history(self):
+        t = self.t
+        battery = [dict(timestamp=0, soc_pct=100),
+                   dict(timestamp=t, soc_pct=100)]
+        report = full_charge_days(battery, [], [], t + 60)
+        self.assertEqual(len(report), 1)
+        self.assertEqual(report[0]['full_at'], t)
+
 
 class BatteryCycleTests(unittest.TestCase):
     def test_discharge_is_reported_even_when_full_was_before_monitoring(self):

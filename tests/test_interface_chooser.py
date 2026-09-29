@@ -22,6 +22,7 @@ class InterfaceChooserTests(unittest.TestCase):
         self.assertNotIn('href="/classic-mobile"', html)
         self.assertIn("action:'classic'", html)
         self.assertIn('Ouvrir le logiciel classique', html)
+        self.assertIn("Number.isFinite(live.pv2_w)?'Mesure reçue':null", html)
         self.assertIn('mobile_dashboard.ui_action = dashboard_ui_action', source)
 
 

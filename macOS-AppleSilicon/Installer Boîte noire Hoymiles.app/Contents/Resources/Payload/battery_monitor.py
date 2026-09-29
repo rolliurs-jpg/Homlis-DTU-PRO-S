@@ -219,12 +219,26 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
     A production end is estimated after 30 continuous minutes <= 10 W,
     after noon and after observed production. Any later activity cancels it.
     """
-    battery_rows = sorted({r['timestamp']: r for r in battery_rows}.values(), key=lambda r: r['timestamp'])
+    # Des versions anciennes ont parfois enregistré une ligne de reprise avec
+    # timestamp=0. Sous Windows, convertir ensuite le 01/01/1970 en minuit
+    # local peut lever OSError et rendre tout le bilan batterie indisponible.
+    # Une seule ligne invalide ne doit jamais masquer les mesures correctes.
+    valid_battery_rows = {}
+    for row in battery_rows:
+        stamp = number(row.get('timestamp'))
+        if stamp is None or stamp <= 0 or stamp > now:
+            continue
+        try:
+            datetime.fromtimestamp(stamp)
+        except (OSError, OverflowError, ValueError):
+            continue
+        clean = dict(row)
+        clean['timestamp'] = stamp
+        valid_battery_rows[stamp] = clean
+    battery_rows = sorted(valid_battery_rows.values(), key=lambda r: r['timestamp'])
     days = {}
     for row in sorted(battery_rows, key=lambda r: r['timestamp']):
         t = row['timestamp']
-        if t > now:
-            continue
         day = datetime.fromtimestamp(t).date()
         entry = days.setdefault(day, dict(full_at=None, already_full=False,
                                          previous=None))
