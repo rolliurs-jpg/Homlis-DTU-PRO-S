@@ -66,6 +66,7 @@ MOBILE_HTML = r"""<!doctype html>
     <article class="card home"><div class="label">Consommation maison</div><div class="value" id="home">—</div><div class="hint">Calculée avec les mesures disponibles ; — si incomplètes</div></article>
     <article class="card gridflow" id="flowCard"><div class="label" id="flowLabel">Réseau</div><div class="value" id="flow">—</div><div class="hint" id="flowHint">Linky / Shelly</div></article>
     <article class="card linky"><div class="label">Linky / Dinky</div><div class="value" id="linky">—</div><div class="hint">Téléinformation locale</div></article>
+    <article class="card pv" id="hoymilesCard" hidden><div class="label">Micro-onduleur Hoymiles</div><div class="value" id="hoymilesPower">—</div><div class="hint" id="hoymilesHint">En attente</div></article>
     <article class="card wide" id="batteryCard" hidden><div class="label">Batterie Zendure</div><svg viewBox="0 0 340 125" role="img" aria-label="Batterie" style="width:100%;max-width:340px;display:block;margin:auto">
 <rect x="24" y="14" width="280" height="96" rx="12" fill="none" stroke="#64748b" stroke-width="4" id="batteryOutline"/>
 <rect x="307" y="42" width="12" height="40" rx="3" fill="#64748b" id="batteryTip"/>
@@ -162,7 +163,7 @@ async function refreshFullBattery(){
   renderFullBattery(await r.json());fullBatteryReceived=Date.now();
  }catch(e){$('fullBatteryStatus').textContent='Bilan non actualisé — connexion ou historique indisponible. Les valeurs précédentes sont conservées.'}
 }
-async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{},fresh=freshness(s.timestamp);$('batteryCard').hidden=!s.battery_enabled;$('fullBatteryCard').hidden=!s.battery_enabled;refreshFullBattery();drawBattery(s,fresh.age<=90);$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=(s.grid_source||'Mesure réseau locale')+(exporting?' · injection':' · soutirage');$('updated').textContent=s.timestamp?`Dernière mesure ${ageLabel(fresh.age)} · ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';const equipment=s.equipment||{linky:true,shelly:true};$('linky').closest('article').hidden=!equipment.linky;$('home').closest('article').hidden=!equipment.shelly;$('flowCard').hidden=!equipment.shelly;$('linkyState').hidden=!equipment.linky;$('shellyState').hidden=!equipment.shelly;const labels={complete:'<strong>Mesures disponibles</strong>',backup:'<strong>Mesure de secours</strong> · DTU absente, Shelly utilisé',partial:'<strong>Données partielles</strong>',missing:'<strong>Données absentes</strong>'};$('quality').innerHTML=(!equipment.shelly&&s.dtu_state==='online')?'Mesures DTU disponibles':labels[s.quality]||'Qualité : en attente';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent=fresh.label;$('liveDot').style.background=fresh.color;draw(d.history);lastReceived=Date.now();lastMonitor=d.monitoring;failedSince=null;showMonitoring()}catch(e){if(failedSince===null)failedSince=Date.now();showMonitoring();drawBattery({},false);$('liveText').textContent='Serveur inaccessible';$('liveDot').style.background='#ef4444'}}
+async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error();const d=await r.json(),s=d.current||{},fresh=freshness(s.timestamp);const hp=s.hoymiles_proxy||{};const hpFresh=hp.state==='online'&&hp.timestamp&&Date.now()/1000-hp.timestamp<=45;$('hoymilesCard').hidden=!s.hoymiles_proxy||hp.state==='disabled';$('hoymilesPower').innerHTML=fmt(hpFresh?hp.power_w:null);$('hoymilesHint').textContent=hpFresh?'Lecture via ESP32 · limite '+(hp.limit_pct==null?'—':hp.limit_pct+' %'):(hp.reason||'Mesure indisponible');$('batteryCard').hidden=!s.battery_enabled;$('fullBatteryCard').hidden=!s.battery_enabled;refreshFullBattery();drawBattery(s,fresh.age<=90);$('pv').innerHTML=fmt(s.production_w);$('pvSource').textContent=s.production_source||'DTU / Shelly';$('home').innerHTML=fmt(s.consumption_w);$('linky').innerHTML=fmt(s.linky_w);let exp=s.export_w||0,imp=s.import_w||0,exporting=exp>1;$('flowCard').className='card gridflow '+(exporting?'export':'import');$('flowLabel').textContent=exporting?'Injection vers le réseau':'Soutirage du réseau';$('flow').innerHTML=fmt(exporting?exp:imp);$('flowHint').textContent=(s.grid_source||'Mesure réseau locale')+(exporting?' · injection':' · soutirage');$('updated').textContent=s.timestamp?`Dernière mesure ${ageLabel(fresh.age)} · ${new Date(s.timestamp).toLocaleString('fr-FR')}`:'En attente de la première mesure…';const equipment=s.equipment||{linky:true,shelly:true};$('linky').closest('article').hidden=!equipment.linky;$('home').closest('article').hidden=!equipment.shelly;$('flowCard').hidden=!equipment.shelly;$('linkyState').hidden=!equipment.linky;$('shellyState').hidden=!equipment.shelly;const labels={complete:'<strong>Mesures disponibles</strong>',backup:'<strong>Mesure de secours</strong> · DTU absente, Shelly utilisé',partial:'<strong>Données partielles</strong>',missing:'<strong>Données absentes</strong>'};$('quality').innerHTML=(!equipment.shelly&&s.dtu_state==='online')?'Mesures DTU disponibles':labels[s.quality]||'Qualité : en attente';state('dtuState',s.dtu_state);state('linkyState',s.linky_state);state('shellyState',s.shelly_state);$('liveText').textContent=fresh.label;$('liveDot').style.background=fresh.color;draw(d.history);lastReceived=Date.now();lastMonitor=d.monitoring;failedSince=null;showMonitoring()}catch(e){if(failedSince===null)failedSince=Date.now();showMonitoring();drawBattery({},false);$('liveText').textContent='Serveur inaccessible';$('liveDot').style.background='#ef4444'}}
 refresh();setInterval(refresh,5000);addEventListener('resize',refresh);
 </script></body></html>"""
 
@@ -237,6 +238,9 @@ class MobileDashboard:
         self._thread = None
         self.error = ""
         self.monitoring = None
+        self.proxy_snapshot = None
+        self.control_snapshot = None
+        self.battery_snapshot = None
         self.battery_report = None
         self.data_service = None
         self.ui_action = None
@@ -302,6 +306,12 @@ class MobileDashboard:
                 if path == "/api/status":
                     with dashboard._lock:
                         payload = deepcopy(dashboard._payload)
+                    if dashboard.proxy_snapshot is not None:
+                        payload.setdefault("current", {})["hoymiles_proxy"] = dashboard.proxy_snapshot()
+                    if dashboard.control_snapshot is not None:
+                        payload.setdefault("current", {})["surplus_simulation"] = dashboard.control_snapshot()
+                    if dashboard.battery_snapshot is not None:
+                        payload.setdefault("current", {}).update(dashboard.battery_snapshot())
                     if dashboard.monitoring is not None:
                         payload["monitoring"] = dashboard.monitoring()
                     body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
@@ -348,7 +358,7 @@ class MobileDashboard:
                     if not isinstance(data,dict):
                         raise ValueError('Objet attendu')
                     action=data.get('action')
-                    allowed={'settings','tariffs','pause','classic','diagnostic','capture','alarm','manual_edf','export','autostart'}
+                    allowed={'settings','tariffs','pause','classic','diagnostic','capture','alarm','manual_edf','export','autostart','surplus_control'}
                     if action not in allowed:
                         raise ValueError('Action inconnue')
                     if action == 'autostart':

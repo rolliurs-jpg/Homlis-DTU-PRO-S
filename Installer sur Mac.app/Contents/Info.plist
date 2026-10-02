@@ -2,23 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleDisplayName</key>
-  <string>Installer sur Mac</string>
-  <key>CFBundleExecutable</key>
-  <string>InstallerBoiteNoireHoymiles</string>
-  <key>CFBundleIdentifier</key>
-  <string>fr.boitenoirehoymiles.installer</string>
-  <key>CFBundleIconFile</key>
-  <string>AppIcon</string>
-  <key>CFBundleName</key>
-  <string>Installer sur Mac</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>7.0.61</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>13.0</string>
-  <key>NSLocalNetworkUsageDescription</key>
-  <string>Configuration locale du DTU Hoymiles, du Dinky et du Shelly Pro EM.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Installer sur Mac</string>
+	<key>CFBundleExecutable</key>
+	<string>InstallerBoiteNoireHoymiles</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>fr.boitenoirehoymiles.installer</string>
+	<key>CFBundleName</key>
+	<string>Installer sur Mac</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>7.0.62</string>
+	<key>CFBundleVersion</key>
+	<string>7.0.62</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Configuration locale du DTU Hoymiles, du Dinky et du Shelly Pro EM.</string>
 </dict>
 </plist>

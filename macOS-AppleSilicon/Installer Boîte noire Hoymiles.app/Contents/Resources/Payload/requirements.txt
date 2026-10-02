@@ -3,3 +3,10 @@ matplotlib>=3.11; python_version >= "3.11"
 hoymiles-wifi
 hoymiles-modbus==0.10.0
 reportlab>=4.0,<5
+
+aioesphomeapi==46.6.0; python_version >= "3.11"
+cryptography>=44,<51
+
+bleak-esphome==4.1.0; python_version >= "3.11"
+habluetooth==7.1.2; python_version >= "3.11"
+hiflow-ble @ git+https://github.com/TheTiEr/hiflow-ble.git@db7e57c953345b017390b6da54488786bff00deb; python_version >= "3.11"

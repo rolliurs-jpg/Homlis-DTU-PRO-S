@@ -9,7 +9,7 @@ BASE="$HOME/Library/Application Support/BoiteNoireHoymiles"
 APP_DEST="/Applications/Boîte noire Hoymiles.app"
 OLD_USER_APP="$HOME/Applications/Boîte noire Hoymiles.app"
 DESKTOP_LINK="$HOME/Desktop/Boîte noire Hoymiles.app"
-LAUNCH_APP="$PACKAGE_DIR/Boîte noire Hoymiles.app"
+LAUNCH_APP="$PACKAGE_DIR/Boite noire Hoymiles.app"
 PYTHON_BIN=""
 
 dialog() {
@@ -19,11 +19,14 @@ dialog() {
 choose_python() {
   for candidate in \
     "$BASE/venv/bin/python" \
+    "/opt/homebrew/bin/python3" \
+    "/usr/local/bin/python3" \
     "/Library/Frameworks/Python.framework/Versions/Current/bin/python3" \
+    "/usr/bin/python3" \
     "$(command -v python3 2>/dev/null || true)"; do
-    # Python provenant de python.org : 3.10 ou plus récent, avec Tkinter.
-    # Homebrew peut fournir Python sans le module _tkinter : il est refusé.
-    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -c "import sys, tkinter; raise SystemExit(not (sys.version_info >= (3, 10)))" >/dev/null 2>&1; then
+    # Finder utilise un PATH réduit : tester explicitement Homebrew sur Apple Silicon.
+    # L’interface web fonctionne sans Tkinter; l’interface classique le vérifie au lancement.
+    if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" -c "import sys; raise SystemExit(not (sys.version_info >= (3, 10)))" >/dev/null 2>&1; then
       PYTHON_BIN="$candidate"
       return 0
     fi
@@ -32,11 +35,11 @@ choose_python() {
 }
 
 if ! choose_python; then
-  dialog "Python 3.10 ou plus récent avec Tkinter est nécessaire. Installez la version universelle macOS depuis python.org, puis relancez l'installation."
+  dialog "Python 3.10 ou plus récent est nécessaire. Python Homebrew Apple Silicon et Python.org sont acceptés."
   exit 1
 fi
 
-for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py battery_monitor.py requirements.txt fond_solaire.png icone_panneau_solaire.ico; do
+for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py surplus_simulation.py surplus_controller.py dtu_control.py PAIRER_HOYMILES.py hoymiles_proxy.py battery_monitor.py requirements.txt fond_solaire.png icone_panneau_solaire.ico; do
   if [ ! -f "$SOURCE_DIR/$item" ]; then
     dialog "Le paquet est incomplet : $item est absent. Utilisez le nouveau ZIP complet."
     exit 1
@@ -207,12 +210,16 @@ if [ ! -d "$BASE/venv" ]; then
   "$PYTHON_BIN" -m venv "$BASE/venv" || { dialog "Impossible de créer l'environnement Python privé."; exit 1; }
 fi
 
-if ! "$BASE/venv/bin/python" -c "import tkinter, matplotlib, PIL" >/dev/null 2>&1; then
+if ! "$BASE/venv/bin/python" -c "import matplotlib, PIL, aioesphomeapi, cryptography, hoymiles_modbus" >/dev/null 2>&1; then
   "$BASE/venv/bin/python" -m pip install --upgrade pip >/dev/null 2>&1 || true
   if ! "$BASE/venv/bin/python" -m pip install -r "$SOURCE_DIR/requirements.txt" >/dev/null 2>&1; then
     dialog "Les dépendances Python manquantes n'ont pas pu être installées. Vérifiez la connexion Internet puis relancez l'installation."
     exit 1
   fi
+fi
+if ! "$BASE/venv/bin/python" -c "import matplotlib, PIL, aioesphomeapi, cryptography, hoymiles_modbus" >/dev/null 2>&1; then
+  dialog "L'installation Python est incomplète. Ouvrez le journal proposé par l'installateur."
+  exit 1
 fi
 
 /usr/bin/ditto "$SOURCE_DIR/boite_noire_hoymiles.py" "$BASE/boite_noire_hoymiles.py"
@@ -224,11 +231,17 @@ fi
 /bin/chmod +x "$BASE/LANCER_INTERFACE_WEB.command"
 /usr/bin/ditto "$SOURCE_DIR/monitoring.py" "$BASE/monitoring.py"
 /usr/bin/ditto "$SOURCE_DIR/energy_analysis.py" "$BASE/energy_analysis.py"
+/usr/bin/ditto "$SOURCE_DIR/surplus_simulation.py" "$BASE/surplus_simulation.py"
+/usr/bin/ditto "$SOURCE_DIR/surplus_controller.py" "$BASE/surplus_controller.py"
+/usr/bin/ditto "$SOURCE_DIR/dtu_control.py" "$BASE/dtu_control.py"
+/usr/bin/ditto "$SOURCE_DIR/PAIRER_HOYMILES.py" "$BASE/PAIRER_HOYMILES.py"
+/usr/bin/ditto "$SOURCE_DIR/hoymiles_proxy.py" "$BASE/hoymiles_proxy.py"
+/usr/bin/ditto "$SOURCE_DIR/HOYMILES_BLE_LICENSE.txt" "$BASE/HOYMILES_BLE_LICENSE.txt"
 /usr/bin/ditto "$SOURCE_DIR/battery_monitor.py" "$BASE/battery_monitor.py"
 /usr/bin/ditto "$SOURCE_DIR/fond_solaire.png" "$BASE/fond_solaire.png"
 /usr/bin/ditto "$SOURCE_DIR/icone_panneau_solaire.ico" "$BASE/icone_panneau_solaire.ico"
 
-for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py battery_monitor.py; do
+for item in boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html autostart.py monitoring.py energy_analysis.py surplus_simulation.py surplus_controller.py dtu_control.py PAIRER_HOYMILES.py hoymiles_proxy.py battery_monitor.py; do
   if [ ! -s "$BASE/$item" ]; then
     dialog "La mise à jour est incomplète : $item n'a pas été installé."
     exit 1

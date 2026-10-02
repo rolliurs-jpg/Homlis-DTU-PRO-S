@@ -1,5 +1,11 @@
 import csv
 from battery_monitor import BatteryMonitor, household
+from hoymiles_proxy import ProxyReader, DEFAULT_PROXY
+from surplus_controller import SurplusController
+from dtu_control import DtuControl
+surplus_controller = None
+from surplus_simulation import SurplusSimulation
+surplus_simulation = SurplusSimulation()
 from monitoring import Monitoring, has_measure, open_settings
 import json
 import re
@@ -60,7 +66,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.61"
+VERSION = "7.0.62"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -75,7 +81,7 @@ SAV_CONFIRMATION_REQUEST = (
 )
 SENSITIVE_DTU_FIELD = re.compile(
     r"(?:pass(?:word|phrase)?|pwd|psk|wifi[_-]?(?:key|password|passphrase)|"
-    r"secret|token|api[_-]?key|credential)",
+    r"secret|token|api[_-]?key|credential|enc_rand|ble_id)",
     re.IGNORECASE,
 )
 
@@ -136,6 +142,7 @@ DEFAULT_CONFIG = {
     },
     "battery": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
     "shelly2": {"enabled": False, "host": "", "port": 80, "timeout_s": 2, "channel": 0, "reverse": False},
+    "hoymiles_proxy": dict(DEFAULT_PROXY),
     "production_complete": False,
     "tarifs_edf": {
         "hp_eur_kwh": 0.0,
@@ -233,6 +240,11 @@ monitor.start()
 atexit.register(monitor.stop)
 
 CONFIG = load_config()
+proxy_cfg = dict(CONFIG.get("hoymiles_proxy", {}))
+proxy_cfg["commands_enabled"] = bool(CONFIG.get("surplus_control", {}).get("enabled", False))
+proxy_reader = ProxyReader(proxy_cfg)
+proxy_reader.start()
+atexit.register(proxy_reader.stop)
 battery_monitor = BatteryMonitor(BASE, CONFIG)
 battery_monitor.start()
 atexit.register(battery_monitor.stop)
@@ -267,6 +279,17 @@ def _launch_classic_interface():
 
 
 def dashboard_ui_action(action, _values=None):
+    if action == "surplus_control":
+        if surplus_controller is None:
+            return {"error": "Gestion en démarrage"}
+        enabled = (_values or {}).get("enabled")
+        if not isinstance(enabled, bool):
+            return {"error": "Activation attendue : oui ou non"}
+        CONFIG.setdefault("surplus_control", {})["enabled"] = enabled
+        config_file = BASE / "config_v5.json"
+        config_file.write_text(json.dumps(CONFIG, ensure_ascii=False, indent=2), encoding="utf-8")
+        surplus_controller.set_enabled(enabled)
+        return {"ok": True, "enabled": enabled}
     if action != "classic":
         return {"error": "Cette action nécessite le logiciel de bureau."}
     # Laisser le temps au serveur de répondre avant que le lanceur arrête le
@@ -277,12 +300,24 @@ def dashboard_ui_action(action, _values=None):
     return {"ok": True}
 
 
+def dashboard_battery_snapshot():
+    row, error = battery_monitor.snapshot()
+    row = row or {}
+    fields = {"battery_soc_pct": "soc_pct", "battery_timestamp": "timestamp",
+              "battery_ac_charge_w": "ac_charge_w", "battery_ac_discharge_w": "ac_discharge_w",
+              "battery_charge_w": "charge_w", "battery_discharge_w": "discharge_w"}
+    return {key: row.get(value) for key, value in fields.items()}
+
+
 if MobileDashboard is not None and mobile_cfg.get("enabled", True):
     mobile_dashboard = MobileDashboard(
         host=mobile_cfg.get("host", "0.0.0.0"),
         port=mobile_cfg.get("port", 8765),
     )
     mobile_dashboard.monitoring = monitor.snapshot
+    mobile_dashboard.proxy_snapshot = proxy_reader.snapshot
+    mobile_dashboard.control_snapshot = lambda: surplus_controller.snapshot() if surplus_controller is not None else {}
+    mobile_dashboard.battery_snapshot = dashboard_battery_snapshot
     mobile_dashboard.battery_report = battery_monitor.full_charge_report
     mobile_dashboard.ui_action = dashboard_ui_action
     if DashboardData is not None:
@@ -405,6 +440,10 @@ def mobile_point(index):
     return {
         "battery_enabled": equipment_enabled("battery"),
         "battery_soc_pct": battery_row.get("soc_pct"),
+        "battery_timestamp": battery_row.get("timestamp"),
+        "battery_ac_charge_w": battery_row.get("ac_charge_w"),
+        "battery_ac_discharge_w": battery_row.get("ac_discharge_w"),
+        "production_complete": bool(CONFIG.get("production_complete", False)),
         "battery_charge_w": battery_row.get("charge_w"),
         "battery_discharge_w": battery_row.get("discharge_w"),
         "pv2_w": battery_row.get("pv2_w"),
@@ -449,6 +488,8 @@ def publish_mobile_snapshot(dtu_state="waiting"):
                 current["quality"] = "partial"
         start = max(0, len(times) - 360)
         history = [mobile_point(index) for index in range(start, len(times))]
+        current["hoymiles_proxy"] = proxy_reader.snapshot()
+        current["surplus_simulation"] = surplus_controller.snapshot() if surplus_controller is not None else surplus_simulation.evaluate(current, datetime.now().timestamp())
         mobile_dashboard.update(current, history)
     except Exception:
         # Le tableau mobile ne doit jamais interrompre la collecte principale.
@@ -732,7 +773,7 @@ line_shelly_a, = ax.plot([], [], linewidth=2.05, color=SHELLY_COLOR, linestyle="
 line_shelly_b, = ax.plot([], [], linewidth=2.20, color=SHELLY_GRID_COLOR, linestyle=":", label=SHELLY_B_LABEL)
 line_grid, = ax.plot([], [], linewidth=1.55, color=DDSU_COLOR, linestyle="-", label="Réseau DDSU")
 limit_ax = ax.twinx()
-line_limit, = limit_ax.plot([], [], linewidth=1.40, color=LIMIT_COLOR, label="Limite DTU")
+line_limit, = limit_ax.plot([], [], linewidth=1.40, color=LIMIT_COLOR, label="Limite DTU / référence si non lue")
 # Légende permanente, hors du graphique, comme sur la page Bilan.
 equipment_lines = [(line_limit, True), (line_grid, True), (line_ac, True),
                    (line_linky, equipment_enabled("linky")),
@@ -3602,6 +3643,10 @@ def update(_):
             # affiche donc la limite explicitement configurée dans S-Miles,
             # 110 % par défaut, comme le faisait la version macOS 7.0.4.
             limit_w = float(CONFIG.get("dtu_wifi_limit_pct", DEFAULT_DTU_LIMIT_PCT))
+        control_state = surplus_controller.snapshot() if surplus_controller else {}
+        measured_dtu = control_state.get("dtu", {})
+        if measured_dtu.get("state") == "online" and datetime.now().timestamp()-measured_dtu.get("timestamp", 0) <= 45:
+            limit_w = measured_dtu["limit_pct"]
         limit_w = safe_dtu_limit_pct(limit_w)
         limit_note = ""
         times.append(now)
@@ -3739,7 +3784,7 @@ def open_equipment_settings(event=None):
     frame.pack(fill="both", expand=True)
     ttk.Label(frame, text="Choisissez les équipements utilisés en complément du DTU.").grid(row=0, column=0, columnspan=3, sticky="w")
     fields = {}
-    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2")), 1):
+    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth"), ("esp_router", "ESP32 — routeur Wi-Fi")), 1):
         active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
         address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
         ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)
@@ -3747,11 +3792,41 @@ def open_equipment_settings(event=None):
         ttk.Entry(frame, textvariable=address, width=25).grid(row=row, column=2)
         fields[name] = active, address
     complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
-    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=5, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=7, column=0, columnspan=3, sticky="w")
     reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=6, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=8, column=0, columnspan=3, sticky="w")
     feedback = tk.StringVar(value="Shelly EM Gen3 : pince sur le canal 0. Laissez la production complète décochée tant que la seconde ligne n’est pas mesurée.")
-    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=7, column=0, columnspan=3, sticky="w", pady=10)
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=9, column=0, columnspan=3, sticky="w", pady=10)
+    esp_status = tk.StringVar(value="Vérification des ESP32…")
+    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=10, column=0, columnspan=3, sticky="w", pady=8)
+    control_status = tk.StringVar(value="")
+    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=11, column=0, columnspan=3, sticky="w", pady=8)
+    def refresh_state():
+        if not window.winfo_exists():
+            return
+        if mobile_dashboard and mobile_dashboard.data_service:
+            devices = mobile_dashboard.data_service.esp_cache or []
+            esp_status.set("\n".join(f"{d['name']} : {' / '.join(d['hosts'])} — {'joignable' if d['connected'] else 'non joignable'}" for d in devices) or "Vérification des ESP32…")
+        state = surplus_controller.snapshot() if surplus_controller else {}
+        proxy = proxy_reader.snapshot()
+        dtu = state.get("dtu", {})
+        control_status.set(f"Gestion solaire : {'automatique' if state.get('commands_enabled') else 'arrêtée'} · {state.get('controlled_panels', 0)} panneaux\n"
+                           f"Limite HMS lue : {proxy.get('limit_pct', '—')} % · limites DTU : {dtu.get('port_limits_pct', '—')}\n"+state.get('reason', 'En attente'))
+        window.after(2000, refresh_state)
+    def probe_devices():
+        if mobile_dashboard and mobile_dashboard.data_service:
+            while window_open[0]:
+                mobile_dashboard.data_service.esp_devices()
+                __import__('time').sleep(15)
+    window_open = [True]
+    window.bind("<Destroy>", lambda event: window_open.__setitem__(0, False) if event.widget is window else None)
+    __import__('threading').Thread(target=probe_devices, daemon=True).start()
+    def toggle_solar():
+        state = surplus_controller.snapshot() if surplus_controller else {}
+        dashboard_ui_action('surplus_control', {'enabled': not state.get('commands_enabled', False)})
+    ttk.Button(frame, text="Activer / arrêter la gestion solaire", command=toggle_solar).grid(row=12, column=0, columnspan=2, sticky="w", pady=8)
+    ttk.Button(frame, text="Tableau de bord et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=12, column=2, sticky="e", pady=8)
+    refresh_state()
     def save():
         for name, (active, address) in fields.items():
             if active.get() and not address.get().strip():
@@ -3773,7 +3848,7 @@ def open_equipment_settings(event=None):
             messagebox.showinfo("Équipements enregistrés", "Fermez puis relancez le logiciel pour appliquer vos réglages.", parent=dialog_parent())
         except OSError as exc:
             feedback.set(f"Enregistrement impossible : {exc}")
-    ttk.Button(frame, text="Enregistrer", command=save).grid(row=8, column=2, sticky="e")
+    ttk.Button(frame, text="Enregistrer", command=save).grid(row=13, column=2, sticky="e")
 
 equipment_button_ax = plt.axes([0.82, 0.774, 0.13, 0.040])
 equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
@@ -3891,6 +3966,23 @@ def refresh_alarm():
             pass
     alarm_notice[0] = episode
     fig.canvas.draw_idle()
+
+def surplus_control_sample():
+    battery, error = battery_monitor.snapshot()
+    values, status = read_shelly_pro_em()
+    if values is None:
+        return {}
+    raw_grid = values[1]
+    grid = -raw_grid if CONFIG.get("shelly", {}).get("grid_export_positive", False) else raw_grid
+    return {"timestamp": datetime.now().timestamp(), "grid_w": grid,
+            "battery": battery, "proxy": proxy_reader.snapshot()}
+
+surplus_cfg = CONFIG.get("surplus_control", {})
+surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
+    enabled=bool(surplus_cfg.get("enabled", False)), rated_w=float(surplus_cfg.get("rated_w", 1000)),
+    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000))) if surplus_cfg.get("dtu_enabled", False) else None)
+surplus_controller.start()
+atexit.register(surplus_controller.stop)
 
 alarm_timer = fig.canvas.new_timer(interval=5000)
 alarm_timer.add_callback(refresh_alarm)

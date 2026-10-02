@@ -48,7 +48,7 @@ def mac_archive():
         "  exit 1\n"
         "fi\n"
         "/bin/chmod +x \"$APP/Contents/MacOS/InstallerBoiteNoireHoymiles\" 2>/dev/null || true\n"
-        "/bin/chmod +x \"$PAYLOAD/macOS-AppleSilicon/Boîte noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles\" 2>/dev/null || true\n"
+        "/bin/chmod +x \"$PAYLOAD/macOS-AppleSilicon/Boite noire Hoymiles.app/Contents/MacOS/BoiteNoireHoymiles\" 2>/dev/null || true\n"
         "/usr/bin/xattr -dr com.apple.quarantine \"$APP\" 2>/dev/null || true\n"
         "exec /bin/bash \"$PAYLOAD/macOS-AppleSilicon/installer_mac.sh\"\n"
     ).encode("utf-8")
@@ -81,6 +81,8 @@ def mac_archive():
         expected = f"{root_name}/{app_name}/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh"
         if expected not in {m.name for m in members}:
             raise RuntimeError("L'installateur Mac interne est absent")
+        if any(not m.name.isascii() for m in members):
+            raise RuntimeError("Chemin non-ASCII detecte dans archive Mac")
         if any("\\" in m.name for m in members):
             raise RuntimeError("Chemin Windows détecté dans l’archive Mac")
         if any(m.name.lower().endswith((".vbs", ".ps1", ".bat", ".cmd")) for m in members):
@@ -105,7 +107,7 @@ def windows_archive():
     required = [
         "boite_noire_hoymiles.py", "mobile_dashboard.py", "dashboard_data.py",
         "dashboard_ui.html", "autostart.py", "monitoring.py", "energy_analysis.py",
-        "battery_monitor.py", "requirements.txt", "fond_solaire.png",
+        "battery_monitor.py", "surplus_simulation.py", "surplus_controller.py", "dtu_control.py", "PAIRER_HOYMILES.py", "hoymiles_proxy.py", "HOYMILES_BLE_LICENSE.txt", "requirements.txt", "fond_solaire.png",
         "icone_panneau_solaire.ico", "config.example.json", "CHOISIR_RESEAU.ps1",
         "INSTALLER_WINDOWS.vbs", "LANCER.vbs", "LANCER_INTERFACE_WEB.vbs",
         "CHOISIR_INTERFACE.vbs",
@@ -137,7 +139,7 @@ def mac_full_archive():
     root_files = [
         "boite_noire_hoymiles.py", "mobile_dashboard.py", "dashboard_data.py",
         "dashboard_ui.html", "autostart.py", "monitoring.py", "energy_analysis.py",
-        "battery_monitor.py", "requirements.txt", "fond_solaire.png",
+        "battery_monitor.py", "surplus_simulation.py", "surplus_controller.py", "dtu_control.py", "PAIRER_HOYMILES.py", "hoymiles_proxy.py", "HOYMILES_BLE_LICENSE.txt", "requirements.txt", "fond_solaire.png",
         "icone_panneau_solaire.ico", "config.example.json", "README.md",
         f"RELEASE_NOTES_{release}.md",
     ]

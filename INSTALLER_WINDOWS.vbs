@@ -178,6 +178,12 @@ fso.CopyFile folder & "\dashboard_ui.html", appData & "\dashboard_ui.html", True
 fso.CopyFile folder & "\autostart.py", appData & "\autostart.py", True
 fso.CopyFile folder & "\monitoring.py", appData & "\monitoring.py", True
 fso.CopyFile folder & "\energy_analysis.py", appData & "\energy_analysis.py", True
+fso.CopyFile folder & "\surplus_simulation.py", appData & "\surplus_simulation.py", True
+fso.CopyFile folder & "\surplus_controller.py", appData & "\surplus_controller.py", True
+fso.CopyFile folder & "\dtu_control.py", appData & "\dtu_control.py", True
+fso.CopyFile folder & "\PAIRER_HOYMILES.py", appData & "\PAIRER_HOYMILES.py", True
+fso.CopyFile folder & "\hoymiles_proxy.py", appData & "\hoymiles_proxy.py", True
+fso.CopyFile folder & "\HOYMILES_BLE_LICENSE.txt", appData & "\HOYMILES_BLE_LICENSE.txt", True
 fso.CopyFile folder & "\battery_monitor.py", appData & "\battery_monitor.py", True
 fso.CopyFile folder & "\fond_solaire.png", appData & "\fond_solaire.png", True
 fso.CopyFile folder & "\icone_panneau_solaire.ico", appData & "\icone_panneau_solaire.ico", True

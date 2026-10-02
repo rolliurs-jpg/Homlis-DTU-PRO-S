@@ -43,5 +43,23 @@
     "channel": 0,
     "reverse": false
   },
-  "production_complete": false
+  "production_complete": false,
+  "hoymiles_proxy": {
+    "enabled": false,
+    "host": "",
+    "port": 6053,
+    "address": "",
+    "serial_tail": ""
+  },
+  "esp_router": {
+    "enabled": false,
+    "host": "",
+    "ap_host": ""
+  },
+  "surplus_control": {
+    "enabled": false,
+    "rated_w": 1000,
+    "dtu_enabled": false,
+    "dtu_rated_w": 2000
+  }
 }

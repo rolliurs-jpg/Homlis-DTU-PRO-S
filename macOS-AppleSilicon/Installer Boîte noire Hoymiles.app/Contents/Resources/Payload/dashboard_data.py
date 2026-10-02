@@ -1,5 +1,6 @@
 """Read-only, shared web reports. No device connections and no invented samples."""
 import csv
+import socket
 import math
 import threading
 import time
@@ -116,6 +117,9 @@ class DashboardData:
         self.base, self.config, self.battery = Path(base), config, battery
         self.lock = threading.Lock()
         self.cache = {}
+        self.esp_lock = threading.Lock()
+        self.esp_cache = None
+        self.esp_checked = 0
 
     def report(self, period='today'):
         with self.lock:
@@ -195,6 +199,30 @@ class DashboardData:
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
                     source='Index Linky enregistrés ; intervalles à cheval sur la période exclus. Les relevés EDF manuels restent accessibles dans les outils classiques.')
 
+    def esp_devices(self):
+        with self.esp_lock:
+            if self.esp_cache is not None and time.monotonic()-self.esp_checked < 15:
+                return self.esp_cache
+            proxy = self.config.get('hoymiles_proxy', {})
+            router = self.config.get('esp_router', {})
+            devices = [dict(id='proxy', name='ESP32 · Proxy Bluetooth Hoymiles',
+                            hosts=[str(proxy.get('host') or '192.168.4.2')], port=int(proxy.get('port',6053)),
+                            role='Près du micro-onduleur · liaison Bluetooth', enabled=bool(proxy.get('enabled', False))),
+                       dict(id='router', name='ESP32 · Routeur Solaire cabanon',
+                            hosts=[str(router.get('ap_host') or '192.168.4.1'), str(router.get('host') or '192.168.1.239')], port=80,
+                            role='Relais Wi-Fi vers la box', enabled=bool(router.get('enabled', False)))]
+            for device in devices:
+                reachable = []
+                for host in device['hosts'] if device['enabled'] else []:
+                    try:
+                        with socket.create_connection((host, device['port']), timeout=1):
+                            reachable.append(host)
+                    except OSError:
+                        pass
+                device.update(reachable_hosts=reachable, connected=bool(reachable), checked_at=time.time())
+            self.esp_cache, self.esp_checked = devices, time.monotonic()
+            return devices
+
     def settings(self):
         result = {'dtu_host':str(self.config.get('dtu_host','')),
                   'production_complete':bool(self.config.get('production_complete')),
@@ -203,6 +231,7 @@ class DashboardData:
         for name in ('linky','shelly','battery','shelly2'):
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
+        result['esp_devices'] = self.esp_devices()
         result['autostart'] = autostart_status(self.base)
         return result
 

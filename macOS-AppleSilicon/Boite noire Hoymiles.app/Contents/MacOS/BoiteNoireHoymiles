@@ -42,6 +42,10 @@ if [ "$CHOICE" = "Nouvelle interface web" ]; then
   exit 0
 fi
 
+if ! "$PYTHON" -c "import tkinter" >/dev/null 2>&1; then
+  /usr/bin/osascript -e 'display dialog "L’interface classique nécessite Tkinter. Utilisez la nouvelle interface web, ou installez python-tk avec Homebrew." with title "Boîte noire Hoymiles" buttons {"OK"} default button "OK" with icon caution' >/dev/null
+  exit 1
+fi
 # Pour afficher l'ancienne fenêtre, le service sans fenêtre doit libérer les
 # appareils et le port web. Il sera réactivé à la fermeture si le démarrage
 # automatique est configuré.

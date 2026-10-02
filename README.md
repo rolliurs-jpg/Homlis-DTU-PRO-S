@@ -1,15 +1,15 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Version 7.0.61 : historique batterie Windows restauré et état du Shelly 2 corrigé sur Windows et macOS.**
+**Version 7.0.62 : historique batterie Windows restauré et état du Shelly 2 corrigé sur Windows et macOS.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Suivi solaire local sur Windows et macOS, consultable depuis Android et iPhone avec la nouvelle interface web privée.
 
-[![Version](https://img.shields.io/badge/version-7.0.61-2563eb)](RELEASE_NOTES_7.0.61.md)
+[![Version](https://img.shields.io/badge/version-7.0.62-2563eb)](RELEASE_NOTES_7.0.62.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[1 — Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.61-INSTALLATEUR.tar.gz)** · **[2 — Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.61-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[1 — Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[2 — Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.62-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** ou **2-WINDOWS**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
@@ -117,7 +117,7 @@ Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
 ## Android, iPhone et accès à distance
 
-La version 7.0.61 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
 1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
 2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
@@ -225,3 +225,7 @@ Le suivi ordinateur et mobile présente une batterie avec pourcentage : vert en 
 Le bilan remplace la colonne de couverture par début de décharge, temps de décharge effectivement mesuré et reprise de charge, y compris le lendemain. Chaque événement exige deux minutes continues au-delà de 20 W nets. L’heure affichée est le premier relevé de cette séquence confirmée. Le temps effectif exclut pauses et intervalles sans données de plus de 45 secondes ; ce n’est pas le temps écoulé entre les événements. Le premier retour durable en charge termine le cycle, même s’il survient le même jour. La recherche s’arrête au plus tard à la fin du lendemain ; sans reprise observée la durée reste provisoire. Les relevés manquants sont signalés en remarques.
 
 Le surplus reste provisoire tant que la fin solaire totale n’est pas confirmée. Aucun réglage de production ou de batterie n’est modifié. Les historiques existants sont réutilisés. Installer sur Windows ou Mac, relancer, puis actualiser la page mobile.
+
+## Gestion solaire et ESP32 (7.0.62)
+
+Voir [les notes de version](RELEASE_NOTES_7.0.62.md). La gestion automatique est désactivée par défaut dans une installation neuve. Les deux ESP32 sont visibles dans Équipements, en fenêtre classique et sur le web. Le collecteur doit rester allumé ; les clients Mac/Android consultent son adresse IP locale. Le pilotage Mac autonome et les essais Android restent à valider sur les appareils.
