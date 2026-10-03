@@ -20,6 +20,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +32,29 @@ try:
     from PIL import Image
 except ImportError:
     Image = None
+
+
+def _trusted_client(address):
+    """Limit the dashboard to loopback, a private LAN, or the Tailnet.
+
+    The dashboard is designed for a home network and Tailscale, never for
+    Internet exposure.  This remains effective even if a router port-forward
+    is accidentally configured later.
+    """
+    try:
+        client = ipaddress.ip_address(address)
+    except ValueError:
+        return False
+    private_networks = (
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("172.16.0.0/12"),
+        ipaddress.ip_network("192.168.0.0/16"),
+        ipaddress.ip_network("fc00::/7"),
+        ipaddress.ip_network("fe80::/10"),
+        ipaddress.ip_network("100.64.0.0/10"),
+        ipaddress.ip_network("fd7a:115c:a1e0::/48"),
+    )
+    return client.is_loopback or any(client in network for network in private_networks)
 
 
 MOBILE_HTML = r"""<!doctype html>
@@ -254,6 +278,9 @@ class MobileDashboard:
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
+                if not _trusted_client(self.client_address[0]):
+                    self.send_error(403, "Private network or Tailscale required")
+                    return
                 path = urlparse(self.path).path
                 if path in ("/", "/index.html"):
                     source = Path(__file__).with_name('dashboard_ui.html')
@@ -270,7 +297,10 @@ class MobileDashboard:
                     try:
                         if path == '/api/settings':
                             report = dashboard.data_service.settings()
-                            report['desktop_actions'] = _is_this_computer(self.client_address[0])
+                            report['desktop_actions'] = (
+                                _is_this_computer(self.client_address[0])
+                                and sys.platform in ('win32', 'darwin')
+                            )
                         else:
                             period = parse_qs(urlparse(self.path).query).get('period',['today'])[0]
                             report = dashboard.data_service.report(period)
@@ -343,6 +373,9 @@ class MobileDashboard:
                 self.send_error(404)
 
             def do_POST(self):
+                if not _trusted_client(self.client_address[0]):
+                    self.send_error(403, "Private network or Tailscale required")
+                    return
                 if urlparse(self.path).path != '/api/action':
                     self.send_error(404); return
                 if not secrets.compare_digest(self.headers.get('X-Action-Token',''),dashboard.csrf):

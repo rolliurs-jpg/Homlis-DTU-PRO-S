@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from dashboard_data import DashboardData, period_bounds
 
@@ -74,6 +75,18 @@ class DashboardDataTests(unittest.TestCase):
             self.assertEqual(report["history"][0]["production_w"], 1000)
             self.assertIsNone(report["history"][0]["consumption_w"])
             self.assertGreater(report["production_kwh"], 0)
+
+    def test_settings_remains_available_without_desktop_autostart(self):
+        config = {
+            "linky": {"enabled": False}, "shelly": {"enabled": False},
+            "battery": {"enabled": False}, "shelly2": {"enabled": False},
+            "hoymiles_proxy": {"enabled": False}, "esp_router": {"enabled": False},
+            "tarifs_edf": {},
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            with patch("dashboard_data.autostart_status", side_effect=OSError("unsupported")):
+                settings = DashboardData(Path(folder), config, FakeBattery()).settings()
+        self.assertEqual(settings["autostart"], {"enabled": False, "computer": "Raspberry Pi"})
 
 
 if __name__ == "__main__":

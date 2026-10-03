@@ -232,7 +232,13 @@ class DashboardData:
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
         result['esp_devices'] = self.esp_devices()
-        result['autostart'] = autostart_status(self.base)
+        try:
+            result['autostart'] = autostart_status(self.base)
+        except OSError:
+            # systemd owns automatic startup on Raspberry Pi / Linux.  The
+            # web dashboard must stay usable even though the desktop helper
+            # only exists on Windows and macOS.
+            result['autostart'] = {'enabled': False, 'computer': 'Raspberry Pi'}
         return result
 
     def set_autostart(self, enabled):

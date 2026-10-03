@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Boîte noire Hoymiles | DTU Pro-S, DDSU666, Linky, Dinky 4 et Shelly</title>
-  <meta name="description" content="Suivi solaire Hoymiles disponible sur Windows, macOS, Android et iPhone : DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure.">
+  <meta name="description" content="Suivi solaire Hoymiles disponible sur Windows, macOS, Raspberry Pi, Android et iPhone : DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure.">
   <meta name="keywords" content="Hoymiles, DTU Pro-S, DDSU666, Linky, Dinky 4, Teleinfo, photovoltaïque, autoconsommation, zéro injection, S-Miles">
   <meta name="author" content="Communauté Boîte noire Hoymiles">
   <meta name="robots" content="index,follow">
   <meta name="google-site-verification" content="uyxsAgOWPdMNL8QTeeG8YMIKRtOJ4nLT7MUiF00tLe8">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Boîte noire Hoymiles — suivi DTU Pro-S et Linky">
-  <meta property="og:description" content="Nouvelle interface solaire sur Windows, macOS, Android et iPhone, en local ou à distance avec Tailscale.">
+  <meta property="og:description" content="Nouvelle interface solaire sur Windows, macOS, Raspberry Pi, Android et iPhone, en local ou à distance privée avec Tailscale.">
   <meta property="og:image" content="assets/suivi-production-v7.png">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -29,9 +29,9 @@
       </div>
     </nav>
     <div id="accueil" class="hero-content">
-<p class="eyebrow">VERSION 7.0.61 · WINDOWS · macOS · ANDROID · iPHONE</p>
+<p class="eyebrow">VERSION 7.0.62 · WINDOWS · macOS · RASPBERRY PI · ANDROID · iPHONE</p>
       <h1>Vos données Hoymiles.<br><span>Enfin comparées au vrai compteur.</span></h1>
-      <p class="lead">Une interface moderne pour réunir DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure. La collecte fonctionne sur Windows ou Mac et le suivi est accessible depuis Android et iPhone.</p>
+      <p class="lead">Une interface moderne pour réunir DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure. La collecte fonctionne sur Windows, Mac ou Raspberry Pi ; le suivi est accessible depuis Android, iOS, macOS et Windows.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">1 — Télécharger Mac</a>
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.62-COMPLET.zip">2 — Télécharger Windows complet</a>
@@ -70,11 +70,12 @@
 
     <section class="section intro" id="plateformes">
       <p class="eyebrow blue">DISPONIBLE SUR VOS ÉCRANS</p>
-      <h2>Windows, Mac, Android et iPhone.</h2>
-      <p>Windows et macOS assurent actuellement la collecte et l’enregistrement permanent. Android et iPhone affichent la même nouvelle interface depuis le navigateur, sur le Wi-Fi local ou à distance avec Tailscale.</p>
+      <h2>Windows, Mac, Raspberry Pi, Android et iPhone.</h2>
+      <p>Windows, macOS ou Raspberry Pi assure la collecte et l’enregistrement permanent. Android et iPhone affichent la même interface depuis le navigateur, sur le Wi-Fi local ou à distance avec Tailscale. Un seul collecteur doit être actif à la fois.</p>
       <div class="cards">
         <article class="card"><span>W</span><h3>Windows</h3><p>Application complète, installation locale, historique et démarrage automatique facultatif.</p></article>
         <article class="card"><span>M</span><h3>macOS Apple Silicon</h3><p>Installateur autonome, sauvegarde des données avant mise à jour et fonctionnement sur le réseau local.</p></article>
+        <article class="card"><span>π</span><h3>Raspberry Pi</h3><p>Collecteur permanent par service systemd, tableau web privé et accès Tailscale.</p></article>
         <article class="card"><span>A</span><h3>Android</h3><p>Interface dans Chrome, ajout possible à l’écran d’accueil. Aucune application de magasin nécessaire.</p></article>
         <article class="card"><span>i</span><h3>iPhone et iPad</h3><p>Interface dans Safari, ajout possible à l’écran d’accueil et accès privé avec Tailscale.</p></article>
       </div>
@@ -97,7 +98,7 @@
     </section>
 
     <section id="installation" class="section split-section">
-      <div><p class="eyebrow blue">INSTALLATION WINDOWS ET MAC</p><h2>Installez, choisissez le réseau, surveillez.</h2><p>Deux téléchargements séparés évitent de mélanger les fichiers Windows et Mac. Les historiques locaux sont conservés lors d’une mise à jour.</p></div>
+      <div><p class="eyebrow blue">INSTALLATION WINDOWS, MAC ET RASPBERRY PI</p><h2>Installez, choisissez le réseau, surveillez.</h2><p>Les historiques locaux sont conservés lors d’une mise à jour. Raspberry Pi utilise le dépôt et un service systemd documenté.</p></div>
       <ol class="steps">
         <li><strong>1. Téléchargez</strong><span>Choisissez le ZIP Windows ou le ZIP Mac depuis la version GitHub publiée.</span></li>
         <li><strong>2. Installez</strong><span>Double-cliquez sur <code>INSTALLER_WINDOWS.vbs</code>.</span></li>
@@ -105,19 +106,20 @@
         <li><strong>4. Shelly facultatif</strong><span>Saisissez son IP si présent. Lors d’une mise à jour, « Non » conserve ses réglages actuels.</span></li>
         <li><strong>5. Choisissez l’interface</strong><span>Le raccourci Boîte noire Hoymiles propose la nouvelle interface web ou l’ancien logiciel avec sa fenêtre, sur Windows comme sur Mac.</span></li>
         <li><strong>6. Mac Apple Silicon</strong><span>Transférez l’archive TAR.GZ intacte sur le Mac et décompressez-la sur le Mac. Ce format conserve les autorisations d’exécution. Le dossier contient seulement <code>1 - INSTALLER BOITE NOIRE HOYMILES.app</code> et <code>2 - LIRE-MOI-MAC.txt</code>. Faites un clic droit sur l’installateur puis choisissez Ouvrir.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
+        <li><strong>7. Raspberry Pi</strong><span>Suivez le <a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/raspberry-pi/README.md">guide Raspberry Pi</a> : environnement Python, configuration locale et service systemd. Laissez le réglage web « Démarrage automatique » sur Non : systemd prend le relais.</span></li>
       </ol>
       <aside class="mac-network-note"><strong>macOS 15.5 ou plus récent — erreur « No route to host »</strong><p>Si les appareils répondent depuis Terminal mais restent hors ligne dans l’application, autorisez le réseau Wi-Fi local puis redémarrez le Mac :</p><code>sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"</code><p>Cette exception système concerne toutes les applications utilisant le réseau <code>192.168.1.x</code>. Procédure validée sous macOS 27.0. <a href="https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy">Explication officielle Apple</a>.</p></aside>
     </section>
 
     <section class="section split-section" id="mobile">
-      <div><p class="eyebrow blue">ANDROID, iPHONE ET TAILSCALE</p><h2>Surveillez la maison, même en vacances.</h2><p>Le bouton <strong>Lecture à distance</strong> affiche les adresses puis ouvre la nouvelle interface. Elle fonctionne dans Chrome sur Android et Safari sur iPhone/iPad. À distance, Tailscale crée un accès privé entre l’ordinateur et le téléphone.</p></div>
+      <div><p class="eyebrow blue">ANDROID, iOS, macOS, WINDOWS ET TAILSCALE</p><h2>Surveillez la maison, même en vacances.</h2><p>Windows, macOS ou Raspberry Pi héberge le tableau. Ouvrez-le dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows). Tailscale crée un accès privé et chiffré à distance.</p></div>
       <ol class="steps">
-        <li><strong>1. Lancez le logiciel</strong><span>L’ordinateur de la maison collecte les données et sert le tableau sur le port <code>8765</code>.</span></li>
-        <li><strong>2. Cliquez sur Lecture à distance</strong><span>Le logiciel affiche d’abord l’adresse locale et, si disponible, l’adresse privée Tailscale.</span></li>
-        <li><strong>3. Installez Tailscale</strong><span>Connectez l’ordinateur et le téléphone au même compte Tailscale.</span></li>
-        <li><strong>4. Consultez à distance</strong><span>Ouvrez <code>http://ADRESSE_TAILSCALE:8765</code>, puis ajoutez la page à l’écran d’accueil Android ou iPhone. Aucun port de la box ni service public Funnel n’est nécessaire.</span></li>
+        <li><strong>1. Lancez un seul collecteur</strong><span>Windows, macOS ou Raspberry Pi collecte les données et sert le tableau sur le port <code>8765</code>.</span></li>
+        <li><strong>2. À la maison</strong><span>Ouvrez <code>http://IP_DU_COLLECTEUR:8765/</code> sur le Wi-Fi local.</span></li>
+        <li><strong>3. Installez Tailscale</strong><span>Connectez le collecteur et chaque téléphone/ordinateur au même tailnet.</span></li>
+        <li><strong>4. Consultez à distance</strong><span>Ouvrez <code>http://IP_TAILSCALE_DU_COLLECTEUR:8765/</code>, puis ajoutez la page à l’écran d’accueil Android ou iPhone. Sur Raspberry, obtenez l’adresse avec <code>tailscale ip -4</code>. Aucun port de la box ni service public Funnel n’est nécessaire.</span></li>
       </ol>
-      <p>Le tableau indique l’âge et la provenance de chaque mesure. Sur téléphone, Windscribe peut remplacer temporairement Tailscale : coupez Windscribe puis réactivez Tailscale si l’accès privé ne revient pas automatiquement.</p>
+      <p>Le tableau indique l’âge et la provenance de chaque mesure. N’ouvrez aucun port sur la box, n’utilisez pas Tailscale Funnel, activez la double authentification du compte Tailscale et protégez les ESP32 en WPA2/WPA3. Sur téléphone, Windscribe peut remplacer temporairement Tailscale : coupez Windscribe puis réactivez Tailscale si l’accès privé ne revient pas automatiquement.</p>
     </section>
 
     <section id="soutenir" class="section">

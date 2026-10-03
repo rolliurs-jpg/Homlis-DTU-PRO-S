@@ -3,7 +3,7 @@
 **Version 7.0.62 : historique batterie Windows restauré et état du Shelly 2 corrigé sur Windows et macOS.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
-> Suivi solaire local sur Windows et macOS, consultable depuis Android et iPhone avec la nouvelle interface web privée.
+> Suivi solaire local sur Windows, macOS et Raspberry Pi, consultable depuis Android, iPhone, iPad, Mac et Windows avec l'interface web privée.
 
 [![Version](https://img.shields.io/badge/version-7.0.62-2563eb)](RELEASE_NOTES_7.0.62.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
@@ -15,16 +15,17 @@ Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** o
 
 ![Suivi de production](docs/assets/suivi-production-v7.png)
 
-## Disponible sur quatre plateformes
+## Disponible sur toutes vos plateformes
 
 | Plateforme | Disponibilité | Utilisation |
 | --- | --- | --- |
 | Windows | Application complète | Collecte permanente, historique, réglages et nouvelle interface. |
 | macOS Apple Silicon | Application complète | Collecte permanente avec installateur autonome et sauvegarde avant mise à jour. |
+| Raspberry Pi | Collecteur web permanent | Service systemd, historique local et tableau web privé. |
 | Android | Interface web | Chrome sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
 | iPhone / iPad | Interface web | Safari sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
 
-Android et iPhone utilisent la même interface moderne, sans application de magasin. Un ordinateur Windows ou Mac — puis prochainement le boîtier Raspberry — doit rester actif pour collecter et servir les données.
+Android et iPhone utilisent la même interface moderne, sans application de magasin. Windows, macOS ou un Raspberry Pi peut rester actif pour collecter et servir les données. N'exécutez qu'un seul collecteur à la fois.
 
 ## Choisir la bonne version réseau
 
@@ -33,6 +34,7 @@ Android et iPhone utilisent la même interface moderne, sans application de maga
 | Windows | **Deux connexions Wi-Fi** | Wi-Fi interne vers la box/Dinky/Shelly et seconde antenne Wi-Fi vers le DTU. |
 | Windows | **Réseau unique nano-routeur/LAN — recommandé** | DTU en Ethernet sur le nano-routeur Client/Pont ; PC, Dinky et Shelly sur la box. |
 | macOS Apple Silicon | **Réseau unique nano-routeur/LAN uniquement** | Même réseau pour tous les appareils, sans changement de Wi-Fi sur le Mac. |
+| Raspberry Pi | **Ethernet vers la box + Wi-Fi dédié ESP32** | Ethernet pour DTU/Linky/Shelly ; Wi-Fi séparé pour le proxy ESP32 si nécessaire. |
 
 Le choix se fait pendant l’installation Windows. L’installation Mac demande directement l’adresse IP du DTU sur le réseau unique.
 
@@ -115,15 +117,28 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 
 Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
 
-## Android, iPhone et accès à distance
+## Raspberry Pi, accès web et sécurité
+
+Le Raspberry Pi peut héberger le collecteur en continu avec son service
+systemd. Il reprend les mêmes sources de mesure que les éditions de bureau et
+sert le tableau web sur le port `8765`. Le guide complet, le modèle de service
+et la procédure d'accès privée sont disponibles dans
+[raspberry-pi/README.md](raspberry-pi/README.md).
+
+Conservez le réglage web **Démarrage automatique** sur **Non** sur Raspberry :
+systemd lance déjà le collecteur au démarrage. Le serveur refuse les connexions
+Internet publiques ; n'ouvrez aucun port de la box et n'activez pas Tailscale
+Funnel. Réservez Tailscale à l'accès privé distant.
+
+## Android, iPhone, Mac, Windows et accès à distance
 
 La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
-1. Lancez **Boîte noire Hoymiles** sur l’ordinateur de la maison.
-2. Cliquez sur le bouton **Lecture à distance** pour afficher les adresses disponibles. Le navigateur s’ouvre seulement après validation du message afin de laisser les adresses visibles sous Windows.
-3. Sur Android avec Chrome ou sur iPhone/iPad avec Safari, ouvrez `http://ADRESSE_DU_PC:8765` depuis le Wi-Fi de la maison.
-4. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur l’ordinateur et le téléphone, puis connectez les deux appareils au même compte.
-5. Hors de la maison, ouvrez `http://ADRESSE_TAILSCALE_DU_PC:8765`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
+1. Lancez le seul collecteur choisi : Windows, macOS ou Raspberry Pi.
+2. À la maison, ouvrez `http://IP_DU_COLLECTEUR:8765/` dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows).
+3. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur le collecteur et chaque appareil client, puis connectez-les au même tailnet.
+4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_COLLECTEUR:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
+5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`.
 
 Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky/Dinky, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule.
 
@@ -135,7 +150,7 @@ Sur téléphone, Windscribe et Tailscale ne doivent pas être utilisés en même
 
 Depuis Chrome Android ou Safari iPhone/iPad, utilisez **Ajouter à l’écran d’accueil** pour créer une icône solaire ouvrant directement l’interface comme une application. Il ne s’agit pas d’une application native publiée sur Google Play ou l’App Store.
 
-N’ouvrez aucun port de la box et n’utilisez pas **Tailscale Funnel** : le tableau doit rester limité à votre réseau local et à votre réseau privé Tailscale. L’ordinateur, le logiciel et Tailscale doivent rester actifs pour une consultation pendant les vacances. Si le pare-feu Windows demande une autorisation pour Python, autorisez le réseau privé utilisé par l’installation.
+N’ouvrez aucun port de la box et n’utilisez pas **Tailscale Funnel** : le tableau doit rester limité à votre réseau local et à votre réseau privé Tailscale. Activez l'authentification à deux facteurs du compte Tailscale, utilisez un compte par personne et gardez les ESP32 protégés par WPA2/WPA3. Le collecteur et Tailscale doivent rester actifs pour une consultation pendant les vacances. Si le pare-feu Windows demande une autorisation pour Python, autorisez le réseau privé utilisé par l’installation.
 
 ## Données locales
 
