@@ -1,6 +1,6 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Version 7.0.62 : historique batterie Windows restauré et état du Shelly 2 corrigé sur Windows et macOS.**
+**Version 7.0.62 : édition Raspberry Pi disponible — collecte permanente par service systemd et même tableau web sur Mac, Windows, Android et iPhone.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Suivi solaire local sur Windows, macOS et Raspberry Pi, consultable depuis Android, iPhone, iPad, Mac et Windows avec l'interface web privée.
@@ -9,7 +9,7 @@ Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tablea
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[1 — Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[2 — Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.62-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Installer sur Raspberry Pi — recommandé pour une collecte permanente](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.62-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** ou **2-WINDOWS**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
@@ -21,11 +21,11 @@ Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** o
 | --- | --- | --- |
 | Windows | Application complète | Collecte permanente, historique, réglages et nouvelle interface. |
 | macOS Apple Silicon | Application complète | Collecte permanente avec installateur autonome et sauvegarde avant mise à jour. |
-| Raspberry Pi | Collecteur web permanent | Service systemd, historique local et tableau web privé. |
+| Raspberry Pi | **Collecteur recommandé** | Service systemd, historique local et tableau web privé, sans laisser un Mac ou un PC allumé. |
 | Android | Interface web | Chrome sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
 | iPhone / iPad | Interface web | Safari sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
 
-Android et iPhone utilisent la même interface moderne, sans application de magasin. Windows, macOS ou un Raspberry Pi peut rester actif pour collecter et servir les données. N'exécutez qu'un seul collecteur à la fois.
+Android et iPhone utilisent la même interface moderne, sans application de magasin. Pour une installation permanente, le Raspberry Pi est recommandé : il collecte et sert les données jour et nuit. Windows ou macOS restent des alternatives de bureau. N'exécutez qu'un seul collecteur à la fois.
 
 ## Choisir la bonne version réseau
 
@@ -125,6 +125,11 @@ sert le tableau web sur le port `8765`. Le guide complet, le modèle de service
 et la procédure d'accès privée sont disponibles dans
 [raspberry-pi/README.md](raspberry-pi/README.md).
 
+Lorsqu'un Raspberry est le collecteur actif, n'utilisez pas en parallèle la
+gestion solaire de l'ancienne application Mac ou Windows : elle ne constitue
+plus qu'un outil de secours. Le navigateur ouvre alors exactement la même
+interface sur tous les appareils.
+
 Conservez le réglage web **Démarrage automatique** sur **Non** sur Raspberry :
 systemd lance déjà le collecteur au démarrage. Le serveur refuse les connexions
 Internet publiques ; n'ouvrez aucun port de la box et n'activez pas Tailscale
@@ -134,11 +139,11 @@ Funnel. Réservez Tailscale à l'accès privé distant.
 
 La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
 
-1. Lancez le seul collecteur choisi : Windows, macOS ou Raspberry Pi.
-2. À la maison, ouvrez `http://IP_DU_COLLECTEUR:8765/` dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows).
-3. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur le collecteur et chaque appareil client, puis connectez-les au même tailnet.
-4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_COLLECTEUR:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
-5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`.
+1. Lancez le seul collecteur choisi — de préférence le Raspberry Pi avec son service systemd.
+2. À la maison, ouvrez `http://IP_DU_RASPBERRY:8765/` dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows).
+3. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur le Raspberry et chaque appareil client, puis connectez-les au même tailnet.
+4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_RASPBERRY:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
+5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`. Sur Android, Chrome → menu `⋮` → **Installer l’application** ou **Ajouter à l’écran d’accueil** crée un bouton « Mon solaire ».
 
 Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky/Dinky, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule.
 

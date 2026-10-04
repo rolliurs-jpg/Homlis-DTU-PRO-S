@@ -1,8 +1,10 @@
-# Raspberry Pi : collecteur web permanent
+# Raspberry Pi : collecteur web permanent recommandé
 
 Cette édition fait tourner la collecte sur un Raspberry Pi relié au réseau de
 la maison. Windows, macOS, Android et iOS consultent ensuite le même tableau
-dans un navigateur ; un seul collecteur doit être actif à la fois.
+dans un navigateur. C'est la configuration recommandée pour une installation
+permanente : le Raspberry collecte même lorsque les ordinateurs sont éteints.
+Un seul collecteur doit être actif à la fois.
 
 ## Sécurité à respecter
 
@@ -70,6 +72,20 @@ Pour connaître l'adresse Tailscale du Raspberry :
 tailscale ip -4
 ```
 
+Si Tailscale n'est pas encore installé sur le Raspberry, installez-le puis
+associez-le à votre réseau privé Tailscale :
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+```
+
+Ouvrez le lien de connexion affiché, puis installez Tailscale sur chaque Mac,
+PC, téléphone ou tablette avec le même compte. Hors de la maison, l'adresse à
+ouvrir est `http://IP_TAILSCALE_DU_RASPBERRY:8765/`. Aucun port de la box ne
+doit être ouvert.
+
 Ajoutez ensuite la page à l'écran d'accueil depuis Chrome (Android) ou Safari
-(iOS). L'accès Tailscale reste privé et chiffré ; il ne demande aucun port
-ouvert sur Internet.
+(iOS). Sur Android, Chrome propose **Installer l'application** ou **Ajouter à
+l'écran d'accueil** dans le menu `⋮`. L'accès Tailscale reste privé et chiffré
+; il ne demande aucun port ouvert sur Internet.
