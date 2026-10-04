@@ -290,6 +290,39 @@ def dashboard_ui_action(action, _values=None):
         config_file.write_text(json.dumps(CONFIG, ensure_ascii=False, indent=2), encoding="utf-8")
         surplus_controller.set_enabled(enabled)
         return {"ok": True, "enabled": enabled}
+    if action == "settings":
+        values = _values or {}
+        devices = values.get("devices")
+        if not isinstance(devices, dict):
+            return {"error": "Liste des équipements attendue"}
+        allowed = ("linky", "shelly", "battery", "shelly2", "hoymiles_proxy", "esp_router")
+        updated = json.loads(json.dumps(CONFIG))
+        for name in allowed:
+            item = devices.get(name)
+            if item is None:
+                continue
+            if not isinstance(item, dict) or not isinstance(item.get("enabled"), bool):
+                return {"error": f"Réglage invalide pour {name}"}
+            host = str(item.get("host", "")).strip()
+            if item["enabled"] and not host:
+                return {"error": f"Adresse nécessaire pour {name}"}
+            if len(host) > 253 or any(ch.isspace() for ch in host):
+                return {"error": f"Adresse invalide pour {name}"}
+            updated.setdefault(name, {}).update(enabled=item["enabled"], host=host)
+        complete = values.get("production_complete")
+        reverse = values.get("shelly2_reverse")
+        if not isinstance(complete, bool) or not isinstance(reverse, bool):
+            return {"error": "Choix de production invalide"}
+        updated["production_complete"] = complete
+        updated.setdefault("shelly2", {})["reverse"] = reverse
+        CONFIG_FILE.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
+        CONFIG.clear()
+        CONFIG.update(updated)
+        pending_equipment.clear()
+        pending_equipment.update({name: {"enabled": updated[name].get("enabled", False),
+                                         "host": updated[name].get("host", "")}
+                                  for name in allowed})
+        return {"ok": True, "restart_required": True}
     if action != "classic":
         return {"error": "Cette action nécessite le logiciel de bureau."}
     # Laisser le temps au serveur de répondre avant que le lanceur arrête le

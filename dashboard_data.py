@@ -228,7 +228,7 @@ class DashboardData:
                   'production_complete':bool(self.config.get('production_complete')),
                   'tarifs_edf':{k:self.config.get('tarifs_edf',{}).get(k) for k in
                                 ('hp_eur_kwh','hc_eur_kwh','abonnement_journalier_eur','plages_hc')}}
-        for name in ('linky','shelly','battery','shelly2'):
+        for name in ('linky','shelly','battery','shelly2','hoymiles_proxy','esp_router'):
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
         result['esp_devices'] = self.esp_devices()
