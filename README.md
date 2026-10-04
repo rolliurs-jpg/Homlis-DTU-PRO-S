@@ -249,6 +249,32 @@ Voir [les notes de la version 7.0.54](RELEASE_NOTES_7.0.54.md). Le suivi Zendure
 
 Le suivi batterie propose désormais **Plein à 100 % et surplus après charge** : heure du premier plein observé, injection nette après le plein, fin solaire estimée si toutes les productions sont mesurées, couverture et export quotidien CSV. Voir les notes de version.
 
+## Gestion automatique : maison, batterie pleine et panneaux à 100 %
+
+La gestion solaire est désactivée par défaut et ne doit être activée qu'après
+vérification des mesures. Lorsqu'elle est active, son comportement est le
+suivant :
+
+1. **Batterie en charge ou sous 100 %** : les panneaux pilotés sont demandés à
+   **100 %**. La production donne priorité à la consommation de la maison puis
+   à la recharge de la batterie ; elle n'est pas bridée prématurément.
+2. **Batterie pleine confirmée** : le plein doit être observé pendant au moins
+   deux minutes, sans charge ni décharge significative. Cette précaution évite
+   de limiter les panneaux sur une mesure passagère.
+3. **Après le plein** : la puissance des panneaux est ajustée pour viser environ
+   **30 W prélevés au réseau**. Ce léger prélèvement volontaire évite une
+   injection durable et maintient la consommation de la maison couverte sans
+   chercher un « zéro » instable.
+4. **Panneaux concernés** : le proxy Bluetooth pilote les deux panneaux du
+   second ensemble. Si le contrôle DTU est activé et que ses mesures sont
+   valides, la même régulation s'applique aux **six panneaux**. Si une mesure ou
+   une liaison devient ancienne, un retour à **100 %** est demandé afin de ne
+   pas brider la production à l'aveugle.
+
+La batterie Zendure, les relais Shelly et le réglage interne de zéro-injection
+Hoymiles ne sont jamais modifiés par ce logiciel. Il ajuste uniquement les
+limites de production des équipements explicitement configurés pour ce mode.
+
 
 ### Bilan après plein sur mobile
 
