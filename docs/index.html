@@ -71,10 +71,10 @@
     </section>
 
     <section class="section split-section" id="gestion-batterie">
-      <div><p class="eyebrow blue">GESTION AUTOMATIQUE DE LA BATTERIE</p><h2>La maison et la batterie d’abord, l’injection ensuite.</h2><p>Avant le plein, les panneaux pilotés restent à <strong>100 %</strong> : la production couvre la maison et recharge la batterie sans bridage prématuré.</p><p>Le plein doit être confirmé pendant deux minutes, sans charge ni décharge significative. Après ce seuil, la régulation adapte les panneaux pour viser environ <strong>30 W prélevés au réseau</strong>. Cela évite une injection durable sans chercher un zéro-injection instable.</p></div>
+      <div><p class="eyebrow blue">GESTION AUTOMATIQUE DE LA BATTERIE</p><h2>La maison et la batterie d’abord, le zéro-injection après le plein.</h2><p>Avant le plein, les panneaux pilotés restent à <strong>100 %</strong> : la production couvre la maison et recharge la batterie sans bridage prématuré.</p><p>Le plein doit être confirmé pendant deux minutes, sans charge ni décharge significative. Après ce seuil, la maison passe en <strong>mode zéro-injection</strong> : la production des panneaux est recalculée après la consommation réelle de la maison et seul le surplus est réduit. La cible de sécurité est environ <strong>30 W prélevés au réseau</strong>, pour stabiliser le zéro-injection sans oscillation.</p></div>
       <ol class="steps">
         <li><strong>Batterie sous 100 %</strong><span>Panneaux pilotés à 100 % : priorité à la consommation de la maison puis à la charge.</span></li>
-        <li><strong>Batterie pleine confirmée</strong><span>Régulation des deux panneaux reliés au proxy Bluetooth, ou des six panneaux si le contrôle DTU est configuré et disponible.</span></li>
+        <li><strong>Batterie pleine confirmée</strong><span>Mode zéro-injection : la production réelle est ajustée après la consommation de la maison, sur les deux panneaux Bluetooth ou les six panneaux si le contrôle DTU est disponible.</span></li>
         <li><strong>Mesure ou liaison absente</strong><span>Retour demandé à 100 % afin de ne jamais limiter la production à l’aveugle.</span></li>
         <li><strong>Protection</strong><span>Le logiciel ne modifie ni la batterie Zendure, ni les relais Shelly, ni le réglage interne de zéro-injection Hoymiles.</span></li>
       </ol>

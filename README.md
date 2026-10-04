@@ -261,10 +261,11 @@ suivant :
 2. **Batterie pleine confirmée** : le plein doit être observé pendant au moins
    deux minutes, sans charge ni décharge significative. Cette précaution évite
    de limiter les panneaux sur une mesure passagère.
-3. **Après le plein** : la puissance des panneaux est ajustée pour viser environ
-   **30 W prélevés au réseau**. Ce léger prélèvement volontaire évite une
-   injection durable et maintient la consommation de la maison couverte sans
-   chercher un « zéro » instable.
+3. **Après le plein** : la maison passe en mode **zéro-injection**. La puissance
+   réellement demandée aux panneaux est recalculée après la consommation réelle
+   de la maison : seul le surplus est réduit. La cible pratique est environ
+   **30 W prélevés au réseau** ; ce léger écart volontaire stabilise le
+   zéro-injection et évite les oscillations ou une injection durable.
 4. **Panneaux concernés** : le proxy Bluetooth pilote les deux panneaux du
    second ensemble. Si le contrôle DTU est activé et que ses mesures sont
    valides, la même régulation s'applique aux **six panneaux**. Si une mesure ou
