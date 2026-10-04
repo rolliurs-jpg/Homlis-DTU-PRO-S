@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="Boîte noire Hoymiles — suivi DTU Pro-S et Linky">
   <meta property="og:description" content="Nouvelle interface solaire sur Windows, macOS, Raspberry Pi, Android et iPhone, en local ou à distance privée avec Tailscale.">
-  <meta property="og:image" content="assets/suivi-production-v7.png">
+  <meta property="og:image" content="assets/tableau-web-raspberry.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -95,7 +95,12 @@
 
     <section class="section screenshot-section">
       <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky/Dinky, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
-      <figure class="app-shot"><a href="assets/suivi-production-v7.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture complète"><img src="assets/suivi-production-v7.png" alt="Interface complète de suivi : production Hoymiles, réseau DDSU, Linky Dinky et deux mesures Shelly Pro EM"></a><figcaption>Capture affichée entièrement, sans recadrage. Cliquez dessus pour l’ouvrir à sa taille réelle.</figcaption></figure>
+      <figure class="app-shot"><a href="assets/tableau-web-raspberry.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture complète du tableau web"><img src="assets/tableau-web-raspberry.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne"></a><figcaption>Le même tableau web sur Mac, Windows, Android et iPhone. Cliquez pour l’ouvrir à sa taille réelle.</figcaption></figure>
+    </section>
+
+    <section class="section split-section" id="esp32">
+      <div><p class="eyebrow blue">SECOND ENSEMBLE SOLAIRE · ESP32</p><h2>Relier des panneaux éloignés, sans modifier le DTU Pro-S.</h2><p>Un second ensemble de panneaux, indépendant du DTU Pro-S principal, peut être suivi grâce à une liaison complémentaire ESP32. Le Raspberry rassemble ses données dans le même tableau privé.</p><p>Le routeur ESP32 apporte le Wi-Fi jusqu’au local technique. Le proxy ESP32 placé près des micro-onduleurs assure leur liaison Bluetooth. Le tableau indique séparément l’état des deux liaisons.</p></div>
+      <div class="diagram topology">Second ensemble de panneaux<br>↕ Bluetooth<br>ESP32 proxy Hoymiles<br>↕ Wi-Fi longue distance<br>ESP32 routeur solaire<br>↕ réseau privé<br>Raspberry Pi · tableau web</div>
     </section>
 
     <section id="installation" class="section split-section">
@@ -145,7 +150,7 @@
 
     <section class="section screenshot-section">
       <div class="section-heading"><div><p class="eyebrow blue">BILAN EDF</p><h2>Le Linky pour les kWh et les euros.</h2></div><p>Le calcul HP, HC et abonnement s’appuie sur les index Linky/Dinky, et non sur le DDSU.</p></div>
-      <figure class="app-shot"><img src="assets/bilan-edf-v7.png" alt="Bilan EDF avec production photovoltaïque, heures pleines, heures creuses et abonnement"><figcaption>Bilan sur 24 h, 7 jours, mois ou année.</figcaption></figure>
+      <figure class="app-shot"><img src="assets/batterie-web-raspberry.png" alt="Suivi batterie dans le tableau web Raspberry Pi"><figcaption>Suivi batterie et cycle de charge directement dans le tableau web.</figcaption></figure>
     </section>
 
     <section class="section faq">
@@ -159,7 +164,7 @@
   <section><h2>Choisissez vos équipements</h2>
 <p>Avec le DTU Hoymiles : Dinky seul pour les index Linky, Shelly Pro EM seul pour les mesures indépendantes, ou les deux ensemble. Le bouton Équipements permet d’activer les appareils utilisés et de renseigner leurs adresses. Après enregistrement, relancez le logiciel.</p>
 <p>Courbes, bulles et cartes mobiles s’adaptent au choix. Un appareil en panne reste visible. Avec le Shelly seul, le bilan est une estimation sur les mesures enregistrées ; avec le Dinky, il utilise les index Linky. Les mesures réseau ne sont jamais additionnées.</p></section>
-<section><h2>7.0.62 — gestion solaire et ESP32</h2><p>Adresses et disponibilité des ESP32 dans les deux interfaces, régulation des six panneaux et informations batterie complétées. Pilotage vérifié sur Windows ; validation réelle Mac et Android encore à effectuer.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.62.md">Notes de la version 7.0.62</a>.</p></section><section><h2>7.0.61 — batterie et Shelly 2 fiabilisés</h2><p>Windows ignore désormais les anciennes lignes de date invalides sans perdre l’historique batterie. La page Équipements affiche correctement le Shelly 2 comme connecté sur Windows et macOS dès qu’une mesure est reçue.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.61.md">Consulter les notes de la version 7.0.61</a>.</p></section><section><h2>7.0.60 — choix d’interface réparé</h2><p>Le bouton de la nouvelle interface ouvre maintenant réellement le logiciel classique sur Windows et macOS. Les deux installateurs savent aussi configurer le Shelly EM Gen3 des nouveaux panneaux.</p><p>Le paquet Mac reste autonome, conserve ses autorisations Unix et refuse les résidus Windows avant publication.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.60.md">Consulter les notes de la version 7.0.60</a>.</p></section></main>
+<section><h2>7.0.62 — gestion solaire et ESP32</h2><p>Le tableau web Raspberry présente la production, la batterie, les équipements et les deux ESP32 : routeur Wi-Fi distant et proxy Bluetooth des micro-onduleurs du second ensemble de panneaux.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.62.md">Notes de la version 7.0.62</a>.</p></section><section><h2>7.0.61 — batterie et Shelly 2 fiabilisés</h2><p>Windows ignore désormais les anciennes lignes de date invalides sans perdre l’historique batterie. La page Équipements affiche correctement le Shelly 2 comme connecté sur Windows et macOS dès qu’une mesure est reçue.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.61.md">Consulter les notes de la version 7.0.61</a>.</p></section><section><h2>7.0.60 — choix d’interface réparé</h2><p>Le bouton de la nouvelle interface ouvre maintenant réellement le logiciel classique sur Windows et macOS. Les deux installateurs savent aussi configurer le Shelly EM Gen3 des nouveaux panneaux.</p><p>Le paquet Mac reste autonome, conserve ses autorisations Unix et refuse les résidus Windows avant publication.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.60.md">Consulter les notes de la version 7.0.60</a>.</p></section></main>
 
   <footer>
     <div><strong>Boîte noire Hoymiles</strong><p>Projet communautaire indépendant, non affilié à Hoymiles, Enedis, EDF, Tasmota ou S-Miles Cloud.</p></div>

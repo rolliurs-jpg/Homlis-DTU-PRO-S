@@ -13,7 +13,7 @@ Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tablea
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** ou **2-WINDOWS**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
-![Suivi de production](docs/assets/suivi-production-v7.png)
+![Tableau web Raspberry Pi : production, consommation, injection et batterie](docs/assets/tableau-web-raspberry.png)
 
 ## Disponible sur toutes vos plateformes
 
@@ -134,6 +134,23 @@ Conservez le réglage web **Démarrage automatique** sur **Non** sur Raspberry :
 systemd lance déjà le collecteur au démarrage. Le serveur refuse les connexions
 Internet publiques ; n'ouvrez aucun port de la box et n'activez pas Tailscale
 Funnel. Réservez Tailscale à l'accès privé distant.
+
+## Second ensemble de panneaux indépendant : liaison ESP32 Wi-Fi + Bluetooth
+
+Le Raspberry peut aussi réunir les mesures d'un second ensemble de panneaux,
+indépendant du DTU Pro-S principal. Cette liaison complémentaire utilise deux
+ESP32 :
+
+- **ESP32 routeur solaire** : crée le relais Wi-Fi entre le local technique et
+  le Raspberry, même lorsque les panneaux sont éloignés de la box ;
+- **ESP32 proxy Bluetooth Hoymiles** : se place près des micro-onduleurs du
+  second ensemble et remonte leurs informations par Bluetooth.
+
+Le routeur assure la distance en Wi-Fi ; le proxy assure la liaison Bluetooth
+locale avec les micro-onduleurs. Le tableau web affiche leur disponibilité dans
+**Équipements** afin de distinguer une coupure du relais Wi-Fi d'une absence de
+liaison Bluetooth. Ces ESP32 complètent le DTU Pro-S : ils ne remplacent ni sa
+configuration ni le suivi de l'ensemble principal.
 
 ## Android, iPhone, Mac, Windows et accès à distance
 
