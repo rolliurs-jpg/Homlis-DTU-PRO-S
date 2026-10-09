@@ -21,6 +21,8 @@ class PlatformPackageTests(unittest.TestCase):
                 mac_full = package_platforms.mac_full_archive()
                 mac_zip = package_platforms.mac_full_zip()
                 windows = package_platforms.windows_archive()
+                raspberry = package_platforms.raspberry_archive()
+                release = package_platforms.version()
                 with tarfile.open(mac, "r:gz") as archive:
                     names = {m.name for m in archive.getmembers()}
                     launchers = [m for m in archive.getmembers()
@@ -29,18 +31,18 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(all(m.mode & 0o111 for m in launchers))
                     self.assertTrue(all("\\" not in m.name for m in archive.getmembers()))
                     self.assertIn(
-                        "Hoymiles-7.0.62-Mac/1 - INSTALLER BOITE NOIRE HOYMILES.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
+                        f"Hoymiles-{release}-Mac/1 - INSTALLER BOITE NOIRE HOYMILES.app/Contents/Resources/Payload/macOS-AppleSilicon/installer_mac.sh",
                         names,
                     )
                     visible = {m.name.split("/", 2)[1] for m in archive.getmembers()
-                               if m.name.startswith("Hoymiles-7.0.62-Mac/")}
+                               if m.name.startswith(f"Hoymiles-{release}-Mac/")}
                     self.assertEqual(visible, {
                         "1 - INSTALLER BOITE NOIRE HOYMILES.app",
                         "2 - SI LE MAC REFUSE - INSTALLER.command",
                         "3 - LIRE-MOI-MAC.txt",
                     })
                     repair = archive.extractfile(
-                        "Hoymiles-7.0.62-Mac/2 - SI LE MAC REFUSE - INSTALLER.command"
+                        f"Hoymiles-{release}-Mac/2 - SI LE MAC REFUSE - INSTALLER.command"
                     ).read()
                     self.assertTrue(repair.startswith(b"#!/bin/bash\n"))
                     self.assertNotIn(b"\r", repair)
@@ -49,7 +51,7 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertIn(b"exec /bin/bash", repair)
                 with tarfile.open(mac_full, "r:gz") as archive:
                     names = {m.name for m in archive.getmembers()}
-                    prefix = "Homlis-DTU-PRO-S-7.0.62-Mac/"
+                    prefix = f"Homlis-DTU-PRO-S-{release}-Mac/"
                     self.assertIn(prefix + "battery_monitor.py", names)
                     self.assertIn(prefix + "dashboard_ui.html", names)
                     self.assertIn(
@@ -67,13 +69,21 @@ class PlatformPackageTests(unittest.TestCase):
                     self.assertTrue(launchers)
                     self.assertTrue(all((i.external_attr >> 16) & 0o111 for i in launchers))
                     self.assertTrue(all(b"\r\n" not in archive.read(i) for i in launchers))
-                    root = "Hoymiles-7.0.62-Mac/"
+                    root = f"Hoymiles-{release}-Mac/"
                     visible = {n.split("/", 2)[1] for n in archive.namelist()
                                if n.startswith(root)}
                     self.assertEqual(visible, {
                         "1 - INSTALLER BOITE NOIRE HOYMILES.app",
                         "2 - LIRE-MOI-MAC.txt",
                     })
+                with tarfile.open(raspberry, "r:gz") as archive:
+                    names = {m.name for m in archive.getmembers()}
+                    installer = f"Hoymiles-{release}-Raspberry/raspberry-pi/INSTALLER_RASPBERRY.sh"
+                    self.assertIn(installer, names)
+                    self.assertTrue(archive.getmember(installer).mode & 0o111)
+                    self.assertFalse(any("config_v5.json" in name or name.endswith(".csv") for name in names))
+                    body = b"".join(archive.extractfile(m).read() for m in archive.getmembers() if m.isfile())
+                    self.assertNotIn(b"192.168.1.205", body)
         finally:
             package_platforms.OUTPUTS = old
 

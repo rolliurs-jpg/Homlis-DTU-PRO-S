@@ -80,7 +80,7 @@ class DashboardDataTests(unittest.TestCase):
         config = {
             "linky": {"enabled": False}, "shelly": {"enabled": False},
             "battery": {"enabled": False}, "shelly2": {"enabled": False},
-            "hoymiles_proxy": {"enabled": False}, "esp_router": {"enabled": False},
+            "tp_link": {"enabled": False}, "hoymiles_proxy": {"enabled": False}, "esp_router": {"enabled": False},
             "tarifs_edf": {},
         }
         with tempfile.TemporaryDirectory() as folder:

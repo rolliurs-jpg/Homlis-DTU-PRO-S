@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from battery_monitor import parse_zendure, household, energy_totals, BatteryMonitor, full_charge_days, battery_cycle, cycle_values
 
@@ -95,6 +96,17 @@ class FullChargeTests(unittest.TestCase):
         pv.append(dict(timestamp=t+1980, pv_w=100))
         self.assertIsNone(full_charge_days(battery, [], pv, t+1980)[0]['end_at'])
 
+    def test_confirmed_solar_end_survives_a_later_measurement_gap(self):
+        t = self.t
+        battery = [dict(timestamp=t, soc_pct=70)]
+        pv = [dict(timestamp=t, pv_w=100)] + [
+            dict(timestamp=t+i, pv_w=0) for i in range(60, 1921, 60)]
+        # The end was confirmed at t+60.  A later network gap is irrelevant
+        # unless production is observed again.
+        pv.append(dict(timestamp=t+2400, pv_w=0))
+        result = full_charge_days(battery, [], pv, t+2400)[0]
+        self.assertEqual(result['end_at'], t+60)
+
     def test_never_full_and_midnight_boundary(self):
         from datetime import datetime
         t = datetime(2026, 9, 22, 23, 59, 45).timestamp()
@@ -103,6 +115,21 @@ class FullChargeTests(unittest.TestCase):
         results = full_charge_days(battery, grid, [], t+60)
         self.assertIsNone(results[0]['full_at'])
         self.assertAlmostEqual(results[1]['export_kwh'], 1000*15/3600000)
+
+    def test_daily_solar_end_and_discharge_are_kept_without_full_charge(self):
+        t = datetime(2026, 9, 22, 12).timestamp()
+        battery = [dict(timestamp=t+i, soc_pct=60, charge_w=0,
+                        discharge_w=120 if 120 <= i < 900 else 0,
+                        ac_discharge_w=120 if 120 <= i < 900 else 0)
+                   for i in range(0, 2401, 15)]
+        pv = [dict(timestamp=t, pv_w=300)] + [
+            dict(timestamp=t+i, pv_w=0) for i in range(60, 1921, 60)]
+        result = full_charge_days(battery, [], pv, t+13*3600)[0]
+        self.assertIsNone(result['full_at'])
+        self.assertEqual(result['end_at'], t+60)
+        self.assertEqual(result['discharge_at'], t+120)
+        self.assertEqual(result['discharge_seconds'], 765)
+        self.assertFalse(result['cycle_pending'])
 
     def test_invalid_epoch_row_does_not_hide_windows_history(self):
         t = self.t

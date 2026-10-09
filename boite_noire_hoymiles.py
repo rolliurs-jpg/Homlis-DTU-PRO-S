@@ -66,7 +66,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.62"
+VERSION = "7.0.63"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -118,9 +118,9 @@ DEFAULT_CONFIG = {
     "dtu_wifi_limit_pct": DEFAULT_DTU_LIMIT_PCT,
     "dtu_lan_limit_pct": DEFAULT_DTU_LIMIT_PCT,
     "linky": {
-        "enabled": True,
+        "enabled": False,
         "mode": "dinky_http",
-        "host": "192.168.1.126",
+        "host": "",
         "port": 80,
         "timeout_s": 2,
         "path": "Status 8"
@@ -142,6 +142,9 @@ DEFAULT_CONFIG = {
     },
     "battery": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
     "shelly2": {"enabled": False, "host": "", "port": 80, "timeout_s": 2, "channel": 0, "reverse": False},
+    # Pont Wi-Fi Ethernet qui relie le DTU à la Livebox. Il est suivi comme
+    # équipement réseau afin de distinguer une panne du pont d'une panne DTU.
+    "tp_link": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
     "hoymiles_proxy": dict(DEFAULT_PROXY),
     "production_complete": False,
     "tarifs_edf": {
@@ -295,7 +298,7 @@ def dashboard_ui_action(action, _values=None):
         devices = values.get("devices")
         if not isinstance(devices, dict):
             return {"error": "Liste des équipements attendue"}
-        allowed = ("linky", "shelly", "battery", "shelly2", "hoymiles_proxy", "esp_router")
+        allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "hoymiles_proxy", "esp_router")
         updated = json.loads(json.dumps(CONFIG))
         for name in allowed:
             item = devices.get(name)
@@ -3817,7 +3820,7 @@ def open_equipment_settings(event=None):
     frame.pack(fill="both", expand=True)
     ttk.Label(frame, text="Choisissez les équipements utilisés en complément du DTU.").grid(row=0, column=0, columnspan=3, sticky="w")
     fields = {}
-    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth"), ("esp_router", "ESP32 — routeur Wi-Fi")), 1):
+    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2"), ("tp_link", "TP-Link — nano-routeur DTU"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth"), ("esp_router", "ESP32 — routeur Wi-Fi")), 1):
         active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
         address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
         ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)

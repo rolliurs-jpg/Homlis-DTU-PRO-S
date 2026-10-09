@@ -8,7 +8,7 @@ if hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
 
 DEFAULT_PROXY = {
     "enabled": False,
-    "host": "192.168.1.239",
+    "host": "",
     "port": 6053,
     "address": "",
     "serial_tail": "",

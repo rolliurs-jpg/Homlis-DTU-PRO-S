@@ -28,11 +28,11 @@ async def pair(pin):
 
     cfg = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     proxy = cfg.setdefault("hoymiles_proxy", {})
-    host = str(proxy.get("host") or "192.168.1.239")
+    host = str(proxy.get("host") or "").strip()
     address = str(proxy.get("address") or "").upper()
     sn = str(proxy.get("serial_tail") or "")
-    if not address or not sn:
-        raise ValueError("Renseignez address et serial_tail dans hoymiles_proxy avant l’appairage.")
+    if not host or not address or not sn:
+        raise ValueError("Renseignez host, address et serial_tail dans hoymiles_proxy avant l’appairage.")
     ble_id = str(proxy.get("ble_id") or _generate_ble_id())
 
     manager = habluetooth.BluetoothManager()
@@ -116,7 +116,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 

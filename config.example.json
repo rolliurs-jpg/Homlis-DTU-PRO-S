@@ -43,6 +43,12 @@
     "channel": 0,
     "reverse": false
   },
+  "tp_link": {
+    "enabled": false,
+    "host": "",
+    "port": 80,
+    "timeout_s": 2
+  },
   "production_complete": false,
   "hoymiles_proxy": {
     "enabled": false,

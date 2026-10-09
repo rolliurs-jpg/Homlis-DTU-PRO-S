@@ -131,6 +131,52 @@ def windows_archive():
     return target
 
 
+def raspberry_archive():
+    """Archive Raspberry autonome, sans réglage ni historique d'une installation."""
+    release = version()
+    target = OUTPUTS / f"3-RASPBERRY-Hoymiles-{release}-INSTALLATEUR.tar.gz"
+    root_name = f"Hoymiles-{release}-Raspberry"
+    required = [
+        "boite_noire_hoymiles.py", "mobile_dashboard.py", "dashboard_data.py",
+        "dashboard_ui.html", "autostart.py", "monitoring.py", "energy_analysis.py",
+        "battery_monitor.py", "surplus_simulation.py", "surplus_controller.py",
+        "dtu_control.py", "PAIRER_HOYMILES.py", "hoymiles_proxy.py",
+        "HOYMILES_BLE_LICENSE.txt", "requirements.txt", "fond_solaire.png",
+        "icone_panneau_solaire.ico", "config.example.json", "README.md",
+        f"RELEASE_NOTES_{release}.md", "raspberry-pi/README.md",
+        "raspberry-pi/boite-noire-hoymiles.service.example",
+        "raspberry-pi/INSTALLER_RASPBERRY.sh",
+    ]
+    OUTPUTS.mkdir(exist_ok=True)
+    with tarfile.open(target, "w:gz", format=tarfile.PAX_FORMAT) as archive:
+        for name in required:
+            path = ROOT / name
+            if not path.is_file():
+                raise FileNotFoundError(path)
+            info = archive.gettarinfo(str(path), f"{root_name}/{name}")
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            info.mode = 0o755 if path.name == "INSTALLER_RASPBERRY.sh" else 0o644
+            with path.open("rb") as handle:
+                archive.addfile(info, handle)
+    with tarfile.open(target, "r:gz") as archive:
+        members = archive.getmembers()
+        names = {member.name for member in members}
+        installer = f"{root_name}/raspberry-pi/INSTALLER_RASPBERRY.sh"
+        if installer not in names or not (archive.getmember(installer).mode & 0o111):
+            raise RuntimeError("Installateur Raspberry absent ou non exécutable")
+        forbidden_names = ("config_v5.json", ".csv", ".log", "surveillance.json")
+        if any(any(token in member.name for token in forbidden_names) for member in members):
+            raise RuntimeError("Donnée locale détectée dans l’archive Raspberry")
+        private_addresses = (b"192.168.1.205", b"192.168.1.206", b"192.168.1.239")
+        for member in members:
+            if member.isfile():
+                data = archive.extractfile(member).read()
+                if any(address in data for address in private_addresses):
+                    raise RuntimeError("Adresse locale détectée dans l’archive Raspberry")
+    return target
+
+
 def mac_full_archive():
     """Dossier Mac traditionnel : sources au niveau supérieur, apps en dessous."""
     release = version()
@@ -248,3 +294,4 @@ def mac_full_zip():
 if __name__ == "__main__":
     print(mac_archive())
     print(windows_archive())
+    print(raspberry_archive())

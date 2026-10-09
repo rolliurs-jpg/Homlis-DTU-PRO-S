@@ -23,34 +23,38 @@ Le serveur refuse les clients Internet publics dans son code : seuls loopback,
 le LAN privé et les plages privées Tailscale sont acceptés. Cette protection ne
 remplace pas les règles de la box et de Tailscale.
 
-## Installation
+## Installation en une étape
 
 Ces instructions visent Raspberry Pi OS 64 bits et Python 3.11 ou plus récent.
-Adapter `solar` et `/home/solar/solaire` à votre installation.
+Téléchargez l’archive **[Raspberry Pi — installateur](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.63-INSTALLATEUR.tar.gz)** directement sur le Raspberry, puis exécutez :
 
 ```bash
-sudo apt update
-sudo apt install -y git python3-venv
-git clone https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S.git /home/solar/solaire
-cd /home/solar/solaire
-python3 -m venv .venv
-.venv/bin/pip install --upgrade pip
-.venv/bin/pip install -r requirements.txt
+cd ~/Downloads
+tar -xzf 3-RASPBERRY-Hoymiles-7.0.63-INSTALLATEUR.tar.gz
+cd Hoymiles-7.0.63-Raspberry
+bash raspberry-pi/INSTALLER_RASPBERRY.sh
 ```
 
-Créez ensuite la configuration locale à partir de `config.example.json`. Ne
-publiez jamais cette copie : elle contient les adresses de votre installation.
-Activez seulement les équipements réellement présents.
+L’installateur demande le mot de passe administrateur uniquement pour installer
+Python et activer le service au démarrage. Il ne demande ni ne transmet de mot
+de passe Wi-Fi, et ne contient aucune adresse de votre réseau. Il installe le
+logiciel dans `~/solaire`, préserve les données déjà présentes et crée une
+configuration locale vierge dans `~/AppData/Local/BoiteNoireHoymiles/`.
 
-Pour lancer automatiquement le collecteur au démarrage, copiez
-`boite-noire-hoymiles.service.example` vers
-`/etc/systemd/system/boite-noire-hoymiles.service`, remplacez
-`YOUR_LINUX_USER`, puis exécutez :
+Ouvrez ensuite `http://ADRESSE_DU_RASPBERRY:8765/`, allez dans **Équipements**
+et activez uniquement les appareils réellement présents (DTU, Dinky, Shelly,
+batterie, TP-Link ou ESP32). Après l’enregistrement, relancez le service :
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now boite-noire-hoymiles.service
-sudo systemctl status boite-noire-hoymiles.service
+sudo systemctl restart boite-noire-hoymiles
+```
+
+Pour une installation depuis le code source GitHub, le même script est inclus :
+
+```bash
+git clone https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S.git ~/solaire-source
+cd ~/solaire-source
+bash raspberry-pi/INSTALLER_RASPBERRY.sh
 ```
 
 Sur Raspberry, laissez le réglage web **Démarrage automatique** sur **Non** :

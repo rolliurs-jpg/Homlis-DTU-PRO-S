@@ -205,12 +205,16 @@ class DashboardData:
                 return self.esp_cache
             proxy = self.config.get('hoymiles_proxy', {})
             router = self.config.get('esp_router', {})
+            tp_link = self.config.get('tp_link', {})
             devices = [dict(id='proxy', name='ESP32 · Proxy Bluetooth Hoymiles',
-                            hosts=[str(proxy.get('host') or '192.168.4.2')], port=int(proxy.get('port',6053)),
+                            hosts=[str(proxy.get('host') or '')], port=int(proxy.get('port',6053)),
                             role='Près du micro-onduleur · liaison Bluetooth', enabled=bool(proxy.get('enabled', False))),
                        dict(id='router', name='ESP32 · Routeur Solaire cabanon',
-                            hosts=[str(router.get('ap_host') or '192.168.4.1'), str(router.get('host') or '192.168.1.239')], port=80,
-                            role='Relais Wi-Fi vers la box', enabled=bool(router.get('enabled', False)))]
+                            hosts=[str(router.get('ap_host') or ''), str(router.get('host') or '')], port=80,
+                            role='Relais Wi-Fi vers la box', enabled=bool(router.get('enabled', False))),
+                       dict(id='tp_link', name='TP-Link · Nano-routeur DTU',
+                            hosts=[str(tp_link.get('host') or '')], port=int(tp_link.get('port', 80)),
+                            role='Pont Wi-Fi client entre le DTU et la Livebox', enabled=bool(tp_link.get('enabled', False)))]
             for device in devices:
                 reachable = []
                 for host in device['hosts'] if device['enabled'] else []:
@@ -228,7 +232,7 @@ class DashboardData:
                   'production_complete':bool(self.config.get('production_complete')),
                   'tarifs_edf':{k:self.config.get('tarifs_edf',{}).get(k) for k in
                                 ('hp_eur_kwh','hc_eur_kwh','abonnement_journalier_eur','plages_hc')}}
-        for name in ('linky','shelly','battery','shelly2','hoymiles_proxy','esp_router'):
+        for name in ('linky','shelly','battery','shelly2','tp_link','hoymiles_proxy','esp_router'):
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
         result['esp_devices'] = self.esp_devices()

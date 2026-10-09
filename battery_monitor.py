@@ -182,6 +182,67 @@ def battery_cycle(rows, full_at, until):
     return result
 
 
+def daily_battery_activity(rows, start, until, ongoing=False):
+    """Measured discharge summary for a calendar day without a full charge.
+
+    A full-cycle report deliberately stops at the first recharge: it describes
+    the energy available after the battery was full.  On days where 100 % was
+    never reached, the dashboard must still describe what was measured rather
+    than leave yesterday blank.  Keep the first observed discharge/recharge
+    times, but total every valid discharge interval of that day.
+    """
+    result = battery_cycle(rows, start, until)
+    samples = [r for r in rows if start <= r['timestamp'] <= until]
+    duration = 0.0
+    for a, b in zip(samples, samples[1:]):
+        left, right = a['timestamp'], b['timestamp']
+        if not 0 < right - left <= 45:
+            continue
+        powers = [number(r.get(key)) for r in (a, b)
+                  for key in ('charge_w', 'discharge_w', 'ac_discharge_w')]
+        if any(value is None for value in powers):
+            continue
+        if (powers[1] - powers[0] > 20 and powers[2] > 20 and
+                powers[4] - powers[3] > 20 and powers[5] > 20):
+            duration += right - left
+    if result['discharge_at'] is not None:
+        result['discharge_seconds'] = duration
+    # A past calendar day is final even if its last event was a discharge.
+    # Only today's total is still expected to grow.
+    result['cycle_pending'] = bool(ongoing and result['recharge_at'] is None)
+    return result
+
+
+def solar_end(rows, start, stop):
+    """Return a confirmed production end for a day, independently of SOC."""
+    active = False
+    low_start = None
+    end_at = None
+    previous = None
+    for row in rows:
+        stamp, power = row['timestamp'], number(row.get('pv_w'))
+        if not start <= stamp <= stop:
+            continue
+        if power is None or previous is None or stamp - previous > 180:
+            low_start = None
+        if power is not None and power > 10:
+            active = True
+            low_start = None
+            end_at = None
+        elif power is not None and active and datetime.fromtimestamp(stamp).hour >= 12:
+            if low_start is None:
+                low_start = stamp
+            if stamp - low_start >= 1800:
+                end_at = low_start
+        previous = stamp
+    # A later outage must not erase an end which was already confirmed by a
+    # continuous 30-minute low-production sequence.  A later production spike
+    # above resets it, so the result still follows a possible restart.
+    if end_at is None and (previous is None or stop - previous > 180):
+        return None
+    return end_at
+
+
 def cycle_values(r):
     """Shared desktop/mobile/CSV wording, times in the computer's local zone."""
     def clock(value):
@@ -258,30 +319,11 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
         result = dict(date=day.isoformat(), full_at=full, already_full=entry['already_full'],
                       end_at=None, export_kwh=None, coverage_s=0.0, period_s=0.0,
                       ongoing=day == datetime.fromtimestamp(now).date())
+        # Solar production belongs to the calendar day, not only to days when
+        # the battery happened to reach 100 %.  This keeps a cloudy day's
+        # solar-end time useful without inventing a "surplus after full".
+        result['end_at'] = solar_end(pv_rows, start, stop)
         if full is not None:
-            active = False
-            low_start = None
-            prev_t = None
-            for row in pv_rows:
-                t, power = row['timestamp'], number(row.get('pv_w'))
-                if not full <= t <= stop:
-                    continue
-                if power is None or prev_t is None or t-prev_t > 180:
-                    low_start = None
-                    result['end_at'] = None
-                if power is not None and power > 10:
-                    active = True
-                    low_start = None
-                    result['end_at'] = None
-                elif power is not None and active and datetime.fromtimestamp(t).hour >= 12:
-                    if low_start is None:
-                        low_start = t
-                    if t-low_start >= 1800:
-                        result['end_at'] = low_start
-                prev_t = t
-            # Do not confirm an end across missing trailing measurements.
-            if prev_t is None or stop-prev_t > 180:
-                result['end_at'] = None
             end = result['end_at'] if result['end_at'] is not None else stop
             result['period_s'] = max(0, end-full)
             energy = 0.0
@@ -306,8 +348,11 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
         cycle_end = min(now, datetime.combine(day + timedelta(days=2), datetime.min.time()).timestamp())
         # Même si le Mac a démarré après le passage à 100 %, une décharge
         # réellement observée aujourd'hui reste une information valable.
-        cycle_start = full if full is not None else start
-        result.update(battery_cycle(battery_rows, cycle_start, cycle_end))
+        if full is None:
+            result.update(daily_battery_activity(
+                battery_rows, start, cycle_end, ongoing=result['ongoing']))
+        else:
+            result.update(battery_cycle(battery_rows, full, cycle_end))
         results.append(result)
 
     # A discharge beginning on the day of a full charge belongs to that same
