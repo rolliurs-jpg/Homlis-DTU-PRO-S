@@ -145,7 +145,7 @@ def raspberry_archive():
         "icone_panneau_solaire.ico", "config.example.json", "README.md",
         f"RELEASE_NOTES_{release}.md", "raspberry-pi/README.md",
         "raspberry-pi/boite-noire-hoymiles.service.example",
-        "raspberry-pi/INSTALLER_RASPBERRY.sh",
+        "raspberry-pi/INSTALLER_RASPBERRY.sh", "raspberry-pi/ACTIVER_ZERO_INJECTION.sh",
     ]
     OUTPUTS.mkdir(exist_ok=True)
     with tarfile.open(target, "w:gz", format=tarfile.PAX_FORMAT) as archive:
@@ -156,7 +156,7 @@ def raspberry_archive():
             info = archive.gettarinfo(str(path), f"{root_name}/{name}")
             info.uid = info.gid = 0
             info.uname = info.gname = ""
-            info.mode = 0o755 if path.name == "INSTALLER_RASPBERRY.sh" else 0o644
+            info.mode = 0o755 if path.name in ("INSTALLER_RASPBERRY.sh", "ACTIVER_ZERO_INJECTION.sh") else 0o644
             with path.open("rb") as handle:
                 archive.addfile(info, handle)
     with tarfile.open(target, "r:gz") as archive:
@@ -165,6 +165,9 @@ def raspberry_archive():
         installer = f"{root_name}/raspberry-pi/INSTALLER_RASPBERRY.sh"
         if installer not in names or not (archive.getmember(installer).mode & 0o111):
             raise RuntimeError("Installateur Raspberry absent ou non exécutable")
+        activation = f"{root_name}/raspberry-pi/ACTIVER_ZERO_INJECTION.sh"
+        if activation not in names or not (archive.getmember(activation).mode & 0o111):
+            raise RuntimeError("Script zéro-injection Raspberry absent ou non exécutable")
         forbidden_names = ("config_v5.json", ".csv", ".log", "surveillance.json")
         if any(any(token in member.name for token in forbidden_names) for member in members):
             raise RuntimeError("Donnée locale détectée dans l’archive Raspberry")

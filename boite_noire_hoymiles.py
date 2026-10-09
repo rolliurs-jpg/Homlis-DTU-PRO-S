@@ -66,7 +66,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.64"
+VERSION = "7.0.65"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -147,6 +147,14 @@ DEFAULT_CONFIG = {
     "tp_link": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
     "hoymiles_proxy": dict(DEFAULT_PROXY),
     "production_complete": False,
+    # Commandes opt-in : aucune limitation n'est envoyée tant que
+    # l'utilisateur n'a pas explicitement activé la régulation.
+    "surplus_control": {
+        "enabled": False,
+        "rated_w": 1000,
+        "dtu_enabled": False,
+        "dtu_rated_w": 2000,
+    },
     "tarifs_edf": {
         "hp_eur_kwh": 0.0,
         "hc_eur_kwh": 0.0,
