@@ -7,6 +7,10 @@ class SurplusController:
     def __init__(self, proxy, sample, enabled=False, rated_w=1000, dtu=None):
         self.proxy, self.sample = proxy, sample
         self.enabled, self.rated_w = enabled, rated_w
+        # After a service restart, an already enabled controller must also
+        # re-authorize its proxy commands.  Otherwise only the DTU is limited
+        # and the two Bluetooth panels keep injecting at 100 %.
+        self.proxy.config["commands_enabled"] = bool(enabled)
         self.dtu = dtu
         self.full_since = self.last_sample = None
         self.full = False
