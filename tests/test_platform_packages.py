@@ -81,9 +81,6 @@ class PlatformPackageTests(unittest.TestCase):
                     installer = f"Hoymiles-{release}-Raspberry/raspberry-pi/INSTALLER_RASPBERRY.sh"
                     self.assertIn(installer, names)
                     self.assertTrue(archive.getmember(installer).mode & 0o111)
-                    activation = f"Hoymiles-{release}-Raspberry/raspberry-pi/ACTIVER_ZERO_INJECTION.sh"
-                    self.assertIn(activation, names)
-                    self.assertTrue(archive.getmember(activation).mode & 0o111)
                     self.assertFalse(any("config_v5.json" in name or name.endswith(".csv") for name in names))
                     body = b"".join(archive.extractfile(m).read() for m in archive.getmembers() if m.isfile())
                     self.assertNotIn(b"192.168.1.205", body)

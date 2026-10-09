@@ -66,7 +66,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.65"
+VERSION = "7.0.66"
 DEFAULT_DTU_HOST = "10.10.100.254"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -291,6 +291,8 @@ def _launch_classic_interface():
 
 def dashboard_ui_action(action, _values=None):
     if action == "surplus_control":
+        if sys.platform.startswith("linux"):
+            return {"error": "Régulation locale désactivée sur Raspberry Pi : utilisez le zéro-injection Hoymiles."}
         if surplus_controller is None:
             return {"error": "Gestion en démarrage"}
         enabled = (_values or {}).get("enabled")
@@ -4024,9 +4026,16 @@ def surplus_control_sample():
             "battery": battery, "proxy": proxy_reader.snapshot()}
 
 surplus_cfg = CONFIG.get("surplus_control", {})
+# Le DTU-Pro-S assure nativement le zéro-injection. Sur Raspberry Pi, le
+# collecteur reste strictement en lecture seule : une commande Modbus locale
+# non validée selon le firmware ne doit jamais concurrencer le contrôle
+# Hoymiles/DDSU. Les anciennes configurations actives sont donc neutralisées.
+raspberry_read_only = sys.platform.startswith("linux")
+control_enabled = bool(surplus_cfg.get("enabled", False)) and not raspberry_read_only
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
-    enabled=bool(surplus_cfg.get("enabled", False)), rated_w=float(surplus_cfg.get("rated_w", 1000)),
-    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock) if surplus_cfg.get("dtu_enabled", False) else None)
+    enabled=control_enabled, rated_w=float(surplus_cfg.get("rated_w", 1000)),
+    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock)
+    if control_enabled and surplus_cfg.get("dtu_enabled", False) else None)
 surplus_controller.start()
 atexit.register(surplus_controller.stop)
 

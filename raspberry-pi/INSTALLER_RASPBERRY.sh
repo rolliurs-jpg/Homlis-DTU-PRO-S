@@ -30,7 +30,6 @@ for file in "${FILES[@]}"; do
 done
 install -m 0644 "$SOURCE_DIR/raspberry-pi/README.md" "$INSTALL_DIR/raspberry-pi/README.md"
 install -m 0644 "$SOURCE_DIR/raspberry-pi/boite-noire-hoymiles.service.example" "$INSTALL_DIR/raspberry-pi/boite-noire-hoymiles.service.example"
-install -m 0755 "$SOURCE_DIR/raspberry-pi/ACTIVER_ZERO_INJECTION.sh" "$INSTALL_DIR/raspberry-pi/ACTIVER_ZERO_INJECTION.sh"
 
 if [ ! -f "$HOME/AppData/Local/BoiteNoireHoymiles/config_v5.json" ]; then
   mkdir -p "$HOME/AppData/Local/BoiteNoireHoymiles"

@@ -1,15 +1,15 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
 
-**Version 7.0.65 : zéro-injection local optionnel sur Raspberry Pi, libellé batterie clarifié et suivi du nano-routeur TP-Link.**
+**Version 7.0.66 : Raspberry Pi strictement en lecture seule ; zéro-injection réglé par Hoymiles.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
 > Suivi solaire local sur Windows, macOS et Raspberry Pi, consultable depuis Android, iPhone, iPad, Mac et Windows avec l'interface web privée.
 
-[![Version](https://img.shields.io/badge/version-7.0.65-2563eb)](RELEASE_NOTES_7.0.65.md)
+[![Version](https://img.shields.io/badge/version-7.0.66-2563eb)](RELEASE_NOTES_7.0.66.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.65-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.65](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.65-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.66](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC**, **2-WINDOWS** ou **3-RASPBERRY**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 

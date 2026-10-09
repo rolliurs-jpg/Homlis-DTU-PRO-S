@@ -26,12 +26,12 @@ remplace pas les règles de la box et de Tailscale.
 ## Installation en une étape
 
 Ces instructions visent Raspberry Pi OS 64 bits et Python 3.11 ou plus récent.
-Téléchargez l’archive **[Raspberry Pi — installateur](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.65-INSTALLATEUR.tar.gz)** directement sur le Raspberry, puis exécutez :
+Téléchargez l’archive **[Raspberry Pi — installateur](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** directement sur le Raspberry, puis exécutez :
 
 ```bash
 cd ~/Downloads
-tar -xzf 3-RASPBERRY-Hoymiles-7.0.65-INSTALLATEUR.tar.gz
-cd Hoymiles-7.0.65-Raspberry
+tar -xzf 3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz
+cd Hoymiles-7.0.66-Raspberry
 bash raspberry-pi/INSTALLER_RASPBERRY.sh
 ```
 
@@ -60,25 +60,13 @@ bash raspberry-pi/INSTALLER_RASPBERRY.sh
 Sur Raspberry, laissez le réglage web **Démarrage automatique** sur **Non** :
 le service systemd ci-dessus est déjà responsable du lancement au démarrage.
 
-## Activer le zéro-injection local (optionnel)
+## Zéro-injection : réglage Hoymiles uniquement
 
-Le collecteur reste volontairement en lecture seule après une installation.
-Lorsque le zéro-injection du DTU est insuffisant, le script ci-dessous active
-la régulation locale des six panneaux : deux via le proxy Bluetooth et quatre
-via le DTU Modbus TCP. Il vérifie que le port Modbus du DTU est joignable,
-sauvegarde la configuration, puis ne limite la production qu’après deux minutes
-de batterie à 100 %. En cas de mesure absente ou de liaison DTU incertaine, il
-demande le retour à 100 %.
-
-```bash
-cd ~/solaire
-bash raspberry-pi/ACTIVER_ZERO_INJECTION.sh
-```
-
-Le tableau affichera alors la régulation et les limites réellement demandées.
-Pour l’arrêter, désactivez la gestion solaire dans le tableau ou restaurez le
-fichier `config_v5.json.before-zero-injection` créé par le script, puis
-redémarrez le service.
+Sur Raspberry Pi, le collecteur est strictement en lecture seule : il ne
+commande ni le DTU, ni les micro-onduleurs, ni la batterie. Réglez le
+zéro-injection ou la limite d’exportation directement dans Hoymiles avec le
+DDSU/compteur prévu à cet effet. Une petite marge d’export, par exemple 0,10
+kW, peut éviter que le DTU ne bride trop et ne fasse décharger la batterie.
 
 ## Connexion depuis les autres appareils
 
