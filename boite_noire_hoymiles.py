@@ -1052,6 +1052,7 @@ def move_cursor(event):
 fig.canvas.mpl_connect("motion_notify_event", move_cursor)
 
 ddsu_modbus_status = "lecture non effectuée"
+dtu_modbus_lock = threading.RLock()
 
 
 def read_ddsu_modbus(host):
@@ -1101,20 +1102,21 @@ def read_dtu():
     # il expose à la place Modbus-TCP sur le port 502. L'interroger d'abord
     # évite trois délais de 12 secondes inutiles à chaque cycle de lecture.
     if not str(HOST).startswith("10.10.100.") and HoymilesModbusTCP is not None:
-        try:
-            plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
-            global ddsu_modbus_status
-            ddsu = read_ddsu_modbus(HOST)
-            ddsu_modbus_status = ddsu["status"]
-            return {
-                "_source": "modbus_tcp",
-                "_modbus_pv_w": float(plant.pv_power),
-                "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
-                "meterData": [{}],
-                "_ddsu_modbus": ddsu,
-            }
-        except Exception as exc:
-            modbus_error = f"Modbus TCP {HOST}: {exc}"
+        with dtu_modbus_lock:
+            try:
+                plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
+                global ddsu_modbus_status
+                ddsu = read_ddsu_modbus(HOST)
+                ddsu_modbus_status = ddsu["status"]
+                return {
+                    "_source": "modbus_tcp",
+                    "_modbus_pv_w": float(plant.pv_power),
+                    "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
+                    "meterData": [{}],
+                    "_ddsu_modbus": ddsu,
+                }
+            except Exception as exc:
+                modbus_error = f"Modbus TCP {HOST}: {exc}"
     else:
         modbus_error = ""
 
@@ -4024,7 +4026,7 @@ def surplus_control_sample():
 surplus_cfg = CONFIG.get("surplus_control", {})
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
     enabled=bool(surplus_cfg.get("enabled", False)), rated_w=float(surplus_cfg.get("rated_w", 1000)),
-    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000))) if surplus_cfg.get("dtu_enabled", False) else None)
+    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock) if surplus_cfg.get("dtu_enabled", False) else None)
 surplus_controller.start()
 atexit.register(surplus_controller.stop)
 
