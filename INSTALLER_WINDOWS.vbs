@@ -79,10 +79,11 @@ If (Not existingConfig) Or choice = vbYes Then
             End If
         End If
     Else
-        dinkyHost = Trim(InputBox("Adresse IP du Dinky :", "Dinky sur Livebox", "192.168.1.126"))
-        If dinkyHost = "" Then dinkyHost = "192.168.1.126"
+        dinkyHost = Trim(InputBox("Adresse IP du Dinky (laisser vide si absent) :", "Dinky sur Livebox"))
+        dinkyEnabled = "false"
+        If dinkyHost <> "" Then dinkyEnabled = "true"
         json = "{" & q & "dtu_host" & q & ":" & q & dtuHost & q & "," & _
-               q & "linky" & q & ":{" & q & "enabled" & q & ":true," & _
+               q & "linky" & q & ":{" & q & "enabled" & q & ":" & dinkyEnabled & "," & _
                q & "mode" & q & ":" & q & "dinky_http" & q & "," & _
                q & "host" & q & ":" & q & dinkyHost & q & "," & _
                q & "port" & q & ":80," & q & "timeout_s" & q & ":2," & _
@@ -140,7 +141,7 @@ shelly2Choice = MsgBox("Souhaitez-vous configurer ou modifier le Shelly EM Gen3 
                        "Non : conserver le reglage actuel sans changement.", _
                        vbYesNo + vbQuestion, "Shelly EM Gen3 - production 2")
 If shelly2Choice = vbYes Then
-    shelly2Host = Trim(InputBox("Adresse IP du Shelly EM Gen3 :", "Nouveaux panneaux - production 2", "192.168.1.128"))
+    shelly2Host = Trim(InputBox("Adresse IP du Shelly EM Gen3 :", "Nouveaux panneaux - production 2"))
     If shelly2Host <> "" Then
         If json = "" And fso.FileExists(configFile) Then
             Set inputFile = fso.OpenTextFile(configFile, 1, False)
