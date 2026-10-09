@@ -26,12 +26,12 @@ remplace pas les règles de la box et de Tailscale.
 ## Installation en une étape
 
 Ces instructions visent Raspberry Pi OS 64 bits et Python 3.11 ou plus récent.
-Téléchargez l’archive **[Raspberry Pi — installateur](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.63-INSTALLATEUR.tar.gz)** directement sur le Raspberry, puis exécutez :
+Téléchargez l’archive **[Raspberry Pi — installateur](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.64-INSTALLATEUR.tar.gz)** directement sur le Raspberry, puis exécutez :
 
 ```bash
 cd ~/Downloads
-tar -xzf 3-RASPBERRY-Hoymiles-7.0.63-INSTALLATEUR.tar.gz
-cd Hoymiles-7.0.63-Raspberry
+tar -xzf 3-RASPBERRY-Hoymiles-7.0.64-INSTALLATEUR.tar.gz
+cd Hoymiles-7.0.64-Raspberry
 bash raspberry-pi/INSTALLER_RASPBERRY.sh
 ```
 
