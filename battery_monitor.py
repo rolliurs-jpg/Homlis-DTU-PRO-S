@@ -261,6 +261,8 @@ def cycle_values(r):
         alerts.append('Relevés réseau incomplets')
     if r.get('cycle_incomplete'):
         alerts.append('Relevés batterie incomplets')
+    if r.get('end_estimated_from_discharge'):
+        alerts.append('Fin solaire estimée au début de la décharge')
     energy = 'Indisponible' if r['export_kwh'] is None else f"{r['export_kwh']:.3f} kWh"
     if r['end_at'] is None and r['export_kwh'] is not None:
         energy += ' (provisoire)'
@@ -277,8 +279,11 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
     """Daily first observed 100%, then measured export. No gap extrapolation.
 
     pv_rows contains total PV only when all production lines are known.
-    A production end is estimated after 30 continuous minutes <= 10 W,
-    after noon and after observed production. Any later activity cancels it.
+    A production end is confirmed after 30 continuous minutes <= 10 W,
+    after noon and after observed production. On a system with native
+    zero-export, output can remain above 10 W because the DTU follows the
+    house load. A sustained battery discharge after noon is then a safe
+    estimate of the effective end of solar coverage.
     """
     # Des versions anciennes ont parfois enregistré une ligne de reprise avec
     # timestamp=0. Sous Windows, convertir ensuite le 01/01/1970 en minuit
@@ -323,6 +328,23 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
         # the battery happened to reach 100 %.  This keeps a cloudy day's
         # solar-end time useful without inventing a "surplus after full".
         result['end_at'] = solar_end(pv_rows, start, stop)
+        # Attach battery events before calculating the post-full export so a
+        # real discharge can provide an end-of-solar estimate when the DTU is
+        # deliberately holding a small residual production for zero export.
+        cycle_end = min(now, datetime.combine(day + timedelta(days=2), datetime.min.time()).timestamp())
+        if full is None:
+            activity = daily_battery_activity(battery_rows, start, cycle_end,
+                                              ongoing=result['ongoing'])
+        else:
+            activity = battery_cycle(battery_rows, full, cycle_end)
+        result.update(activity)
+        discharge_at = result.get('discharge_at')
+        solar_seen = any(start <= r['timestamp'] <= stop and number(r.get('pv_w')) > 10
+                         for r in pv_rows)
+        if (result['end_at'] is None and discharge_at is not None and solar_seen and
+                datetime.fromtimestamp(discharge_at).hour >= 12):
+            result['end_at'] = discharge_at
+            result['end_estimated_from_discharge'] = True
         if full is not None:
             end = result['end_at'] if result['end_at'] is not None else stop
             result['period_s'] = max(0, end-full)
@@ -344,15 +366,6 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
                 result['coverage_s'] += hi-lo
             if result['coverage_s']:
                 result['export_kwh'] = energy
-        # Attach the following night to the day of the full charge, not midnight.
-        cycle_end = min(now, datetime.combine(day + timedelta(days=2), datetime.min.time()).timestamp())
-        # Même si le Mac a démarré après le passage à 100 %, une décharge
-        # réellement observée aujourd'hui reste une information valable.
-        if full is None:
-            result.update(daily_battery_activity(
-                battery_rows, start, cycle_end, ongoing=result['ongoing']))
-        else:
-            result.update(battery_cycle(battery_rows, full, cycle_end))
         results.append(result)
 
     # A discharge beginning on the day of a full charge belongs to that same

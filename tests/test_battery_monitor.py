@@ -131,6 +131,20 @@ class FullChargeTests(unittest.TestCase):
         self.assertEqual(result['discharge_seconds'], 765)
         self.assertFalse(result['cycle_pending'])
 
+    def test_discharge_estimates_solar_end_when_zero_export_holds_residual_output(self):
+        t = datetime(2026, 9, 22, 13).timestamp()
+        battery = [dict(timestamp=t+i, soc_pct=100 if i < 120 else 99,
+                        charge_w=0, discharge_w=120 if i >= 120 else 0,
+                        ac_discharge_w=120 if i >= 120 else 0)
+                   for i in range(0, 900, 15)]
+        # Native zero-export holds PV at 80 W instead of allowing it to fall
+        # below the 10 W confirmation threshold.
+        pv = [dict(timestamp=t+i, pv_w=80) for i in range(0, 900, 15)]
+        result = full_charge_days(battery, [], pv, t+900)[0]
+        self.assertEqual(result['discharge_at'], t+120)
+        self.assertEqual(result['end_at'], t+120)
+        self.assertTrue(result['end_estimated_from_discharge'])
+
     def test_invalid_epoch_row_does_not_hide_windows_history(self):
         t = self.t
         battery = [dict(timestamp=0, soc_pct=100),
