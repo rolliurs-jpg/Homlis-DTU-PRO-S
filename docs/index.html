@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Boîte noire Hoymiles | DTU Pro-S, Linky &amp; Denky D4, Shelly</title>
-  <meta name="description" content="Suivi solaire local Hoymiles : DTU Pro-S en Wi-Fi direct ou Modbus TCP, Linky &amp; Denky D4, Shelly Pro EM, Zendure et zéro-injection après batterie pleine.">
-  <meta name="keywords" content="Hoymiles, DTU Pro-S, Modbus TCP, Wi-Fi direct DTU, Linky, Denky D4, DDSU666, téléinformation, photovoltaïque, autoconsommation, zéro injection, Shelly Pro EM, Zendure">
+  <title>Régulation solaire Hoymiles | DTU Pro-S, Zendure, Denky D4</title>
+  <meta name="description" content="Suivi et régulation locale du surplus solaire Hoymiles : DTU Pro-S Wi-Fi direct ou Modbus TCP, Linky &amp; Denky D4, Shelly Pro EM et Zendure après batterie pleine.">
+  <meta name="keywords" content="régulation surplus solaire, pilotage surplus solaire, zéro injection Hoymiles, DTU Pro-S Modbus TCP, Wi-Fi direct DTU, batterie Zendure, Shelly Pro EM, Linky, Denky D4, téléinformation, autoconsommation photovoltaïque">
   <link rel="canonical" href="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta name="author" content="Communauté Boîte noire Hoymiles">
   <meta name="robots" content="index,follow">
   <meta name="google-site-verification" content="uyxsAgOWPdMNL8QTeeG8YMIKRtOJ4nLT7MUiF00tLe8">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Boîte noire Hoymiles — DTU Pro-S, Linky &amp; Denky D4">
-  <meta property="og:description" content="Suivi solaire local : Wi-Fi direct et Modbus TCP du DTU Pro-S, Linky &amp; Denky D4, Shelly et batterie.">
+  <meta property="og:title" content="Régulation solaire Hoymiles — DTU Pro-S, Zendure, Denky D4">
+  <meta property="og:description" content="Suivi et régulation locale du surplus solaire : DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et Zendure.">
   <meta property="og:url" content="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta property="og:image" content="assets/tableau-web-raspberry.png">
   <link rel="stylesheet" href="styles.css">
@@ -32,8 +32,8 @@
     </nav>
     <div id="accueil" class="hero-content">
 <p class="eyebrow">VERSION 7.0.66 · RASPBERRY PI · WINDOWS · macOS · ANDROID · iPHONE</p>
-      <h1>Vos données Hoymiles.<br><span>Disponibles même PC éteint.</span></h1>
-      <p class="lead">Le Raspberry Pi est le collecteur recommandé : il réunit DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et batterie Zendure en continu. La même interface est accessible depuis Android, iOS, macOS et Windows.</p>
+      <h1>Votre autoconsommation Hoymiles.<br><span>Suivie et régulée localement.</span></h1>
+      <p class="lead">Une même installation réunit DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et batterie Zendure. Après le plein confirmé, elle peut réduire le surplus solaire sans cloud, avec un Raspberry Pi qui reste actif même PC éteint.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz">Télécharger Raspberry Pi</a>
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">Télécharger Mac</a>
@@ -73,7 +73,7 @@
     </section>
 
     <section class="section split-section" id="gestion-batterie">
-      <div><p class="eyebrow blue">GESTION AUTOMATIQUE DE LA BATTERIE</p><h2>La maison et la batterie d’abord, le zéro-injection après le plein.</h2><p>Avant le plein, les panneaux pilotés restent à <strong>100 %</strong> : la production couvre la maison et recharge la batterie sans bridage prématuré.</p><p>Le plein doit être confirmé pendant deux minutes, sans charge ni décharge significative. Après ce seuil, la maison passe en <strong>mode zéro-injection</strong> : la production des panneaux est recalculée après la consommation réelle de la maison et seul le surplus est réduit. La cible de sécurité est environ <strong>30 W prélevés au réseau</strong>, pour stabiliser le zéro-injection sans oscillation.</p></div>
+      <div><p class="eyebrow blue">RÉGULATION DU SURPLUS SOLAIRE</p><h2>La maison et la batterie d’abord, le zéro-injection après le plein.</h2><p>Avant le plein, les panneaux pilotés restent à <strong>100 %</strong> : la production couvre la maison et recharge la batterie sans bridage prématuré.</p><p>Le plein doit être confirmé pendant deux minutes, sans charge ni décharge significative. Après ce seuil, la maison passe en <strong>mode zéro-injection</strong> : la production des panneaux est recalculée après la consommation réelle de la maison et seul le surplus est réduit. La cible de sécurité est environ <strong>30 W prélevés au réseau</strong>, pour stabiliser le zéro-injection sans oscillation.</p></div>
       <ol class="steps">
         <li><strong>Batterie sous 100 %</strong><span>Panneaux pilotés à 100 % : priorité à la consommation de la maison puis à la charge.</span></li>
         <li><strong>Batterie pleine confirmée</strong><span>Mode zéro-injection : la production réelle est ajustée après la consommation de la maison, sur les deux panneaux Bluetooth ou les six panneaux si le contrôle DTU est disponible.</span></li>

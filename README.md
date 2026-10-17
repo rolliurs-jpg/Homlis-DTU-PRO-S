@@ -3,7 +3,7 @@
 **Raspberry Pi : suivi local permanent et régulation externe optionnelle après activation Modbus du DTU.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
-> Suivi solaire local sur Windows, macOS et Raspberry Pi, consultable depuis Android, iPhone, iPad, Mac et Windows avec l'interface web privée.
+> Suivi et régulation locale du surplus solaire Hoymiles : DTU Pro-S, Linky & Denky D4, Shelly Pro EM et batterie Zendure. Après le plein confirmé, le Raspberry Pi peut limiter la production pour éviter l’injection, sans cloud et avec des garde-fous de liaison.
 
 [![Version](https://img.shields.io/badge/version-7.0.66-2563eb)](RELEASE_NOTES_7.0.66.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
