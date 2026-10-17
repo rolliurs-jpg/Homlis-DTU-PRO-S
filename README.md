@@ -124,7 +124,23 @@ Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée a
 - analyse mensuelle de la qualité des données et simulation de batteries 2, 5, 7 et 10 kWh ;
 - rapport mensuel PDF créé localement, avec énergie, coupures observées et hypothèses de batterie.
 
-Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
+Le logiciel ne commande ni les relais Shelly ni la batterie Zendure. Il ne peut
+agir sur la limite de production Hoymiles que lorsque le propriétaire a activé
+explicitement le contrôle externe Modbus et validé ses mesures.
+
+## Évolution prévue : solaire, batterie et véhicule électrique
+
+Le projet est conçu pour grandir avec l'installation. Une prochaine évolution
+visera la **charge intelligente d’un véhicule électrique sur le surplus
+solaire** : la maison restera prioritaire, puis la batterie, puis la voiture
+lorsque la production le permet.
+
+L’objectif n’est pas d’imposer une marque de borne, de batterie ou de panneaux.
+Les mesures Shelly, le réseau local et les protocoles LAN/Modbus fourniront la
+base pour raccorder une borne compatible, un carport solaire ou une batterie
+supplémentaire. Cette fonction est une orientation du projet, pas encore une
+commande disponible : chaque borne devra être étudiée et validée avant toute
+intégration.
 
 ## Raspberry Pi, accès web et sécurité
 
