@@ -90,8 +90,8 @@
         <article class="card"><span>W</span><h3>Windows</h3><p>Application complète, installation locale, historique et démarrage automatique facultatif.</p></article>
         <article class="card"><span>M</span><h3>macOS Apple Silicon</h3><p>Installateur autonome, sauvegarde des données avant mise à jour et fonctionnement sur le réseau local.</p></article>
         <article class="card"><span>π</span><h3>Raspberry Pi recommandé</h3><p>Collecteur permanent par service systemd, tableau web privé et accès Tailscale, sans ordinateur laissé allumé.</p></article>
-        <article class="card"><span>A</span><h3>Android</h3><p>Interface dans Chrome, ajout possible à l’écran d’accueil. Aucune application de magasin nécessaire.</p></article>
-        <article class="card"><span>i</span><h3>iPhone et iPad</h3><p>Interface dans Safari, ajout possible à l’écran d’accueil et accès privé avec Tailscale.</p></article>
+        <article class="card"><span>A</span><h3>Android</h3><p>Dans Chrome, sur le Wi-Fi de la maison sans Tailscale ; depuis tout autre lieu, accès privé avec Tailscale. Ajout possible à l’écran d’accueil.</p></article>
+        <article class="card"><span>i</span><h3>iPhone et iPad</h3><p>Dans Safari, sur le Wi-Fi de la maison sans Tailscale ; depuis tout autre lieu, accès privé avec Tailscale. Ajout possible à l’écran d’accueil.</p></article>
       </div>
     </section>
 
@@ -136,7 +136,7 @@
     </section>
 
     <section class="section split-section" id="mobile">
-      <div><p class="eyebrow blue">ANDROID, iOS, macOS, WINDOWS ET TAILSCALE</p><h2>Surveillez la maison, même en vacances.</h2><p>Le Raspberry Pi héberge le tableau privé. Ouvrez-le dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows). Tailscale crée un accès privé et chiffré à distance.</p></div>
+      <div><p class="eyebrow blue">ANDROID, iOS, macOS, WINDOWS ET TAILSCALE</p><h2>Surveillez la maison, même en vacances.</h2><p>Le Raspberry Pi héberge le tableau privé. À la maison, tout appareil connecté au Wi-Fi local peut l’ouvrir sans Tailscale. Depuis tout autre lieu, Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows) nécessitent Tailscale pour un accès privé et chiffré.</p></div>
       <ol class="steps">
         <li><strong>1. Lancez un seul collecteur</strong><span>Le Raspberry Pi collecte les données et sert le tableau sur le port <code>8765</code>. Ne lancez pas en parallèle la gestion solaire sur Mac ou Windows.</span></li>
         <li><strong>2. À la maison</strong><span>Ouvrez <code>http://IP_DU_RASPBERRY:8765/</code> sur le Wi-Fi local.</span></li>
