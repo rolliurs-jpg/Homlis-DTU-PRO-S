@@ -14,7 +14,7 @@
   <meta property="og:title" content="Régulation solaire Hoymiles — DTU Pro-S, Zendure, Denky D4">
   <meta property="og:description" content="Suivi et régulation locale du surplus solaire : DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et Zendure.">
   <meta property="og:url" content="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
-  <meta property="og:image" content="assets/tableau-web-raspberry.png">
+  <meta property="og:image" content="assets/tableau-web-raspberry-galerie.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -108,7 +108,16 @@
 
     <section class="section screenshot-section">
       <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky &amp; Denky D4, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
-      <figure class="app-shot"><a href="assets/tableau-web-raspberry.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture complète du tableau web"><img src="assets/tableau-web-raspberry.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne"></a><figcaption>Le même tableau web sur Mac, Windows, Android et iPhone. Cliquez pour l’ouvrir à sa taille réelle.</figcaption></figure>
+      <div class="screen-gallery" data-screen-gallery>
+        <a class="screen-gallery-stage" href="assets/tableau-web-raspberry-galerie.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture Tableau en direct à sa taille réelle">
+          <img src="assets/tableau-web-raspberry-galerie.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne">
+        </a>
+        <div class="screen-gallery-controls" role="tablist" aria-label="Fenêtres du tableau web">
+          <button type="button" role="tab" aria-selected="true" data-src="assets/tableau-web-raspberry-galerie.png" data-alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne" data-label="Tableau en direct">Tableau en direct</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-web-raspberry.png" data-alt="Suivi de la batterie et du cycle de charge dans le tableau web Raspberry Pi" data-label="Batterie et cycle">Batterie et cycle</button>
+        </div>
+        <p class="screen-gallery-note">Choisissez une fenêtre, puis cliquez sur l’image pour l’ouvrir en grand.</p>
+      </div>
     </section>
 
     <section class="section split-section" id="esp32">
@@ -189,6 +198,20 @@
     <div class="footer-links"><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Dépôt GitHub</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues">Signaler un problème</a><a href="https://paypal.me/RolliursHoymiles">Soutenir le projet</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/LICENSE">Licence MIT</a></div>
   </footer>
   <script>
+    document.querySelectorAll('[data-screen-gallery]').forEach(gallery => {
+      const image = gallery.querySelector('img');
+      const link = gallery.querySelector('.screen-gallery-stage');
+      gallery.querySelectorAll('button[role="tab"]').forEach(button => {
+        button.addEventListener('click', () => {
+          image.src = button.dataset.src;
+          image.alt = button.dataset.alt;
+          link.href = button.dataset.src;
+          link.setAttribute('aria-label', `Ouvrir la capture ${button.dataset.label} à sa taille réelle`);
+          gallery.querySelectorAll('button[role="tab"]').forEach(item => item.setAttribute('aria-selected', String(item === button)));
+        });
+      });
+    });
+
     fetch('https://api.github.com/repos/rolliurs-jpg/Homlis-DTU-PRO-S')
       .then(response => response.ok ? response.json() : Promise.reject())
       .then(repo => {
