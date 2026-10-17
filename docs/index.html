@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Boîte noire Hoymiles | DTU Pro-S, DDSU666, Linky, Dinky 4 et Shelly</title>
-  <meta name="description" content="Suivi solaire Hoymiles disponible sur Windows, macOS, Raspberry Pi, Android et iPhone : DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure.">
-  <meta name="keywords" content="Hoymiles, DTU Pro-S, DDSU666, Linky, Dinky 4, Teleinfo, photovoltaïque, autoconsommation, zéro injection, S-Miles">
+  <title>Boîte noire Hoymiles | DTU Pro-S, Linky &amp; Denky D4, Shelly</title>
+  <meta name="description" content="Suivi solaire local Hoymiles : DTU Pro-S en Wi-Fi direct ou Modbus TCP, Linky &amp; Denky D4, Shelly Pro EM, Zendure et zéro-injection après batterie pleine.">
+  <meta name="keywords" content="Hoymiles, DTU Pro-S, Modbus TCP, Wi-Fi direct DTU, Linky, Denky D4, DDSU666, téléinformation, photovoltaïque, autoconsommation, zéro injection, Shelly Pro EM, Zendure">
+  <link rel="canonical" href="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta name="author" content="Communauté Boîte noire Hoymiles">
   <meta name="robots" content="index,follow">
   <meta name="google-site-verification" content="uyxsAgOWPdMNL8QTeeG8YMIKRtOJ4nLT7MUiF00tLe8">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Boîte noire Hoymiles — suivi DTU Pro-S et Linky">
-  <meta property="og:description" content="Nouvelle interface solaire sur Windows, macOS, Raspberry Pi, Android et iPhone, en local ou à distance privée avec Tailscale.">
+  <meta property="og:title" content="Boîte noire Hoymiles — DTU Pro-S, Linky &amp; Denky D4">
+  <meta property="og:description" content="Suivi solaire local : Wi-Fi direct et Modbus TCP du DTU Pro-S, Linky &amp; Denky D4, Shelly et batterie.">
+  <meta property="og:url" content="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta property="og:image" content="assets/tableau-web-raspberry.png">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -31,7 +33,7 @@
     <div id="accueil" class="hero-content">
 <p class="eyebrow">VERSION 7.0.66 · RASPBERRY PI · WINDOWS · macOS · ANDROID · iPHONE</p>
       <h1>Vos données Hoymiles.<br><span>Disponibles même PC éteint.</span></h1>
-      <p class="lead">Le Raspberry Pi est le collecteur recommandé : il réunit DTU Pro-S, Linky/Dinky, Shelly Pro EM et batterie Zendure en continu. La même interface est accessible depuis Android, iOS, macOS et Windows.</p>
+      <p class="lead">Le Raspberry Pi est le collecteur recommandé : il réunit DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et batterie Zendure en continu. La même interface est accessible depuis Android, iOS, macOS et Windows.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz">Télécharger Raspberry Pi</a>
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">Télécharger Mac</a>
@@ -41,11 +43,11 @@
       </div>
       <ul class="trust-list" aria-label="Points essentiels">
         <li>✓ Collecte permanente sur Raspberry Pi</li>
-        <li>✓ Linky/Dinky pour le coût EDF réel</li>
+        <li>✓ Linky &amp; Denky D4 pour le coût EDF réel</li>
         <li>✓ Injection Shelly cumulée en Wh/kWh</li>
         <li>✓ Panneaux à 100 % avant le plein, régulation après batterie pleine</li>
         <li>✓ Export CSV, rapport SAV et captures datées</li>
-<li>✓ Pause maintenance DTU avec aide au survol : le Dinky reste surveillé</li>
+<li>✓ Pause maintenance DTU avec aide au survol : le Denky D4 reste surveillé</li>
       </ul>
       <a class="github-stats" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S" aria-label="Voir les statistiques réelles du projet sur GitHub">
         <span class="stats-title">Projet suivi sur GitHub</span>
@@ -59,10 +61,10 @@
     <section id="fonctionnalites" class="section intro">
       <p class="eyebrow blue">UNE VUE FIABLE DE L’INSTALLATION</p>
       <h2>Production PV, consommation réelle et écart DDSU.</h2>
-      <p>Le logiciel rend lisibles les données qui comptent : production DTU, indication DDSU666, soutirage Linky/Dinky et flux réseau signé mesuré indépendamment par le Shelly.</p>
+      <p>Le logiciel rend lisibles les données qui comptent : production DTU, indication DDSU666, soutirage Linky &amp; Denky D4 et flux réseau signé mesuré indépendamment par le Shelly.</p>
       <div class="cards">
-        <article class="card"><span>01</span><h3>Suivi local DTU Pro-S</h3><p>Lecture de la production PV par Wi-Fi direct ou Modbus TCP lorsque le DTU est relié en Ethernet direct ou via un pont Wi-Fi.</p></article>
-        <article class="card"><span>02</span><h3>Linky & Dinky 4</h3><p>Puissance instantanée et index heures pleines / heures creuses par Téléinfo.</p></article>
+        <article class="card"><span>01</span><h3>Suivi local DTU Pro-S</h3><p>Lecture en Wi-Fi direct ou Modbus TCP ; contrôle externe possible après activation Remote Control / Modbus.</p></article>
+        <article class="card"><span>02</span><h3>Linky &amp; Denky D4</h3><p>Puissance instantanée et index heures pleines / heures creuses par Téléinfo.</p></article>
         <article class="card"><span>03</span><h3>Shelly Pro EM indépendant</h3><p>Deux voies optionnelles pour comparer la production et mesurer l’achat ou l’injection au réseau.</p></article>
         <article class="card"><span>04</span><h3>Preuves d’injection</h3><p>Alerte temporisée, cumul Wh/kWh, journal CSV et résumé texte pour le support Hoymiles.</p></article>
         <article class="card"><span>05</span><h3>Tableau mobile privé</h3><p>Production, consommation, injection et état des appareils depuis le Wi-Fi local ou à distance avec Tailscale.</p></article>
@@ -105,13 +107,18 @@
     </section>
 
     <section class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky/Dinky, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
+      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky &amp; Denky D4, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
       <figure class="app-shot"><a href="assets/tableau-web-raspberry.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture complète du tableau web"><img src="assets/tableau-web-raspberry.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne"></a><figcaption>Le même tableau web sur Mac, Windows, Android et iPhone. Cliquez pour l’ouvrir à sa taille réelle.</figcaption></figure>
     </section>
 
     <section class="section split-section" id="esp32">
       <div><p class="eyebrow blue">SECOND ENSEMBLE SOLAIRE · ESP32</p><h2>Relier des panneaux éloignés, sans modifier le DTU Pro-S.</h2><p>Un second ensemble de panneaux, indépendant du DTU Pro-S principal, peut être suivi grâce à une liaison complémentaire ESP32. Le Raspberry rassemble ses données dans le même tableau privé.</p><p>Le routeur ESP32 apporte le Wi-Fi jusqu’au local technique. Le proxy ESP32 placé près des micro-onduleurs assure leur liaison Bluetooth. Le tableau indique séparément l’état des deux liaisons.</p></div>
       <div class="diagram topology">Second ensemble de panneaux<br>↕ Bluetooth<br>ESP32 proxy Hoymiles<br>↕ Wi-Fi longue distance<br>ESP32 routeur solaire<br>↕ réseau privé<br>Raspberry Pi · tableau web</div>
+    </section>
+
+    <section class="section split-section" id="dtu-local">
+      <div><p class="eyebrow blue">DTU PRO-S · DEUX LIAISONS LOCALES</p><h2>Wi-Fi direct pour joindre le DTU, Modbus TCP pour le suivre et le piloter.</h2><p>Le Raspberry Pi peut garder une liaison Wi-Fi directe vers le DTU avec une antenne TP-Link dédiée en <strong>USB 2.0</strong>. Cette liaison est indépendante du réseau de la maison. L’antenne Alfa, en <strong>USB 3.0</strong>, assure séparément la liaison Wi-Fi vers le cabanon solaire.</p><p>Lorsque le DTU est aussi relié au LAN par Ethernet ou par pont Wi-Fi, Modbus TCP permet la lecture locale. Après activation explicite de <strong>Remote Control / Modbus</strong> dans le DTU, la régulation externe peut ajuster les limites de production après le plein de la batterie.</p></div>
+      <div class="diagram topology">TP-Link USB 2.0 → Wi-Fi direct → DTU Pro-S<br>DTU Pro-S → Ethernet / pont → LAN → Modbus TCP<br>Alfa USB 3.0 → Wi-Fi solaire → cabanon / ESP32<br>Raspberry Pi → tableau privé et régulation</div>
     </section>
 
     <section id="installation" class="section split-section">
@@ -147,11 +154,11 @@
     </section>
 
     <section id="reseau" class="section network">
-      <p class="eyebrow blue">DTU + DINKY + SHELLY : DEUX OPTIONS RÉSEAU</p>
+      <p class="eyebrow blue">DTU + DENKY D4 + SHELLY : DEUX OPTIONS RÉSEAU</p>
       <h2>La bonne connexion pour chaque équipement.</h2>
       <div class="network-grid">
-        <article><h3>Windows : deux connexions Wi-Fi</h3><p>Le Wi-Fi interne relie le PC à la box, au Dinky et au Shelly. Une seconde antenne Wi-Fi relie le PC au Wi-Fi propre du DTU.</p><div class="diagram">Linky → Dinky 4 → Wi-Fi de la box → PC<br>DTU Pro-S → Wi-Fi dédié → 2e Wi-Fi du PC</div></article>
-        <article><h3>Windows et Mac : réseau unique recommandé</h3><p>Le DTU rejoint la box par un nano-routeur en mode Client/Pont ; Dinky et Shelly restent sur le même LAN. C’est l’unique configuration proposée sur Mac.</p><div class="diagram topology">Linky → Dinky 4 → Box ← Shelly Pro EM<br>DTU Pro-S → Ethernet → nano-routeur → Box → PC / Mac</div></article>
+        <article><h3>Windows : deux connexions Wi-Fi</h3><p>Le Wi-Fi interne relie le PC à la box, au Denky D4 et au Shelly. Une seconde antenne Wi-Fi relie le PC au Wi-Fi propre du DTU.</p><div class="diagram">Linky → Denky D4 → Wi-Fi de la box → PC<br>DTU Pro-S → Wi-Fi dédié → 2e Wi-Fi du PC</div></article>
+        <article><h3>Windows et Mac : réseau unique recommandé</h3><p>Le DTU rejoint la box par un nano-routeur en mode Client/Pont ; Denky D4 et Shelly restent sur le même LAN. C’est l’unique configuration proposée sur Mac.</p><div class="diagram topology">Linky → Denky D4 → Box ← Shelly Pro EM<br>DTU Pro-S → Ethernet → nano-routeur → Box → PC / Mac</div></article>
       </div>
       <div class="network-grid">
         <article><h3>Passerelle économique conseillée</h3><p>Le <a href="https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr802n/">TP-Link TL-WR802N</a> suffit largement pour le faible débit du DTU : mode Client/Pont, un port Ethernet et alimentation USB. Son prix se situe généralement autour de 25 à 35 €. Choisissez <strong>Client</strong> puis <strong>Smart IP (DHCP)</strong> afin de laisser la box attribuer les adresses.</p><div class="diagram topology">DTU Ethernet → TL-WR802N en mode Client → Wi-Fi 2,4 GHz de la box</div></article>
@@ -160,21 +167,21 @@
     </section>
 
     <section class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">BILAN EDF</p><h2>Le Linky pour les kWh et les euros.</h2></div><p>Le calcul HP, HC et abonnement s’appuie sur les index Linky/Dinky, et non sur le DDSU.</p></div>
+      <div class="section-heading"><div><p class="eyebrow blue">BILAN EDF</p><h2>Le Linky pour les kWh et les euros.</h2></div><p>Le calcul HP, HC et abonnement s’appuie sur les index Linky &amp; Denky D4, et non sur le DDSU.</p></div>
       <figure class="app-shot"><img src="assets/batterie-web-raspberry.png" alt="Suivi batterie dans le tableau web Raspberry Pi"><figcaption>Suivi batterie et cycle de charge directement dans le tableau web.</figcaption></figure>
     </section>
 
     <section class="section faq">
       <p class="eyebrow blue">QUESTIONS ESSENTIELLES</p>
       <h2>Ce que fait — et ne fait pas — le logiciel.</h2>
-      <details open><summary>Le logiciel pilote-t-il le zéro injection ?</summary><p>Non. Le zéro injection reste configuré et piloté par le DTU / S-Miles Cloud. L’application observe le Shelly, alerte après une injection durable, cumule les pertes en Wh/kWh et exporte les preuves.</p></details>
-      <details><summary>Pourquoi comparer le DDSU au Linky ?</summary><p>Le DDSU est utile pour le système Hoymiles mais peut différer du compteur. Le Linky/Dinky est la référence retenue pour suivre les achats EDF.</p></details>
+      <details open><summary>Le logiciel pilote-t-il le zéro injection ?</summary><p>Oui, uniquement si le propriétaire active volontairement Remote Control / Modbus dans le DTU et configure les équipements concernés. Après batterie pleine confirmée, la régulation limite alors la production pour conserver une légère marge d’achat réseau. Le DDSU et le réglage Hoymiles doivent être vérifiés : ils ne doivent pas piloter simultanément la même limite.</p></details>
+      <details><summary>Pourquoi comparer le DDSU au Linky &amp; Denky D4 ?</summary><p>Le DDSU est utile pour le système Hoymiles mais peut différer du compteur. Le Linky &amp; Denky D4 sont la référence retenue pour suivre les achats EDF.</p></details>
       <details><summary>Mes données partent-elles sur Internet ?</summary><p>Non. Les historiques, réglages et exports restent locaux sur votre ordinateur. GitHub sert uniquement à diffuser le logiciel.</p></details>
     </section>
 
   <section><h2>Choisissez vos équipements</h2>
-<p>Avec le DTU Hoymiles : Dinky seul pour les index Linky, Shelly Pro EM seul pour les mesures indépendantes, ou les deux ensemble. Le bouton Équipements permet d’activer les appareils utilisés et de renseigner leurs adresses. Après enregistrement, relancez le logiciel.</p>
-<p>Courbes, bulles et cartes mobiles s’adaptent au choix. Un appareil en panne reste visible. Avec le Shelly seul, le bilan est une estimation sur les mesures enregistrées ; avec le Dinky, il utilise les index Linky. Les mesures réseau ne sont jamais additionnées.</p></section>
+<p>Avec le DTU Hoymiles : Linky &amp; Denky D4 pour les index Linky, Shelly Pro EM seul pour les mesures indépendantes, ou les deux ensemble. Le bouton Équipements permet d’activer les appareils utilisés et de renseigner leurs adresses. Après enregistrement, relancez le logiciel.</p>
+<p>Courbes, bulles et cartes mobiles s’adaptent au choix. Un appareil en panne reste visible. Avec le Shelly seul, le bilan est une estimation sur les mesures enregistrées ; avec le Denky D4, il utilise les index Linky. Les mesures réseau ne sont jamais additionnées.</p></section>
 <section><h2>7.0.63 — installateur Raspberry et pont DTU</h2><p>Le Raspberry Pi s’installe désormais depuis une archive téléchargeable et autonome, sans adresse IP, mot de passe ni historique de l’installation d’origine. Équipements affiche aussi le nano-routeur TP-Link, pour séparer une panne de pont Wi-Fi d’une perte du DTU.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.63.md">Notes de la version 7.0.63</a>.</p></section><section><h2>7.0.62 — gestion solaire et ESP32</h2><p>Le tableau web Raspberry présente la production, la batterie, les équipements et les deux ESP32 : routeur Wi-Fi distant et proxy Bluetooth des micro-onduleurs du second ensemble de panneaux.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.62.md">Notes de la version 7.0.62</a>.</p></section><section><h2>7.0.61 — batterie et Shelly 2 fiabilisés</h2><p>Windows ignore désormais les anciennes lignes de date invalides sans perdre l’historique batterie. La page Équipements affiche correctement le Shelly 2 comme connecté sur Windows et macOS dès qu’une mesure est reçue.</p><p><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/RELEASE_NOTES_7.0.61.md">Consulter les notes de la version 7.0.61</a>.</p></section></main>
 
   <footer>

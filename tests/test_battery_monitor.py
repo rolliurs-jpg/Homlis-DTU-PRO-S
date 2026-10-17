@@ -233,6 +233,13 @@ class BatteryCycleTests(unittest.TestCase):
         self.assertEqual(r['discharge_at'],0)
         self.assertEqual(r['discharge_seconds'],720)
 
+    def test_ongoing_discharge_is_shown_as_pending_before_confirmation(self):
+        rows=[dict(timestamp=i,soc_pct=100,charge_w=0,discharge_w=80,
+                   ac_discharge_w=80) for i in range(0,301,15)]
+        r=battery_cycle(rows,0,300)
+        self.assertIsNone(r['discharge_at'])
+        self.assertEqual(r['discharge_candidate_at'],0)
+
 
 if __name__ == '__main__':
     unittest.main()

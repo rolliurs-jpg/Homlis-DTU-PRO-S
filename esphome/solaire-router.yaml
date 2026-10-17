@@ -1,0 +1,28 @@
+# Point d'acces local dedie au Raspberry et au futur proxy Bluetooth.
+# Il ne fournit volontairement ni Internet ni mot de passe.
+# Adresse du point d'acces : 192.168.4.1/24
+
+esphome:
+  name: solaire-router
+  friendly_name: Routeur solaire
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+  level: DEBUG
+
+wifi:
+  # Sans reseau "station" configure, cet ESP reste un point d'acces local.
+  power_save_mode: none
+  ap:
+    ssid: "Solaire cabanon"
+    # Pas de cle : reseau volontairement ouvert, isole et sans Internet.
+    channel: 6
+    ap_timeout: 1s
+    manual_ip:
+      static_ip: 192.168.4.1
+      gateway: 192.168.4.1
+      subnet: 255.255.255.0

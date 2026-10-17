@@ -1,5 +1,6 @@
 {
   "dtu_host": "192.168.x.x",
+  "dtu_modbus_host": "192.168.x.x",
   "linky": {
     "enabled": false,
     "mode": "dinky_http",

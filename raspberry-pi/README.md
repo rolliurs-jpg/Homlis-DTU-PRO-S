@@ -42,7 +42,7 @@ logiciel dans `~/solaire`, préserve les données déjà présentes et crée une
 configuration locale vierge dans `~/AppData/Local/BoiteNoireHoymiles/`.
 
 Ouvrez ensuite `http://ADRESSE_DU_RASPBERRY:8765/`, allez dans **Équipements**
-et activez uniquement les appareils réellement présents (DTU, Dinky, Shelly,
+et activez uniquement les appareils réellement présents (DTU, Denky D4, Shelly,
 batterie, TP-Link ou ESP32). Après l’enregistrement, relancez le service :
 
 ```bash
@@ -60,13 +60,29 @@ bash raspberry-pi/INSTALLER_RASPBERRY.sh
 Sur Raspberry, laissez le réglage web **Démarrage automatique** sur **Non** :
 le service systemd ci-dessus est déjà responsable du lancement au démarrage.
 
-## Zéro-injection : réglage Hoymiles uniquement
+## Zéro-injection : contrôle externe volontaire via Modbus
 
-Sur Raspberry Pi, le collecteur est strictement en lecture seule : il ne
-commande ni le DTU, ni les micro-onduleurs, ni la batterie. Réglez le
-zéro-injection ou la limite d’exportation directement dans Hoymiles avec le
-DDSU/compteur prévu à cet effet. Une petite marge d’export, par exemple 0,10
-kW, peut éviter que le DTU ne bride trop et ne fasse décharger la batterie.
+Par défaut, le collecteur Raspberry reste en lecture seule. Le contrôle externe ne doit être activé qu’après validation des mesures et de la liaison Modbus TCP du DTU. Dans l’application Hoymiles, activez **Remote Control / Modbus Protocol** avec l’adresse `101`, puis activez la gestion solaire dans le tableau web.
+
+Cette configuration peut désactiver la gestion DDSU native du DTU. Ne laissez pas les deux systèmes contrôler simultanément la même limite d’exportation. Le contrôleur externe conserve une petite marge d’achat réseau, n’agit qu’après confirmation du plein de la batterie et demande 100 % si une mesure ou liaison devient ancienne.
+
+Pour les liaisons Wi-Fi physiques : la **TP-Link doit être branchée en USB 2.0** pour le Wi-Fi direct du DTU ; l’**Alfa doit être branchée en USB 3.0** pour le Wi-Fi solaire du cabanon. Ces deux liaisons ont des rôles différents et restent volontairement séparées.
+
+## Diagnostic local DTU, sans commande
+
+Le script `local_dtu_probe.py` vérifie que le Raspberry peut lire un DTU via
+son protocole Wi-Fi local. Il n'exécute que deux lectures (`is-encrypted` et
+`get-real-data-new`) et ne modifie ni limite de puissance, ni réseau Wi-Fi, ni
+configuration locale.
+
+```bash
+cd ~/solaire
+./.venv/bin/python local_dtu_probe.py --host 192.168.1.206
+```
+
+Le résultat attendu est `"state": "online"` avec les micro-onduleurs et leur
+puissance. Une seule exécution suffit ; le test ne doit pas être lancé en
+boucle.
 
 ## Connexion depuis les autres appareils
 

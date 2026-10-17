@@ -112,7 +112,8 @@ def battery_cycle(rows, full_at, until):
     discharge that can remain displayed at 99% for several minutes.
     Effective duration counts only measured discharging intervals (<=45 s).
     """
-    result = dict(discharge_at=None, recharge_at=None, discharge_seconds=None,
+    result = dict(discharge_at=None, discharge_candidate_at=None,
+                  recharge_at=None, discharge_seconds=None,
                   cycle_incomplete=False, cycle_pending=True)
     if full_at is None:
         return result
@@ -162,6 +163,10 @@ def battery_cycle(rows, full_at, until):
                 candidate = None
                 candidate_soc = None
         previous = t
+    # La décharge est présente mais pas encore confirmée : elle est affichée
+    # comme telle plutôt que comme une absence dans le tableau de bord.
+    if result['discharge_at'] is None and candidate is not None:
+        result['discharge_candidate_at'] = candidate
     if previous is None or (result['recharge_at'] is None and until-previous > 45):
         result['cycle_incomplete'] = True
     if result['discharge_at'] is not None:
@@ -247,13 +252,11 @@ def cycle_values(r):
     """Shared desktop/mobile/CSV wording, times in the computer's local zone."""
     def clock(value):
         if value is None:
-            return 'Non observée'
+            return '—'
         dt = datetime.fromtimestamp(value)
         return dt.strftime('%H:%M') if dt.date().isoformat() == r['date'] else dt.strftime('%d/%m à %H:%M')
     seconds = r.get('discharge_seconds')
     duration = '—' if seconds is None else f"{int(seconds)//3600} h {int(seconds)%3600//60:02d} min"
-    if seconds is not None and r.get('cycle_pending'):
-        duration += ' (provisoire)'
     alerts = []
     if r.get('already_full'):
         alerts.append('Déjà pleine au relevé / après une interruption')
@@ -262,16 +265,17 @@ def cycle_values(r):
     if r.get('cycle_incomplete'):
         alerts.append('Relevés batterie incomplets')
     energy = 'Indisponible' if r['export_kwh'] is None else f"{r['export_kwh']:.3f} kWh"
-    if r['end_at'] is None and r['export_kwh'] is not None:
-        energy += ' (provisoire)'
+    discharge = clock(r.get('discharge_at'))
+    if r.get('discharge_at') is None and r.get('discharge_candidate_at') is not None:
+        discharge = 'Validation depuis ' + clock(r['discharge_candidate_at'])
     return (r['date'], clock(r['full_at']), energy,
-            clock(r['end_at']) if r['end_at'] is not None else 'Non confirmée',
-            clock(r.get('discharge_at')), duration, clock(r.get('recharge_at')),
+            clock(r['end_at']) if r['end_at'] is not None else 'En attente',
+            discharge, duration, clock(r.get('recharge_at')),
             ' · '.join(alerts) or '—')
 
 
 CYCLE_HEADINGS = ('Jour du plein', 'Pleine à', 'Surplus après plein', 'Fin solaire estimée',
-                  'Décharge dès', 'Temps en décharge', 'Recharge dès', 'Remarques')
+                  'Décharge dès', 'Temps en décharge', 'Recharge dès le prochain ensoleillement', 'Remarques')
 
 def full_charge_days(battery_rows, grid_rows, pv_rows, now):
     """Daily first observed 100%, then measured export. No gap extrapolation.

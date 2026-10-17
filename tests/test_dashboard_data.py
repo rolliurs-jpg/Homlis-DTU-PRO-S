@@ -19,6 +19,33 @@ class FakeBattery:
 
 
 class DashboardDataTests(unittest.TestCase):
+    def test_wireless_interfaces_describe_required_usb_ports(self):
+        completed = type('Completed', (), {
+            'returncode': 0,
+            'stdout': 'wlan1:connected\nwlan2:connected\n',
+        })()
+        with patch('dashboard_data.subprocess.run', return_value=completed):
+            links = DashboardData.wireless_interfaces()
+        self.assertEqual([link['interface'] for link in links], ['wlan1', 'wlan2'])
+        self.assertTrue(all(link['connected'] for link in links))
+        self.assertIn('USB 2.0 obligatoire', links[0]['role'])
+        self.assertIn('USB 3.0 obligatoire', links[1]['role'])
+
+    def test_router_is_probed_by_ping_not_port_80(self):
+        config = {
+            "hoymiles_proxy": {"enabled": False},
+            "tp_link": {"enabled": False},
+            "esp_router": {"enabled": True, "ap_host": "192.168.4.1"},
+        }
+        completed = type("Completed", (), {"returncode": 0})()
+        with tempfile.TemporaryDirectory() as folder:
+            with patch("dashboard_data.subprocess.run", return_value=completed) as run:
+                devices = DashboardData(Path(folder), config, FakeBattery()).esp_devices()
+        router = next(device for device in devices if device["id"] == "router")
+        self.assertTrue(router["connected"])
+        self.assertEqual(router["reachable_hosts"], ["192.168.4.1"])
+        self.assertIn("192.168.4.1", run.call_args.args[0])
+
     def test_period_boundaries(self):
         now = datetime(2026, 9, 23, 12, 30)
         start, end = period_bounds("today", now)

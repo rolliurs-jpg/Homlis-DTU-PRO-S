@@ -15,11 +15,11 @@ class ControllerTests(unittest.TestCase):
   c=self.controller()
   for _ in range(20):r=c.evaluate(self.sample(),1000)
   self.assertFalse(r['battery_full_confirmed'])
- def test_missing_and_stale_restore_full_production(self):
+ def test_missing_and_stale_hold_previous_commands(self):
   c=self.controller();self.full(c)
-  self.assertEqual(c.evaluate({},1135)['hms1000_limit_pct'],100)
+  r=c.evaluate({},1135);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])
   self.assertFalse(c.full)
-  self.assertEqual(c.evaluate(self.sample(1000),1200)['hms1000_limit_pct'],100)
+  r=c.evaluate(self.sample(1000),1200);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])
  def test_gap_does_not_confirm_full(self):
   c=self.controller();c.evaluate(self.sample(),1000)
   self.assertFalse(c.evaluate(self.sample(1200),1200)['battery_full_confirmed'])
@@ -33,12 +33,12 @@ class ControllerTests(unittest.TestCase):
  def test_other_array_surplus_is_reported(self):
   c=self.controller();self.full(c)
   self.assertGreater(c.evaluate(self.sample(1135,grid_w=-300),1135)['uncontrolled_surplus_w'],30)
- def test_nan_and_future_measurements_do_not_command_reduction(self):
+ def test_nan_and_future_measurements_hold_previous_commands(self):
   for value in [float('nan'),float('inf')]:
-   c=self.controller();self.assertEqual(c.evaluate(self.sample(grid_w=value),1000)['hms1000_limit_pct'],100)
-  c=self.controller();self.assertEqual(c.evaluate(self.sample(1010),1000)['hms1000_limit_pct'],100)
+   c=self.controller();r=c.evaluate(self.sample(grid_w=value),1000);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])
+  c=self.controller();r=c.evaluate(self.sample(1010),1000);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])
 
- def test_pause_and_resume_request_full_production(self):
+ def test_pause_requests_full_production_but_resume_keeps_current_limit(self):
   class Proxy:
    config={}
    requested=[]
@@ -48,7 +48,7 @@ class ControllerTests(unittest.TestCase):
   self.assertFalse(c.enabled);self.assertFalse(c.full)
   self.assertEqual(c.snapshot()['mode'],'paused');self.assertEqual(p.requested,[100])
   self.assertTrue(p.config['commands_enabled'])
-  c.set_enabled(True);self.assertTrue(c.enabled);self.assertEqual(p.requested,[100,100])
+  c.set_enabled(True);self.assertTrue(c.enabled);self.assertEqual(p.requested,[100])
   with self.assertRaises(ValueError):c.set_enabled('yes')
 
  def combined(self):
@@ -63,10 +63,10 @@ class ControllerTests(unittest.TestCase):
   for t in range(1000,1121,15):r=c.evaluate(self.combined_sample(t),t)
   self.assertEqual(r['controlled_panels'],6)
   self.assertEqual(r['hms1000_limit_pct'],19);self.assertEqual(r['dtu_limit_pct'],19)
- def test_dtu_missing_or_mixed_limits_restore_both(self):
+ def test_dtu_missing_or_mixed_limits_hold_previous_commands(self):
   c=self.combined();s=self.combined_sample();s['dtu']['port_limits_pct']=[90,100,100,100]
   r=c.evaluate(s,1000)
-  self.assertEqual(r['hms1000_limit_pct'],100);self.assertEqual(r['dtu_limit_pct'],100)
+  self.assertIsNone(r['hms1000_limit_pct']);self.assertIsNone(r['dtu_limit_pct']);self.assertTrue(r['write_hold'])
  def test_six_panels_import_recovery(self):
   c=self.combined()
   for t in range(1000,1121,15):c.evaluate(self.combined_sample(t),t)

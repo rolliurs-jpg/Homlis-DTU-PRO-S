@@ -22,7 +22,7 @@ FILES=(
   boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html
   autostart.py monitoring.py energy_analysis.py battery_monitor.py
   surplus_simulation.py surplus_controller.py dtu_control.py PAIRER_HOYMILES.py
-  hoymiles_proxy.py HOYMILES_BLE_LICENSE.txt requirements.txt fond_solaire.png
+  hoymiles_proxy.py local_dtu_probe.py HOYMILES_BLE_LICENSE.txt requirements.txt fond_solaire.png
   icone_panneau_solaire.ico config.example.json README.md
 )
 for file in "${FILES[@]}"; do

@@ -68,6 +68,10 @@ except ImportError:
 # Version stable destinée à la publication communautaire.
 VERSION = "7.0.66"
 DEFAULT_DTU_HOST = "10.10.100.254"
+# Le DTU répond aux relevés sur son Wi-Fi direct, tandis que son Modbus TCP
+# est exposé sur l'Ethernet derrière le nano-routeur. Les deux chemins ne
+# doivent donc pas être confondus.
+DEFAULT_DTU_MODBUS_HOST = "192.168.1.206"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
 DIRECT_WINDOW_HOURS = 4
@@ -112,6 +116,10 @@ LEGACY_EMPTY_LINKY_CONFIG = {
 
 DEFAULT_CONFIG = {
     "dtu_host": DEFAULT_DTU_HOST,
+    "dtu_modbus_host": DEFAULT_DTU_MODBUS_HOST,
+    # Adresse source optionnelle pour la lecture locale du DTU en Wi-Fi direct.
+    # Vide : elle est détectée automatiquement à partir de la route réseau.
+    "dtu_wifi_local_addr": "",
     # Le firmware DTU ne fournit pas une valeur powerLimit stable en lecture.
     # Ces limites sont des réglages d'affichage déclaratifs : elles ne sont
     # jamais envoyées au DTU par l'application.
@@ -260,6 +268,8 @@ battery_monitor = BatteryMonitor(BASE, CONFIG)
 battery_monitor.start()
 atexit.register(battery_monitor.stop)
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
+DTU_MODBUS_HOST = (str(CONFIG.get("dtu_modbus_host", DEFAULT_DTU_MODBUS_HOST)).strip()
+                   or DEFAULT_DTU_MODBUS_HOST)
 SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
 SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
 
@@ -291,8 +301,6 @@ def _launch_classic_interface():
 
 def dashboard_ui_action(action, _values=None):
     if action == "surplus_control":
-        if sys.platform.startswith("linux"):
-            return {"error": "Régulation locale désactivée sur Raspberry Pi : utilisez le zéro-injection Hoymiles."}
         if surplus_controller is None:
             return {"error": "Gestion en démarrage"}
         enabled = (_values or {}).get("enabled")
@@ -1131,15 +1139,41 @@ def read_dtu():
     # Le programme hoymiles-wifi est donc dans le même dossier que Python, et
     # n'est pas forcément visible dans le PATH général du Mac.
     executable_dir = Path(sys.executable).resolve().parent
-    cli_candidates = (executable_dir / "hoymiles-wifi", executable_dir / "hoymiles-wifi.exe")
+    # Sous systemd, sys.executable peut être résolu vers Python système même
+    # lorsque l'application utilise le venv du projet. Le client installé à
+    # côté de ce projet doit donc être recherché en premier.
+    project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
+    cli_candidates = (
+        project_venv_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi.exe",
+    )
     hoymiles_cli = next((str(candidate) for candidate in cli_candidates if candidate.exists()), "hoymiles-wifi")
 
     errors = []
     for host in hosts:
-        cmd = [hoymiles_cli, "--host", host, "--as-json", "get-real-data-new"]
+        # hoymiles-wifi doit envoyer ses paquets depuis l'interface qui atteint
+        # le DTU. C'est indispensable quand le Raspberry a simultanément le
+        # LAN Livebox et le Wi-Fi direct du DTU.
+        local_addr = str(CONFIG.get("dtu_wifi_local_addr", "")).strip()
+        if not local_addr:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                    probe.connect((host, 9))
+                    local_addr = str(probe.getsockname()[0])
+            except OSError:
+                local_addr = ""
+
+        cmd = [hoymiles_cli, "--host", host]
+        if local_addr:
+            cmd.extend(["--local_addr", local_addr])
+        cmd.extend(["--timeout", "8", "--as-json", "--disable-interactive", "get-real-data-new"])
         try:
+            # Le DTU peut demander quelques secondes pour réveiller la session
+            # radio. Le client interne attend déjà 8 s : 20 s évite que Python
+            # coupe une lecture qui allait aboutir.
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=12,
+                cmd, capture_output=True, text=True, timeout=20,
                 startupinfo=startupinfo, creationflags=creationflags
             )
             text = result.stdout.strip()
@@ -1720,7 +1754,12 @@ def capture_screen(event=None):
 def hoymiles_cli_path():
     """Retourne le client local Hoymiles, sous Windows comme sous macOS."""
     executable_dir = Path(sys.executable).resolve().parent
-    candidates = (executable_dir / "hoymiles-wifi", executable_dir / "hoymiles-wifi.exe")
+    project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
+    candidates = (
+        project_venv_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi.exe",
+    )
     return next((str(candidate) for candidate in candidates if candidate.exists()), "hoymiles-wifi")
 
 
@@ -3667,7 +3706,12 @@ def update(_):
 
         source = data.get("_source", "wifi_direct")
         sgs = data["sgsData"][0]
-        meter = data["meterData"][0]
+        # Le DTU peut fournir la production sans fournir de mesure DDSU dans
+        # la même réponse.  Le Shelly Pro EM est la référence réseau locale ;
+        # une absence ponctuelle de ``meterData`` ne doit donc pas faire
+        # perdre une production DTU valide ni créer un faux échec de lecture.
+        meter_rows = data.get("meterData") or [{}]
+        meter = meter_rows[0] if isinstance(meter_rows[0], dict) else {}
         # Selon le firmware, la puissance de production est soit à la racine
         # (dtuPower / activePower), soit dans sgsData. Les champs à zéro sont
         # omis par le DTU dans son JSON : la nuit, leur absence signifie donc 0 W.
@@ -3678,13 +3722,14 @@ def update(_):
         # Certains firmwares ne renvoient temporairement que la valeur de phase.
         # Les deux champs représentent la même mesure sur cette installation monophasée.
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
-        if grid_raw is None and source != "modbus_tcp":
-            raise RuntimeError("puissance réseau absente de la réponse DTU")
         if source == "modbus_tcp":
             grid = float("nan")
             limit_w = float(CONFIG.get("dtu_lan_limit_pct", DEFAULT_DTU_LIMIT_PCT))
         else:
-            grid = float(grid_raw)
+            # Une réponse Wi-Fi partielle reste une réponse DTU utilisable :
+            # le graphique laisse le DDSU vide et le tableau de bord continue
+            # à employer le Shelly pour la puissance réseau.
+            grid = float(grid_raw) if grid_raw is not None else float("nan")
             # Le champ Wi-Fi ``powerLimit`` fluctue suivant le firmware DTU
             # et peut même reprendre une puissance PV (500 %, 800 %, etc.).
             # Il ne s'agit pas d'une commande envoyée par ce programme. On
@@ -3745,6 +3790,9 @@ def update(_):
         )
         publish_mobile_snapshot("online")
     except Exception as e:
+        # Visible dans journalctl : indispensable pour distinguer un problème
+        # de lecture DTU d'un simple basculement de secours vers le Shelly.
+        print(f"Lecture DTU échouée : {e}", file=sys.stderr, flush=True)
         dtu_failures += 1
         failed_at = datetime.now()
         if dtu_failure_since is None:
@@ -4026,16 +4074,15 @@ def surplus_control_sample():
             "battery": battery, "proxy": proxy_reader.snapshot()}
 
 surplus_cfg = CONFIG.get("surplus_control", {})
-# Le DTU-Pro-S assure nativement le zéro-injection. Sur Raspberry Pi, le
-# collecteur reste strictement en lecture seule : une commande Modbus locale
-# non validée selon le firmware ne doit jamais concurrencer le contrôle
-# Hoymiles/DDSU. Les anciennes configurations actives sont donc neutralisées.
-raspberry_read_only = sys.platform.startswith("linux")
-control_enabled = bool(surplus_cfg.get("enabled", False)) and not raspberry_read_only
+# La lecture DTU utilise le Wi-Fi direct, mais la régulation des quatre
+# panneaux du HMS-2000-4T passe par Modbus TCP sur l'Ethernet du nano-routeur.
+# Les commandes restent opt-in dans la configuration et le contrôleur ramène
+# les deux groupes à 100 % en cas de donnée ou de liaison incohérente.
+control_enabled = bool(surplus_cfg.get("enabled", False))
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
     enabled=control_enabled, rated_w=float(surplus_cfg.get("rated_w", 1000)),
-    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock)
-    if control_enabled and surplus_cfg.get("dtu_enabled", False) else None)
+    dtu=DtuControl(DTU_MODBUS_HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock)
+    if surplus_cfg.get("dtu_enabled", False) else None)
 surplus_controller.start()
 atexit.register(surplus_controller.stop)
 

@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "host": "192.168.1.250",
+  "port": 80,
+  "username": "",
+  "password": "",
+  "timeout_s": 5
+}

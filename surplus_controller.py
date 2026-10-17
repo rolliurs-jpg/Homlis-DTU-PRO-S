@@ -15,6 +15,10 @@ class SurplusController:
         self.dtu = dtu
         self.full_since = self.last_sample = None
         self.full = False
+        # Après un redémarrage alors que le pilotage est déjà actif, ne pas
+        # envoyer une consigne 100 % avant d'avoir reconstruit deux minutes
+        # de mesures cohérentes.
+        self.hold_until = time.time() + 120 if enabled else 0.0
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._state = {}
@@ -41,7 +45,12 @@ class SurplusController:
         except (KeyError, TypeError, ValueError):
             self.full_since = self.last_sample = None
             self.full = False
-            result.update(hms1000_limit_pct=100, reason='Mesures absentes ou anciennes : retour à 100 % si la liaison répond.')
+            # En contrôle à distance, une mesure momentanément absente ne doit
+            # jamais relancer toute la production : on garde les dernières
+            # consignes connues jusqu'au prochain échantillon complet.
+            result.update(hms1000_limit_pct=None, dtu_limit_pct=None,
+                          write_hold=True,
+                          reason='Mesures absentes ou anciennes : consignes précédentes conservées, aucune commande envoyée.')
             return result
         if self.dtu:
             d = s.get('dtu', {})
@@ -55,7 +64,9 @@ class SurplusController:
             except (KeyError, TypeError, ValueError):
                 self.full_since = self.last_sample = None
                 self.full = False
-                result.update(hms1000_limit_pct=100, reason='Mesures DTU absentes ou incohérentes : retour des six panneaux à 100 % si les liaisons répondent.')
+                result.update(hms1000_limit_pct=None, dtu_limit_pct=None,
+                              write_hold=True,
+                              reason='Mesures DTU absentes ou incohérentes : consignes précédentes conservées, aucune commande envoyée.')
                 return result
         if self.last_sample is not None and not 0 <= b['timestamp']-self.last_sample <= 45:
             self.full_since, self.full = None, False
@@ -109,11 +120,18 @@ class SurplusController:
             self.enabled = enabled
             self.full_since = self.last_sample = None
             self.full = False
+            # Une prise en main après l'arrêt du zéro-injection Hoymiles ne
+            # doit jamais commencer par une hausse de production. On conserve
+            # les limites observées pendant deux minutes de mesures stables.
+            self.hold_until = time.time() + 120 if enabled else 0.0
+            # La désactivation demande explicitement 100 % au HMS ; le proxy
+            # doit donc rester autorisé à transmettre cette unique consigne.
             self.proxy.config["commands_enabled"] = True
-            self.proxy.request_limit(100)
+            if not enabled:
+                self.proxy.request_limit(100)
             self._state = dict(mode="automatic" if enabled else "paused", commands_enabled=enabled,
                                controlled_panels=6 if self.dtu else 2, hms1000_limit_pct=100, dtu_limit_pct=100 if self.dtu else None,
-                               reason="Démarrage de la gestion." if enabled else "Gestion arrêtée : retour à 100 % demandé.")
+                               reason="Validation des mesures pendant 2 min : limites actuelles conservées." if enabled else "Gestion arrêtée : retour à 100 % demandé.")
 
     def start(self):
         self._thread = threading.Thread(target=self._worker, daemon=True)
@@ -133,7 +151,12 @@ class SurplusController:
             with self._lock:
                 result = self.evaluate(sample, time.time())
                 target = result.get('hms1000_limit_pct')
-                if self.enabled and target is not None:
+                hold = self.enabled and time.time() < self.hold_until
+                if hold:
+                    result['reason'] = 'Validation des mesures pendant 2 min : aucune commande envoyée.'
+                    result['write_hold'] = True
+                suppress_writes = hold or bool(result.get('write_hold'))
+                if self.enabled and not suppress_writes and target is not None:
                     self.proxy.request_limit(target)
                 if not self.enabled:
                     if self.proxy.config.get('commands_enabled'):
@@ -141,13 +164,18 @@ class SurplusController:
                     result.update(hms1000_limit_pct=100, reason='Gestion arrêtée : retour à 100 % demandé si la liaison répond.')
                 if self.dtu:
                     result['dtu'] = sample.get('dtu', {})
-                    try:
-                        self.dtu.request_limit(result['dtu_limit_pct'] if self.enabled else 100, result['dtu'])
-                    except Exception as exc:
-                        result['dtu_command_error'] = type(exc).__name__
-                        result['reason'] += ' Commande DTU non confirmée ; retour du HMS à 100 % demandé.'
-                        self.proxy.request_limit(100)
-                        self.full_since = self.last_sample = None
-                        self.full = False
+                    # En mode arrêté, le DTU reste sous le contrôle natif du
+                    # DDSU : observer sa limite ne doit jamais lui écrire 100
+                    # % en boucle. Les commandes Modbus ne sont autorisées
+                    # qu'après une activation explicite de la régulation.
+                    if self.enabled and not suppress_writes and result.get('dtu_limit_pct') is not None:
+                        try:
+                            self.dtu.request_limit(result['dtu_limit_pct'], result['dtu'])
+                        except Exception as exc:
+                            result['dtu_command_error'] = type(exc).__name__
+                            result['reason'] += ' Commande DTU non confirmée ; retour du HMS à 100 % demandé.'
+                            self.proxy.request_limit(100)
+                            self.full_since = self.last_sample = None
+                            self.full = False
                 self._state = result
             self._stop.wait(15)

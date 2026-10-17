@@ -1,0 +1,36 @@
+# Proxy Bluetooth LE pour les micro-onduleurs du second ensemble.
+# Il rejoint uniquement le point d'acces local "Solaire cabanon".
+
+esphome:
+  name: solaire-proxy
+  friendly_name: Proxy Bluetooth solaire
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+wifi:
+  ssid: "Solaire cabanon"
+  password: ""
+  power_save_mode: none
+  manual_ip:
+    static_ip: 192.168.4.2
+    gateway: 192.168.4.1
+    subnet: 255.255.255.0
+
+# API ESPHome locale utilisee par le Raspberry et habluetooth.
+api:
+  port: 6053
+
+ota:
+  - platform: esphome
+
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: true
+  connection_slots: 3
