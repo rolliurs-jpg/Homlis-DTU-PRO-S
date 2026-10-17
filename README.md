@@ -104,6 +104,7 @@ Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée a
 - production photovoltaïque locale par DTU Pro-S (Wi-Fi direct Windows ou Modbus TCP sur LAN) ;
 - puissance et index HP/HC du Linky par Denky D4 ;
 - deux voies Shelly Pro EM en lecture seule : production et achat/injection réseau ;
+- correction guidée du sens des pinces : production 1, réseau et production 2 peuvent être inversées séparément si une pince a été posée à l’envers ;
 - vues direct, 24 h, hier et historique ;
 - bilan EDF fondé sur les index Linky, export CSV, captures et rapport SAV ;
 - continuité des mesures Denky D4/Shelly lorsque le DTU est momentanément indisponible ;
@@ -112,6 +113,10 @@ Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée a
 - curseur organisé avec les mêmes couleurs de groupe pour faciliter la comparaison ;
 - zone négative transparente, avec son indication placée à gauche pour préserver les mesures récentes à droite ;
 - valeurs DTU indisponibles affichées clairement, sans valeur `nan` ;
+
+### Sens des pinces Shelly
+
+Une pince de courant est directionnelle : elle distingue l’énergie qui entre de celle qui sort. Si elle est montée dans l’autre sens, le Shelly affiche la même puissance avec le signe opposé. Dans **Équipements**, les trois réglages d’inversion sont donc séparés : première pince de production, pince réseau (achat ↔ injection) et seconde pince de production. Ne cochez une case que si la production devient négative en plein soleil, ou si le tableau affiche « acheté » alors que l’énergie est envoyée à EDF — et inversement.
 - production et réseau Shelly affichés en jaune lumineux, y compris dans le suivi du curseur ;
 - échelle verticale automatiquement agrandie lorsque l’injection dépasse −500 W ;
 - boîte du curseur placée dans le graphique, sous les titres et la légende, avec un fond renforcé ;

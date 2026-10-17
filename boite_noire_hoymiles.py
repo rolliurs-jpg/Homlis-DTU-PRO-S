@@ -143,6 +143,9 @@ DEFAULT_CONFIG = {
         "timeout_s": 2,
         "channel_a_label": "Production panneaux Shelly",
         "channel_b_label": "Réseau EDF — mesure Shelly",
+        # Les pinces de courant sont directionnelles. Cette option corrige
+        # uniquement la pince A si elle a été posée dans le sens inverse.
+        "pv_reverse": False,
         # Sur cette installation, la pince B est positive lors de l'injection
         # vers le réseau. Ce réglage rend le calcul du surplus explicite et
         # peut être changé sans retourner physiquement une pince.
@@ -332,10 +335,16 @@ def dashboard_ui_action(action, _values=None):
             updated.setdefault(name, {}).update(enabled=item["enabled"], host=host)
         complete = values.get("production_complete")
         reverse = values.get("shelly2_reverse")
-        if not isinstance(complete, bool) or not isinstance(reverse, bool):
+        shelly_pv_reverse = values.get("shelly_pv_reverse")
+        shelly_grid_reverse = values.get("shelly_grid_reverse")
+        if not all(isinstance(value, bool) for value in (complete, reverse, shelly_pv_reverse, shelly_grid_reverse)):
             return {"error": "Choix de production invalide"}
         updated["production_complete"] = complete
         updated.setdefault("shelly2", {})["reverse"] = reverse
+        updated.setdefault("shelly", {})["pv_reverse"] = shelly_pv_reverse
+        # La logique historique porte le nom export_positive : basculer le
+        # signe de la pince réseau revient exactement à basculer ce réglage.
+        updated.setdefault("shelly", {})["grid_export_positive"] = shelly_grid_reverse
         CONFIG_FILE.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
         CONFIG.clear()
         CONFIG.update(updated)
@@ -1404,9 +1413,8 @@ def read_shelly_pro_em():
     """Lit les deux canaux du Shelly Pro EM via l'API RPC Gen2, sans écriture.
 
     ``EM1.GetStatus`` contient la puissance instantanée signée ``act_power``.
-    Une valeur négative est conservée telle quelle : elle est utile pour
-    diagnostiquer le sens d'une pince, et ne doit jamais être corrigée par le
-    logiciel sans validation physique de l'installation.
+    La valeur est conservée telle quelle, sauf pour la pince A lorsque
+    l'utilisateur a explicitement validé son inversion dans Équipements.
     """
     cfg = CONFIG.get("shelly", {})
     if not cfg.get("enabled"):
@@ -1424,7 +1432,10 @@ def read_shelly_pro_em():
                 status = json.loads(response.read().decode("utf-8"))
             if "act_power" not in status:
                 raise RuntimeError(f"puissance absente pour la pince {channel + 1}")
-            values.append(float(status["act_power"]))
+            value = float(status["act_power"])
+            if channel == 0 and cfg.get("pv_reverse", False):
+                value *= -1
+            values.append(value)
         return tuple(values), "Shelly Pro EM connecté"
     except (OSError, URLError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
         return None, f"Shelly hors ligne ({exc})"
@@ -3889,14 +3900,18 @@ def open_equipment_settings(event=None):
         fields[name] = active, address
     complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
     ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=7, column=0, columnspan=3, sticky="w")
+    reverse1 = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("pv_reverse", False)))
+    ttk.Checkbutton(frame, text="Inverser le signe de la première pince de production", variable=reverse1).grid(row=8, column=0, columnspan=3, sticky="w")
+    reverse_grid = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("grid_export_positive", False)))
+    ttk.Checkbutton(frame, text="Inverser le signe de la pince réseau (achat ↔ injection)", variable=reverse_grid).grid(row=9, column=0, columnspan=3, sticky="w")
     reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=8, column=0, columnspan=3, sticky="w")
-    feedback = tk.StringVar(value="Shelly EM Gen3 : pince sur le canal 0. Laissez la production complète décochée tant que la seconde ligne n’est pas mesurée.")
-    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=9, column=0, columnspan=3, sticky="w", pady=10)
+    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=10, column=0, columnspan=3, sticky="w")
+    feedback = tk.StringVar(value="Une pince mesure le courant dans les deux sens. Cochez uniquement si la production est négative en plein soleil, ou si achat et injection EDF sont inversés.")
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=11, column=0, columnspan=3, sticky="w", pady=10)
     esp_status = tk.StringVar(value="Vérification des ESP32…")
-    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=10, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=12, column=0, columnspan=3, sticky="w", pady=8)
     control_status = tk.StringVar(value="")
-    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=11, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=13, column=0, columnspan=3, sticky="w", pady=8)
     def refresh_state():
         if not window.winfo_exists():
             return
@@ -3920,8 +3935,8 @@ def open_equipment_settings(event=None):
     def toggle_solar():
         state = surplus_controller.snapshot() if surplus_controller else {}
         dashboard_ui_action('surplus_control', {'enabled': not state.get('commands_enabled', False)})
-    ttk.Button(frame, text="Activer / arrêter la gestion solaire", command=toggle_solar).grid(row=12, column=0, columnspan=2, sticky="w", pady=8)
-    ttk.Button(frame, text="Tableau de bord et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=12, column=2, sticky="e", pady=8)
+    ttk.Button(frame, text="Activer / arrêter la gestion solaire", command=toggle_solar).grid(row=14, column=0, columnspan=2, sticky="w", pady=8)
+    ttk.Button(frame, text="Tableau de bord et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=14, column=2, sticky="e", pady=8)
     refresh_state()
     def save():
         for name, (active, address) in fields.items():
@@ -3932,11 +3947,15 @@ def open_equipment_settings(event=None):
             # Write a copy: the running collector keeps its current configuration.
             data = json.loads(json.dumps(CONFIG))
             data["production_complete"] = complete.get()
+            data.setdefault("shelly", {})["pv_reverse"] = reverse1.get()
+            data.setdefault("shelly", {})["grid_export_positive"] = reverse_grid.get()
             data.setdefault("shelly2", {})["reverse"] = reverse2.get()
             for name, (active, address) in fields.items():
                 data.setdefault(name, {}).update(enabled=active.get(), host=address.get().strip())
             CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
             CONFIG["production_complete"] = complete.get()
+            CONFIG.setdefault("shelly", {})["pv_reverse"] = reverse1.get()
+            CONFIG.setdefault("shelly", {})["grid_export_positive"] = reverse_grid.get()
             CONFIG.setdefault("shelly2", {})["reverse"] = reverse2.get()
             pending_equipment.update({name: {"enabled": active.get(), "host": address.get().strip()}
                                       for name, (active, address) in fields.items()})
@@ -3944,7 +3963,7 @@ def open_equipment_settings(event=None):
             messagebox.showinfo("Équipements enregistrés", "Fermez puis relancez le logiciel pour appliquer vos réglages.", parent=dialog_parent())
         except OSError as exc:
             feedback.set(f"Enregistrement impossible : {exc}")
-    ttk.Button(frame, text="Enregistrer", command=save).grid(row=13, column=2, sticky="e")
+    ttk.Button(frame, text="Enregistrer", command=save).grid(row=15, column=2, sticky="e")
 
 equipment_button_ax = plt.axes([0.82, 0.774, 0.13, 0.040])
 equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
