@@ -57,8 +57,9 @@ cd ~/solaire-source
 bash raspberry-pi/INSTALLER_RASPBERRY.sh
 ```
 
-Sur Raspberry, laissez le réglage web **Démarrage automatique** sur **Non** :
-le service systemd ci-dessus est déjà responsable du lancement au démarrage.
+Sur Raspberry, l’encadré web indique **Démarrage du Raspberry Pi — Géré par
+systemd** : le service ci-dessus est déjà responsable du lancement au démarrage.
+Il n’y a aucun choix Oui/Non à faire dans le tableau web.
 
 ## Zéro-injection : contrôle externe volontaire via Modbus
 
