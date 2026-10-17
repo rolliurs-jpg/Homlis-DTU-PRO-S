@@ -161,8 +161,8 @@ plus qu'un outil de secours. Le navigateur ouvre alors exactement la même
 interface sur tous les appareils.
 
 Sur Raspberry, l’encadré **Démarrage du Raspberry Pi** indique simplement
-**Géré par systemd** : le collecteur démarre déjà automatiquement et aucun
-réglage n’est nécessaire depuis le tableau web. Le serveur refuse les connexions
+**Automatique** : le collecteur démarre déjà automatiquement et aucun réglage
+n’est nécessaire depuis le tableau web. Le serveur refuse les connexions
 Internet publiques ; n'ouvrez aucun port de la box et n'activez pas Tailscale
 Funnel. Réservez Tailscale à l'accès privé distant.
 
