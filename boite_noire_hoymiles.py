@@ -66,7 +66,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.68"
+VERSION = "7.0.69"
 DEFAULT_DTU_HOST = "10.10.100.254"
 # Le DTU répond aux relevés sur son Wi-Fi direct, tandis que son Modbus TCP
 # est exposé sur l'Ethernet derrière le nano-routeur. Les deux chemins ne
@@ -3902,12 +3902,12 @@ def open_equipment_settings(event=None):
     complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
     ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=9, column=0, columnspan=3, sticky="w")
     reverse1 = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("pv_reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la première pince de production", variable=reverse1).grid(row=10, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser : pince A Shelly Pro EM — départ solaire 1", variable=reverse1).grid(row=10, column=0, columnspan=3, sticky="w")
     reverse_grid = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("grid_export_positive", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la pince réseau (achat ↔ injection)", variable=reverse_grid).grid(row=11, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser : pince B Shelly Pro EM — arrivée réseau EDF (achat ↔ injection)", variable=reverse_grid).grid(row=11, column=0, columnspan=3, sticky="w")
     reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=12, column=0, columnspan=3, sticky="w")
-    feedback = tk.StringVar(value="Une pince mesure le courant dans les deux sens. Cochez uniquement si la production est négative en plein soleil, ou si achat et injection EDF sont inversés.")
+    ttk.Checkbutton(frame, text="Inverser : pince Shelly EM Gen3 — départ solaire 2 / nouveaux panneaux", variable=reverse2).grid(row=12, column=0, columnspan=3, sticky="w")
+    feedback = tk.StringVar(value="Repère : A = premier départ solaire, B = câble venant du réseau EDF, Gen3 = second départ solaire. Vérifiez le circuit avant toute intervention. Ces cases corrigent seulement le sens d’affichage : ne déplacez pas une pince sous tension.")
     ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=13, column=0, columnspan=3, sticky="w", pady=10)
     esp_status = tk.StringVar(value="Vérification des ESP32…")
     ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=14, column=0, columnspan=3, sticky="w", pady=8)

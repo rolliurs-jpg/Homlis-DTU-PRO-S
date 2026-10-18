@@ -116,7 +116,7 @@ Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée a
 
 ### Sens des pinces Shelly
 
-Une pince de courant est directionnelle : elle distingue l’énergie qui entre de celle qui sort. Si elle est montée dans l’autre sens, le Shelly affiche la même puissance avec le signe opposé. Dans **Équipements**, les trois réglages d’inversion sont donc séparés : première pince de production, pince réseau (achat ↔ injection) et seconde pince de production. Ne cochez une case que si la production devient négative en plein soleil, ou si le tableau affiche « acheté » alors que l’énergie est envoyée à EDF — et inversement.
+Une pince de courant est directionnelle : elle distingue l’énergie qui entre de celle qui sort. Si elle est montée dans l’autre sens, le Shelly affiche la même puissance avec le signe opposé. Dans **Équipements**, les trois réglages d’inversion sont séparés et repérés ainsi : **pince A du Shelly Pro EM** = premier départ solaire ; **pince B du Shelly Pro EM** = câble venant du réseau EDF, pour achat ou injection ; **pince du Shelly EM Gen3** = second départ solaire ou nouveaux panneaux. Vérifiez le circuit avant toute intervention : ces cases corrigent seulement le sens d’affichage, elles ne remplacent pas une vérification de câblage et ne nécessitent pas de déplacer une pince sous tension.
 - production et réseau Shelly affichés en jaune lumineux, y compris dans le suivi du curseur ;
 - échelle verticale automatiquement agrandie lorsque l’injection dépasse −500 W ;
 - boîte du curseur placée dans le graphique, sous les titres et la légende, avec un fond renforcé ;
