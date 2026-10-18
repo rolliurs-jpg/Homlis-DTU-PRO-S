@@ -66,7 +66,7 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.67"
+VERSION = "7.0.68"
 DEFAULT_DTU_HOST = "10.10.100.254"
 # Le DTU répond aux relevés sur son Wi-Fi direct, tandis que son Modbus TCP
 # est exposé sur l'Ethernet derrière le nano-routeur. Les deux chemins ne
@@ -3900,19 +3900,19 @@ def open_equipment_settings(event=None):
         ttk.Entry(frame, textvariable=address, width=25).grid(row=row, column=2)
         fields[name] = active, address
     complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
-    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=8, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=9, column=0, columnspan=3, sticky="w")
     reverse1 = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("pv_reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la première pince de production", variable=reverse1).grid(row=9, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser le signe de la première pince de production", variable=reverse1).grid(row=10, column=0, columnspan=3, sticky="w")
     reverse_grid = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("grid_export_positive", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la pince réseau (achat ↔ injection)", variable=reverse_grid).grid(row=10, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser le signe de la pince réseau (achat ↔ injection)", variable=reverse_grid).grid(row=11, column=0, columnspan=3, sticky="w")
     reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=11, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=12, column=0, columnspan=3, sticky="w")
     feedback = tk.StringVar(value="Une pince mesure le courant dans les deux sens. Cochez uniquement si la production est négative en plein soleil, ou si achat et injection EDF sont inversés.")
-    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=12, column=0, columnspan=3, sticky="w", pady=10)
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=13, column=0, columnspan=3, sticky="w", pady=10)
     esp_status = tk.StringVar(value="Vérification des ESP32…")
-    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=13, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=14, column=0, columnspan=3, sticky="w", pady=8)
     control_status = tk.StringVar(value="")
-    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=14, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=15, column=0, columnspan=3, sticky="w", pady=8)
     def refresh_state():
         if not window.winfo_exists():
             return
@@ -3936,8 +3936,8 @@ def open_equipment_settings(event=None):
     def toggle_solar():
         state = surplus_controller.snapshot() if surplus_controller else {}
         dashboard_ui_action('surplus_control', {'enabled': not state.get('commands_enabled', False)})
-    ttk.Button(frame, text="Activer / arrêter la gestion locale", command=toggle_solar).grid(row=15, column=0, columnspan=2, sticky="w", pady=8)
-    ttk.Button(frame, text="Tableau local et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=15, column=2, sticky="e", pady=8)
+    ttk.Button(frame, text="Activer / arrêter la gestion locale", command=toggle_solar).grid(row=16, column=0, columnspan=2, sticky="w", pady=8)
+    ttk.Button(frame, text="Tableau local et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=16, column=2, sticky="e", pady=8)
     refresh_state()
     def save():
         for name, (active, address) in fields.items():
@@ -3964,7 +3964,7 @@ def open_equipment_settings(event=None):
             messagebox.showinfo("Équipements enregistrés", "Fermez puis relancez le logiciel pour appliquer vos réglages.", parent=dialog_parent())
         except OSError as exc:
             feedback.set(f"Enregistrement impossible : {exc}")
-    ttk.Button(frame, text="Enregistrer", command=save).grid(row=16, column=2, sticky="e")
+    ttk.Button(frame, text="Enregistrer", command=save).grid(row=17, column=2, sticky="e")
 
 equipment_button_ax = plt.axes([0.82, 0.774, 0.13, 0.040])
 equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
