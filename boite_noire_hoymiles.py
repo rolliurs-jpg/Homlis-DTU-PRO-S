@@ -3892,7 +3892,7 @@ def open_equipment_settings(event=None):
     ttk.Label(frame, text="Configuration locale de cet ordinateur", font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=3, sticky="w")
     ttk.Label(frame, text="Cette fenêtre ne lit ni ne modifie les réglages du Raspberry Pi. Pour l’installation en service (6 panneaux), utilisez le tableau web du Raspberry.", wraplength=690).grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 12))
     fields = {}
-    for row, (name, label) in enumerate((("linky", "Linky / Denky D4"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2"), ("tp_link", "TP-Link — nano-routeur DTU"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth Hoymiles"), ("esp_router", "ESP32 — routeur Wi-Fi solaire")), 2):
+    for row, (name, label) in enumerate((("linky", "Linky / Denky D4"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC + Smart Meter"), ("shelly2", "Shelly EM Gen3 — production 2"), ("tp_link", "TP-Link — nano-routeur DTU"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth Hoymiles"), ("esp_router", "ESP32 — routeur Wi-Fi solaire")), 2):
         active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
         address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
         ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)
@@ -3900,19 +3900,20 @@ def open_equipment_settings(event=None):
         ttk.Entry(frame, textvariable=address, width=25).grid(row=row, column=2)
         fields[name] = active, address
     complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
-    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=9, column=0, columnspan=3, sticky="w")
+    ttk.Label(frame, text="Réglages des pinces Shelly uniquement. Le Smart Meter Zendure est associé à la batterie : il n’est pas un Shelly.").grid(row=9, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=10, column=0, columnspan=3, sticky="w")
     reverse1 = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("pv_reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser : pince A Shelly Pro EM — départ solaire 1", variable=reverse1).grid(row=10, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser : pince A du Shelly Pro EM — départ solaire 1", variable=reverse1).grid(row=11, column=0, columnspan=3, sticky="w")
     reverse_grid = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("grid_export_positive", False)))
-    ttk.Checkbutton(frame, text="Inverser : pince B Shelly Pro EM — arrivée réseau EDF (achat ↔ injection)", variable=reverse_grid).grid(row=11, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser : pince B du Shelly Pro EM — arrivée réseau EDF (achat ↔ injection)", variable=reverse_grid).grid(row=12, column=0, columnspan=3, sticky="w")
     reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser : pince Shelly EM Gen3 — départ solaire 2 / nouveaux panneaux", variable=reverse2).grid(row=12, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Inverser : pince du Shelly EM Gen3 — départ solaire 2 / nouveaux panneaux", variable=reverse2).grid(row=13, column=0, columnspan=3, sticky="w")
     feedback = tk.StringVar(value="Repère : A = premier départ solaire, B = câble venant du réseau EDF, Gen3 = second départ solaire. Vérifiez le circuit avant toute intervention. Ces cases corrigent seulement le sens d’affichage : ne déplacez pas une pince sous tension.")
-    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=13, column=0, columnspan=3, sticky="w", pady=10)
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=14, column=0, columnspan=3, sticky="w", pady=10)
     esp_status = tk.StringVar(value="Vérification des ESP32…")
-    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=14, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=15, column=0, columnspan=3, sticky="w", pady=8)
     control_status = tk.StringVar(value="")
-    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=15, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=16, column=0, columnspan=3, sticky="w", pady=8)
     def refresh_state():
         if not window.winfo_exists():
             return
@@ -3936,8 +3937,8 @@ def open_equipment_settings(event=None):
     def toggle_solar():
         state = surplus_controller.snapshot() if surplus_controller else {}
         dashboard_ui_action('surplus_control', {'enabled': not state.get('commands_enabled', False)})
-    ttk.Button(frame, text="Activer / arrêter la gestion locale", command=toggle_solar).grid(row=16, column=0, columnspan=2, sticky="w", pady=8)
-    ttk.Button(frame, text="Tableau local et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=16, column=2, sticky="e", pady=8)
+    ttk.Button(frame, text="Activer / arrêter la gestion locale", command=toggle_solar).grid(row=17, column=0, columnspan=2, sticky="w", pady=8)
+    ttk.Button(frame, text="Tableau local et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=17, column=2, sticky="e", pady=8)
     refresh_state()
     def save():
         for name, (active, address) in fields.items():
