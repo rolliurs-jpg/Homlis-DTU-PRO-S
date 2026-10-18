@@ -160,6 +160,15 @@ gestion solaire de l'ancienne application Mac ou Windows : elle ne constitue
 plus qu'un outil de secours. Le navigateur ouvre alors exactement la même
 interface sur tous les appareils.
 
+> **Un seul pilote par installation.** Si le Raspberry collecte et régule,
+> laissez désactivés dans le logiciel Mac ou Windows le **proxy Bluetooth
+> Hoymiles**, le **routeur Wi-Fi solaire ESP32** et la gestion solaire locale.
+> Les ESP32 restent physiquement en marche pour le Raspberry ; il ne faut
+> simplement pas les configurer ou les interroger par un second collecteur.
+> Deux pilotes pourraient lire les mêmes micro-onduleurs et envoyer des
+> consignes contradictoires au DTU. Sur Mac, PC, Android ou iPhone, ouvrez
+> seulement le tableau web du Raspberry.
+
 Sur Raspberry, l’encadré **Démarrage du Raspberry Pi** indique simplement
 **Automatique** : le collecteur démarre déjà automatiquement et aucun réglage
 n’est nécessaire depuis le tableau web. Le serveur refuse les connexions

@@ -85,7 +85,7 @@
     <section class="section intro" id="plateformes">
       <p class="eyebrow blue">DISPONIBLE SUR VOS ÉCRANS</p>
       <h2>Windows, Mac, Raspberry Pi, Android et iPhone.</h2>
-      <p>Le Raspberry Pi est recommandé pour assurer la collecte et l’enregistrement permanent. Android et iPhone affichent la même interface depuis le navigateur, sur le Wi-Fi local ou à distance avec Tailscale. Windows et macOS restent possibles, mais un seul collecteur doit être actif à la fois.</p>
+      <p>Le Raspberry Pi est recommandé pour assurer la collecte et l’enregistrement permanent. Android et iPhone affichent la même interface depuis le navigateur, sur le Wi-Fi local ou à distance avec Tailscale. Windows et macOS restent possibles, mais un seul collecteur doit être actif à la fois.</p><p><strong>Important :</strong> si le Raspberry est en service, ne cochez pas les ESP32 ni la gestion solaire dans le logiciel classique Mac/Windows. Les ESP32 restent allumés pour le Raspberry ; le Mac ou le PC doit seulement ouvrir son tableau web.</p>
       <div class="cards">
         <article class="card"><span>W</span><h3>Windows</h3><p>Application complète, installation locale, historique et démarrage automatique facultatif.</p></article>
         <article class="card"><span>M</span><h3>macOS Apple Silicon</h3><p>Installateur autonome, sauvegarde des données avant mise à jour et fonctionnement sur le réseau local.</p></article>
@@ -150,7 +150,7 @@
     <section class="section split-section" id="mobile">
       <div><p class="eyebrow blue">ANDROID, iOS, macOS, WINDOWS ET TAILSCALE</p><h2>Surveillez la maison, même en vacances.</h2><p>Le Raspberry Pi héberge le tableau privé. À la maison, tout appareil connecté au Wi-Fi local peut l’ouvrir sans Tailscale. Depuis tout autre lieu, Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows) nécessitent Tailscale pour un accès privé et chiffré.</p></div>
       <ol class="steps">
-        <li><strong>1. Lancez un seul collecteur</strong><span>Le Raspberry Pi collecte les données et sert le tableau sur le port <code>8765</code>. Ne lancez pas en parallèle la gestion solaire sur Mac ou Windows.</span></li>
+        <li><strong>1. Lancez un seul collecteur</strong><span>Le Raspberry Pi collecte les données et sert le tableau sur le port <code>8765</code>. Ne lancez pas en parallèle la gestion solaire sur Mac ou Windows. Dans leur logiciel classique, laissez aussi les deux ESP32 décochés : ils restent réservés au Raspberry.</span></li>
         <li><strong>2. À la maison</strong><span>Ouvrez <code>http://IP_DU_RASPBERRY:8765/</code> sur le Wi-Fi local.</span></li>
         <li><strong>3. Installez Tailscale</strong><span>Connectez le Raspberry et chaque téléphone/ordinateur au même tailnet.</span></li>
         <li><strong>4. Consultez à distance</strong><span>Ouvrez <code>http://IP_TAILSCALE_DU_RASPBERRY:8765/</code>, puis ajoutez la page à l’écran d’accueil Android ou iPhone. Sur Raspberry, obtenez l’adresse avec <code>tailscale ip -4</code>. Aucun port de la box ni service public Funnel n’est nécessaire.</span></li>
