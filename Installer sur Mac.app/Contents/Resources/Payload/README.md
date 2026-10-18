@@ -1,19 +1,19 @@
-# Boîte noire Hoymiles — DTU Pro-S, Linky/Dinky et Shelly Pro EM
+# Boîte noire Hoymiles — DTU Pro-S, Linky & Denky D4 et Shelly Pro EM
 
-**Version 7.0.62 : historique batterie Windows restauré et état du Shelly 2 corrigé sur Windows et macOS.**
+**Raspberry Pi : suivi local permanent et régulation externe optionnelle après activation Modbus du DTU.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
-> Suivi solaire local sur Windows, macOS et Raspberry Pi, consultable depuis Android, iPhone, iPad, Mac et Windows avec l'interface web privée.
+> Suivi et régulation locale du surplus solaire Hoymiles : DTU Pro-S, Linky & Denky D4, Shelly Pro EM et batterie Zendure. Après le plein confirmé, le Raspberry Pi peut limiter la production pour éviter l’injection, sans cloud et avec des garde-fous de liaison.
 
-[![Version](https://img.shields.io/badge/version-7.0.62-2563eb)](RELEASE_NOTES_7.0.62.md)
+[![Version](https://img.shields.io/badge/version-7.0.66-2563eb)](RELEASE_NOTES_7.0.66.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[1 — Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[2 — Télécharger le paquet Windows complet](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.62-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.66](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
-Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** ou **2-WINDOWS**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
+Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC**, **2-WINDOWS** ou **3-RASPBERRY**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
-![Suivi de production](docs/assets/suivi-production-v7.png)
+![Tableau web Raspberry Pi : production, consommation, injection et batterie](docs/assets/tableau-web-raspberry.png)
 
 ## Disponible sur toutes vos plateformes
 
@@ -21,20 +21,20 @@ Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC** o
 | --- | --- | --- |
 | Windows | Application complète | Collecte permanente, historique, réglages et nouvelle interface. |
 | macOS Apple Silicon | Application complète | Collecte permanente avec installateur autonome et sauvegarde avant mise à jour. |
-| Raspberry Pi | Collecteur web permanent | Service systemd, historique local et tableau web privé. |
+| Raspberry Pi | **Collecteur recommandé** | Service systemd, historique local et tableau web privé, sans laisser un Mac ou un PC allumé. |
 | Android | Interface web | Chrome sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
 | iPhone / iPad | Interface web | Safari sur le Wi-Fi local ou via Tailscale ; ajout possible à l’écran d’accueil. |
 
-Android et iPhone utilisent la même interface moderne, sans application de magasin. Windows, macOS ou un Raspberry Pi peut rester actif pour collecter et servir les données. N'exécutez qu'un seul collecteur à la fois.
+Android et iPhone utilisent la même interface moderne, sans application de magasin. Pour une installation permanente, le Raspberry Pi est recommandé : il collecte et sert les données jour et nuit. Windows ou macOS restent des alternatives de bureau. N'exécutez qu'un seul collecteur à la fois.
 
 ## Choisir la bonne version réseau
 
 | Système | Configuration proposée | Usage |
 | --- | --- | --- |
-| Windows | **Deux connexions Wi-Fi** | Wi-Fi interne vers la box/Dinky/Shelly et seconde antenne Wi-Fi vers le DTU. |
-| Windows | **Réseau unique nano-routeur/LAN — recommandé** | DTU en Ethernet sur le nano-routeur Client/Pont ; PC, Dinky et Shelly sur la box. |
+| Windows | **Deux connexions Wi-Fi** | Wi-Fi interne vers la box/Denky D4/Shelly et seconde antenne Wi-Fi vers le DTU. |
+| Windows | **Réseau unique nano-routeur/LAN — recommandé** | DTU en Ethernet sur le nano-routeur Client/Pont ; PC, Denky D4 et Shelly sur la box. |
 | macOS Apple Silicon | **Réseau unique nano-routeur/LAN uniquement** | Même réseau pour tous les appareils, sans changement de Wi-Fi sur le Mac. |
-| Raspberry Pi | **Ethernet vers la box + Wi-Fi dédié ESP32** | Ethernet pour DTU/Linky/Shelly ; Wi-Fi séparé pour le proxy ESP32 si nécessaire. |
+| Raspberry Pi | **Ethernet + deux Wi-Fi USB dédiés** | TP-Link USB 2.0 pour le DTU direct ; Alfa USB 3.0 pour le cabanon solaire ; Ethernet pour le LAN. |
 
 Le choix se fait pendant l’installation Windows. L’installation Mac demande directement l’adresse IP du DTU sur le réseau unique.
 
@@ -58,7 +58,7 @@ Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou
 3. Depuis le navigateur du Mac, téléchargez le paquet **Mac – installateur autonome TAR.GZ** directement sur le Mac. Ne le téléchargez pas d’abord sous Windows et ne transférez pas une application déjà extraite.
 4. Décompressez-le avec l’utilitaire d’archive intégré à macOS. Le dossier contient **1 - INSTALLER BOITE NOIRE HOYMILES.app**, **2 - SI LE MAC REFUSE - INSTALLER.command** et **3 - LIRE-MOI-MAC.txt**.
 5. Faites un clic droit sur le premier installateur, puis choisissez **Ouvrir**. Si macOS le refuse, utilisez le deuxième lanceur par **clic droit → Ouvrir** : il répare les autorisations avant l’installation.
-6. Saisissez les IP réservées du DTU, du Dinky et du Shelly.
+6. Saisissez les IP réservées du DTU, du Denky D4 et du Shelly.
 
 Le lanceur appelle explicitement Bash et conserve l’identité de l’application pendant l’exécution : l’installation résiste à la perte des droits du ZIP et macOS peut attribuer correctement l’autorisation de réseau local.
 
@@ -82,27 +82,41 @@ Le paquet communautaire n’est pas notarisé par Apple. La première ouverture 
 
 ```text
 DTU Pro-S ── Ethernet ──> nano-routeur en mode Client/Pont ── Wi-Fi ──┐
-Linky ── Téléinfo ──> Dinky 4 ─────────────────────────────── Wi-Fi ──┼──> Box ──> Windows ou Mac
+Linky ── Téléinfo ──> Denky D4 ─────────────────────────────── Wi-Fi ──┼──> Box ──> Windows ou Mac
 Shelly Pro EM ─────────────────────────────────────────────── Wi-Fi ──┘
 ```
 
-Le **[TP-Link TL-WR802N](https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr802n/)** convient : choisissez **Client** puis **Smart IP (DHCP)**. La box doit rester l’unique serveur DHCP. Réservez ensuite une IP fixe au DTU, au Dinky et au Shelly dans la box.
+Le **[TP-Link TL-WR802N](https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr802n/)** convient : choisissez **Client** puis **Smart IP (DHCP)**. La box doit rester l’unique serveur DHCP. Réservez ensuite une IP fixe au DTU, au Denky D4 et au Shelly dans la box.
 
-Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être accessible. Sur l’installation testée, cela correspond au réglage RS485 **Remote Control / Modbus Protocol**, adresse `101`. Attention : selon le firmware Hoymiles, ce choix peut rendre le DDSU et la gestion d’exportation Hoymiles indisponibles. Si votre zéro-injection dépend du DDSU, vérifiez son fonctionnement avant de conserver ce réglage.
+## DTU Pro-S : Wi-Fi direct, Modbus TCP et contrôle externe
+
+Le DTU peut être joint de deux manières complémentaires :
+
+- **Wi-Fi direct** : une antenne TP-Link dédiée en **USB 2.0** relie le Raspberry directement au Wi-Fi du DTU. Elle reste indépendante du réseau de la maison et fournit une voie de lecture locale.
+- **Modbus TCP sur le LAN** : lorsque le DTU est relié à la box par Ethernet ou par pont Wi-Fi, le Raspberry lit ses données par le port Modbus TCP `502`. Cette voie est utilisée pour le suivi permanent et, lorsque l'option est activée, pour les limites externes de puissance.
+
+Dans l’application Hoymiles, **Remote Control / Modbus Protocol** doit être activé avec l’adresse de port `101` avant toute commande externe. Cette option peut désactiver le contrôle d’exportation DDSU natif ; ne laissez jamais le DDSU/Hoymiles et le contrôleur externe commander simultanément la même limite. Le logiciel attend des mesures récentes, maintient une marge d’achat réseau et revient à 100 % si la liaison de contrôle devient incertaine.
+
+Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée au Wi-Fi solaire du cabanon et à ses ESP32. Elle est donc distincte de la TP-Link USB 2.0 du DTU.
 
 ## Fonctions principales
 
 - production photovoltaïque locale par DTU Pro-S (Wi-Fi direct Windows ou Modbus TCP sur LAN) ;
-- puissance et index HP/HC du Linky par Dinky 4 ;
+- puissance et index HP/HC du Linky par Denky D4 ;
 - deux voies Shelly Pro EM en lecture seule : production et achat/injection réseau ;
+- correction guidée du sens des pinces : production 1, réseau et production 2 peuvent être inversées séparément si une pince a été posée à l’envers ;
 - vues direct, 24 h, hier et historique ;
 - bilan EDF fondé sur les index Linky, export CSV, captures et rapport SAV ;
-- continuité des mesures Dinky/Shelly lorsque le DTU est momentanément indisponible ;
-- seconde tentative automatique du Dinky avant de signaler une coupure ;
-- couleurs distinctes : production PV en bleu foncé pur, Linky/Dinky en vert, les deux mesures Shelly en jaune lumineux, DDSU en rouge et limite DTU en bleu ;
+- continuité des mesures Denky D4/Shelly lorsque le DTU est momentanément indisponible ;
+- seconde tentative automatique du Denky D4 avant de signaler une coupure ;
+- couleurs distinctes : production PV en bleu foncé pur, Linky/Denky D4 en vert, les deux mesures Shelly en jaune lumineux, DDSU en rouge et limite DTU en bleu ;
 - curseur organisé avec les mêmes couleurs de groupe pour faciliter la comparaison ;
 - zone négative transparente, avec son indication placée à gauche pour préserver les mesures récentes à droite ;
 - valeurs DTU indisponibles affichées clairement, sans valeur `nan` ;
+
+### Sens des pinces Shelly
+
+Une pince de courant est directionnelle : elle distingue l’énergie qui entre de celle qui sort. Si elle est montée dans l’autre sens, le Shelly affiche la même puissance avec le signe opposé. Dans **Équipements**, les trois réglages d’inversion sont donc séparés : première pince de production, pince réseau (achat ↔ injection) et seconde pince de production. Ne cochez une case que si la production devient négative en plein soleil, ou si le tableau affiche « acheté » alors que l’énergie est envoyée à EDF — et inversement.
 - production et réseau Shelly affichés en jaune lumineux, y compris dans le suivi du curseur ;
 - échelle verticale automatiquement agrandie lorsque l’injection dépasse −500 W ;
 - boîte du curseur placée dans le graphique, sous les titres et la légende, avec un fond renforcé ;
@@ -115,7 +129,23 @@ Pour lire localement la production par Modbus TCP, le port 502 du DTU doit être
 - analyse mensuelle de la qualité des données et simulation de batteries 2, 5, 7 et 10 kWh ;
 - rapport mensuel PDF créé localement, avec énergie, coupures observées et hypothèses de batterie.
 
-Le logiciel ne commande ni le relais Shelly ni le zéro-injection Hoymiles.
+Le logiciel ne commande ni les relais Shelly ni la batterie Zendure. Il ne peut
+agir sur la limite de production Hoymiles que lorsque le propriétaire a activé
+explicitement le contrôle externe Modbus et validé ses mesures.
+
+## Évolution prévue : solaire, batterie et véhicule électrique
+
+Le projet est conçu pour grandir avec l'installation. Une prochaine évolution
+visera la **charge intelligente d’un véhicule électrique sur le surplus
+solaire** : la maison restera prioritaire, puis la batterie, puis la voiture
+lorsque la production le permet.
+
+L’objectif n’est pas d’imposer une marque de borne, de batterie ou de panneaux.
+Les mesures Shelly, le réseau local et les protocoles LAN/Modbus fourniront la
+base pour raccorder une borne compatible, un carport solaire ou une batterie
+supplémentaire. Cette fonction est une orientation du projet, pas encore une
+commande disponible : chaque borne devra être étudiée et validée avant toute
+intégration.
 
 ## Raspberry Pi, accès web et sécurité
 
@@ -125,22 +155,45 @@ sert le tableau web sur le port `8765`. Le guide complet, le modèle de service
 et la procédure d'accès privée sont disponibles dans
 [raspberry-pi/README.md](raspberry-pi/README.md).
 
-Conservez le réglage web **Démarrage automatique** sur **Non** sur Raspberry :
-systemd lance déjà le collecteur au démarrage. Le serveur refuse les connexions
+Lorsqu'un Raspberry est le collecteur actif, n'utilisez pas en parallèle la
+gestion solaire de l'ancienne application Mac ou Windows : elle ne constitue
+plus qu'un outil de secours. Le navigateur ouvre alors exactement la même
+interface sur tous les appareils.
+
+Sur Raspberry, l’encadré **Démarrage du Raspberry Pi** indique simplement
+**Automatique** : le collecteur démarre déjà automatiquement et aucun réglage
+n’est nécessaire depuis le tableau web. Le serveur refuse les connexions
 Internet publiques ; n'ouvrez aucun port de la box et n'activez pas Tailscale
 Funnel. Réservez Tailscale à l'accès privé distant.
 
+## Second ensemble de panneaux indépendant : liaison ESP32 Wi-Fi + Bluetooth
+
+Le Raspberry peut aussi réunir les mesures d'un second ensemble de panneaux,
+indépendant du DTU Pro-S principal. Cette liaison complémentaire utilise deux
+ESP32 :
+
+- **ESP32 routeur solaire** : crée le relais Wi-Fi entre le local technique et
+  le Raspberry, même lorsque les panneaux sont éloignés de la box ;
+- **ESP32 proxy Bluetooth Hoymiles** : se place près des micro-onduleurs du
+  second ensemble et remonte leurs informations par Bluetooth.
+
+Le routeur assure la distance en Wi-Fi ; le proxy assure la liaison Bluetooth
+locale avec les micro-onduleurs. Le tableau web affiche leur disponibilité dans
+**Équipements** afin de distinguer une coupure du relais Wi-Fi d'une absence de
+liaison Bluetooth. Ces ESP32 complètent le DTU Pro-S : ils ne remplacent ni sa
+configuration ni le suivi de l'ensemble principal.
+
 ## Android, iPhone, Mac, Windows et accès à distance
 
-La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers la DTU, le Dinky ou le Shelly.
+La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle reprend les mesures déjà collectées par le logiciel : elle ne crée aucune connexion supplémentaire vers le DTU, le Denky D4 ou le Shelly.
 
-1. Lancez le seul collecteur choisi : Windows, macOS ou Raspberry Pi.
-2. À la maison, ouvrez `http://IP_DU_COLLECTEUR:8765/` dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows).
-3. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur le collecteur et chaque appareil client, puis connectez-les au même tailnet.
-4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_COLLECTEUR:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
-5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`.
+1. Lancez le seul collecteur choisi — de préférence le Raspberry Pi avec son service systemd.
+2. À la maison, ouvrez `http://IP_DU_RASPBERRY:8765/` dans Chrome (Android), Safari (iPhone/iPad), Safari/Chrome (Mac) ou Edge/Chrome (Windows).
+3. Pour l’accès à distance, installez [Tailscale](https://tailscale.com/download) sur le Raspberry et chaque appareil client, puis connectez-les au même tailnet.
+4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_RASPBERRY:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
+5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`. Sur Android, Chrome → menu `⋮` → **Installer l’application** ou **Ajouter à l’écran d’accueil** crée un bouton « Mon solaire ».
 
-Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky/Dinky, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule.
+Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky & Denky D4, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule hors du mode de régulation explicitement activé.
 
 L’âge de la mesure est contrôlé indépendamment de la connexion au serveur : vert jusqu’à 90 secondes, orange en cas de retard et rouge lorsque les données sont anciennes. La source de production et la qualité de la mesure sont également indiquées.
 
@@ -186,12 +239,12 @@ dans le bouton **Équipements** du logiciel :
 
 | Configuration | Utilisation |
 | --- | --- |
-| Linky / Dinky seul | Solution économique pour lire la téléinformation du Linky et ses index d’achat HC/HP. La production solaire reste fournie par le DTU. |
+| Linky & Denky D4 | Solution économique pour lire la téléinformation du Linky et ses index d’achat HC/HP. La production solaire reste fournie par le DTU. |
 | Shelly Pro EM seul | Solution plus coûteuse, avec une mesure indépendante de la production et du flux réseau, selon le câblage des deux voies. Le bilan d’achat est une estimation calculée sur les puissances enregistrées. |
-| Linky / Dinky + Shelly Pro EM | Index du compteur pour le bilan d’achat et mesures Shelly pour la production indépendante, le flux réseau et les comparaisons. Les deux mesures réseau ne sont jamais additionnées. |
+| Linky & Denky D4 + Shelly Pro EM | Index du compteur pour le bilan d’achat et mesures Shelly pour la production indépendante, le flux réseau et les comparaisons. Les deux mesures réseau ne sont jamais additionnées. |
 
-Ces choix concernent les équipements complémentaires : « Dinky seul » ne signifie
-pas que le Dinky mesure la production des panneaux. L’injection disponible par
+Ces choix concernent les équipements complémentaires : « Denky D4 seul » ne signifie
+pas que le Denky D4 mesure la production des panneaux. L’injection disponible par
 téléinformation dépend des champs publiés par le compteur et le firmware ; une
 puissance de soutirage n’est pas une mesure signée d’injection.
 
@@ -206,10 +259,10 @@ Le calcul porte sur les mesures enregistrées et limite chaque intervalle à tro
 minutes : les interruptions de collecte peuvent sous-estimer l’énergie. Il ne
 remplace pas les index du compteur ni une facture. Les relevés EDF saisis manuellement
 restent identifiés séparément. Les fonctions d’analyse nécessitant le Shelly ne
-sont proposées que lorsqu’il est activé ; la comparaison Linky/Hoymiles nécessite le Dinky.
+sont proposées que lorsqu’il est activé ; la comparaison Linky/Hoymiles nécessite le Denky D4.
 
 Sur mobile, les cartes maison et flux signé nécessitent les mesures Shelly ; la
-carte Dinky affiche sa mesure de téléinformation. Aucun flux d’injection n’est inventé
+carte Denky D4 affiche sa mesure de téléinformation. Aucun flux d’injection n’est inventé
 à partir d’un soutirage nul.
 
 
@@ -226,6 +279,33 @@ Voir [les notes de la version 7.0.54](RELEASE_NOTES_7.0.54.md). Le suivi Zendure
 
 
 Le suivi batterie propose désormais **Plein à 100 % et surplus après charge** : heure du premier plein observé, injection nette après le plein, fin solaire estimée si toutes les productions sont mesurées, couverture et export quotidien CSV. Voir les notes de version.
+
+## Gestion automatique : maison, batterie pleine et panneaux à 100 %
+
+La gestion solaire est désactivée par défaut et ne doit être activée qu'après
+vérification des mesures. Lorsqu'elle est active, son comportement est le
+suivant :
+
+1. **Batterie en charge ou sous 100 %** : les panneaux pilotés sont demandés à
+   **100 %**. La production donne priorité à la consommation de la maison puis
+   à la recharge de la batterie ; elle n'est pas bridée prématurément.
+2. **Batterie pleine confirmée** : le plein doit être observé pendant au moins
+   deux minutes, sans charge ni décharge significative. Cette précaution évite
+   de limiter les panneaux sur une mesure passagère.
+3. **Après le plein** : la maison passe en mode **zéro-injection**. La puissance
+   réellement demandée aux panneaux est recalculée après la consommation réelle
+   de la maison : seul le surplus est réduit. La cible pratique est environ
+   **30 W prélevés au réseau** ; ce léger écart volontaire stabilise le
+   zéro-injection et évite les oscillations ou une injection durable.
+4. **Panneaux concernés** : le proxy Bluetooth pilote les deux panneaux du
+   second ensemble. Si le contrôle DTU est activé et que ses mesures sont
+   valides, la même régulation s'applique aux **six panneaux**. Si une mesure ou
+   une liaison devient ancienne, un retour à **100 %** est demandé afin de ne
+   pas brider la production à l'aveugle.
+
+La batterie Zendure, les relais Shelly et le réglage interne de zéro-injection
+Hoymiles ne sont jamais modifiés par ce logiciel. Il ajuste uniquement les
+limites de production des équipements explicitement configurés pour ce mode.
 
 
 ### Bilan après plein sur mobile

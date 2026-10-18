@@ -1,6 +1,9 @@
 """Read-only, shared web reports. No device connections and no invented samples."""
 import csv
+import os
 import socket
+import subprocess
+import sys
 import math
 import threading
 import time
@@ -10,6 +13,25 @@ from pathlib import Path
 
 from battery_monitor import number, household
 from autostart import status as autostart_status, set_enabled as set_autostart_enabled
+
+
+def icmp_reachable(host):
+    """Probe an access point which intentionally exposes no TCP service."""
+    if not host:
+        return False
+    if os.name == "nt":
+        command = ["ping", "-n", "1", "-w", "1000", host]
+    elif sys.platform == "darwin":
+        command = ["ping", "-c", "1", "-W", "1000", host]
+    else:
+        command = ["ping", "-c", "1", "-W", "1", host]
+    try:
+        return subprocess.run(
+            command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=2, check=False,
+        ).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def period_bounds(period, now):
@@ -205,33 +227,79 @@ class DashboardData:
                 return self.esp_cache
             proxy = self.config.get('hoymiles_proxy', {})
             router = self.config.get('esp_router', {})
+            tp_link = self.config.get('tp_link', {})
             devices = [dict(id='proxy', name='ESP32 · Proxy Bluetooth Hoymiles',
-                            hosts=[str(proxy.get('host') or '192.168.4.2')], port=int(proxy.get('port',6053)),
+                            hosts=[str(proxy.get('host') or '')], port=int(proxy.get('port',6053)),
                             role='Près du micro-onduleur · liaison Bluetooth', enabled=bool(proxy.get('enabled', False))),
                        dict(id='router', name='ESP32 · Routeur Solaire cabanon',
-                            hosts=[str(router.get('ap_host') or '192.168.4.1'), str(router.get('host') or '192.168.1.239')], port=80,
-                            role='Relais Wi-Fi vers la box', enabled=bool(router.get('enabled', False)))]
+                            hosts=[str(router.get('ap_host') or ''), str(router.get('host') or '')], port=80,
+                            role='Point d’accès Wi-Fi local', enabled=bool(router.get('enabled', False)),
+                            probe='icmp'),
+                       dict(id='tp_link', name='TP-Link · Nano-routeur DTU',
+                            hosts=[str(tp_link.get('host') or '')], port=int(tp_link.get('port', 80)),
+                            role='Pont Wi-Fi client entre le DTU et la Livebox', enabled=bool(tp_link.get('enabled', False)))]
             for device in devices:
                 reachable = []
                 for host in device['hosts'] if device['enabled'] else []:
-                    try:
-                        with socket.create_connection((host, device['port']), timeout=1):
+                    if device.get('probe') == 'icmp':
+                        if icmp_reachable(host):
                             reachable.append(host)
-                    except OSError:
-                        pass
+                    else:
+                        try:
+                            with socket.create_connection((host, device['port']), timeout=1):
+                                reachable.append(host)
+                        except OSError:
+                            pass
                 device.update(reachable_hosts=reachable, connected=bool(reachable), checked_at=time.time())
             self.esp_cache, self.esp_checked = devices, time.monotonic()
             return devices
+
+    @staticmethod
+    def wireless_interfaces():
+        """Return the two USB Wi-Fi links, without exposing their IP addresses."""
+        states = {}
+        try:
+            completed = subprocess.run(
+                ['nmcli', '-t', '-f', 'DEVICE,STATE', 'device', 'status'],
+                capture_output=True, text=True, timeout=2, check=False,
+                env={**os.environ, 'LC_ALL': 'C'},
+            )
+            if completed.returncode == 0:
+                for line in (completed.stdout or '').splitlines():
+                    interface, separator, state = line.partition(':')
+                    if separator:
+                        states[interface] = state
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+        links = (
+            ('wlan1', 'TP-Link · antenne Wi-Fi DTU',
+             'USB 2.0 obligatoire · liaison Wi-Fi directe vers le DTU'),
+            ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',
+             'USB 3.0 obligatoire · liaison Wi-Fi vers le cabanon'),
+        )
+        result = []
+        for interface, name, role in links:
+            connected = states.get(interface) == 'connected'
+            if interface not in states:
+                try:
+                    connected = Path('/sys/class/net', interface, 'operstate').read_text().strip() == 'up'
+                except OSError:
+                    connected = False
+            result.append(dict(interface=interface, name=name, role=role,
+                               connected=connected))
+        return result
 
     def settings(self):
         result = {'dtu_host':str(self.config.get('dtu_host','')),
                   'production_complete':bool(self.config.get('production_complete')),
                   'tarifs_edf':{k:self.config.get('tarifs_edf',{}).get(k) for k in
                                 ('hp_eur_kwh','hc_eur_kwh','abonnement_journalier_eur','plages_hc')}}
-        for name in ('linky','shelly','battery','shelly2','hoymiles_proxy','esp_router'):
+        for name in ('linky','shelly','battery','shelly2','tp_link','hoymiles_proxy','esp_router'):
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
         result['esp_devices'] = self.esp_devices()
+        result['wireless_interfaces'] = self.wireless_interfaces()
         try:
             result['autostart'] = autostart_status(self.base)
         except OSError:

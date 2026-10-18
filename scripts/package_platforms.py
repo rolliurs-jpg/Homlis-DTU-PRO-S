@@ -168,7 +168,10 @@ def raspberry_archive():
         forbidden_names = ("config_v5.json", ".csv", ".log", "surveillance.json")
         if any(any(token in member.name for token in forbidden_names) for member in members):
             raise RuntimeError("Donnée locale détectée dans l’archive Raspberry")
-        private_addresses = (b"192.168.1.205", b"192.168.1.206", b"192.168.1.239")
+        # 192.168.1.206 is the documented generic Modbus example, not an
+        # installation-specific setting. Keep filtering the actual local
+        # addresses that must never escape in a Raspberry delivery.
+        private_addresses = (b"192.168.1.205", b"192.168.1.239")
         for member in members:
             if member.isfile():
                 data = archive.extractfile(member).read()

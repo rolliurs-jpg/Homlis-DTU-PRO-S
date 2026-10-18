@@ -66,8 +66,12 @@ except ImportError:
     analyse_period = create_monthly_pdf = simulate_batteries = None
 
 # Version stable destinée à la publication communautaire.
-VERSION = "7.0.62"
+VERSION = "7.0.67"
 DEFAULT_DTU_HOST = "10.10.100.254"
+# Le DTU répond aux relevés sur son Wi-Fi direct, tandis que son Modbus TCP
+# est exposé sur l'Ethernet derrière le nano-routeur. Les deux chemins ne
+# doivent donc pas être confondus.
+DEFAULT_DTU_MODBUS_HOST = "192.168.1.206"
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
 DIRECT_WINDOW_HOURS = 4
@@ -112,15 +116,19 @@ LEGACY_EMPTY_LINKY_CONFIG = {
 
 DEFAULT_CONFIG = {
     "dtu_host": DEFAULT_DTU_HOST,
+    "dtu_modbus_host": DEFAULT_DTU_MODBUS_HOST,
+    # Adresse source optionnelle pour la lecture locale du DTU en Wi-Fi direct.
+    # Vide : elle est détectée automatiquement à partir de la route réseau.
+    "dtu_wifi_local_addr": "",
     # Le firmware DTU ne fournit pas une valeur powerLimit stable en lecture.
     # Ces limites sont des réglages d'affichage déclaratifs : elles ne sont
     # jamais envoyées au DTU par l'application.
     "dtu_wifi_limit_pct": DEFAULT_DTU_LIMIT_PCT,
     "dtu_lan_limit_pct": DEFAULT_DTU_LIMIT_PCT,
     "linky": {
-        "enabled": True,
+        "enabled": False,
         "mode": "dinky_http",
-        "host": "192.168.1.126",
+        "host": "",
         "port": 80,
         "timeout_s": 2,
         "path": "Status 8"
@@ -135,6 +143,9 @@ DEFAULT_CONFIG = {
         "timeout_s": 2,
         "channel_a_label": "Production panneaux Shelly",
         "channel_b_label": "Réseau EDF — mesure Shelly",
+        # Les pinces de courant sont directionnelles. Cette option corrige
+        # uniquement la pince A si elle a été posée dans le sens inverse.
+        "pv_reverse": False,
         # Sur cette installation, la pince B est positive lors de l'injection
         # vers le réseau. Ce réglage rend le calcul du surplus explicite et
         # peut être changé sans retourner physiquement une pince.
@@ -142,8 +153,19 @@ DEFAULT_CONFIG = {
     },
     "battery": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
     "shelly2": {"enabled": False, "host": "", "port": 80, "timeout_s": 2, "channel": 0, "reverse": False},
+    # Pont Wi-Fi Ethernet qui relie le DTU à la Livebox. Il est suivi comme
+    # équipement réseau afin de distinguer une panne du pont d'une panne DTU.
+    "tp_link": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
     "hoymiles_proxy": dict(DEFAULT_PROXY),
     "production_complete": False,
+    # Commandes opt-in : aucune limitation n'est envoyée tant que
+    # l'utilisateur n'a pas explicitement activé la régulation.
+    "surplus_control": {
+        "enabled": False,
+        "rated_w": 1000,
+        "dtu_enabled": False,
+        "dtu_rated_w": 2000,
+    },
     "tarifs_edf": {
         "hp_eur_kwh": 0.0,
         "hc_eur_kwh": 0.0,
@@ -249,6 +271,8 @@ battery_monitor = BatteryMonitor(BASE, CONFIG)
 battery_monitor.start()
 atexit.register(battery_monitor.stop)
 HOST = str(CONFIG.get("dtu_host", DEFAULT_DTU_HOST)).strip() or DEFAULT_DTU_HOST
+DTU_MODBUS_HOST = (str(CONFIG.get("dtu_modbus_host", DEFAULT_DTU_MODBUS_HOST)).strip()
+                   or DEFAULT_DTU_MODBUS_HOST)
 SHELLY_A_LABEL = str(CONFIG.get("shelly", {}).get("channel_a_label", "Production panneaux Shelly")).strip() or "Production panneaux Shelly"
 SHELLY_B_LABEL = str(CONFIG.get("shelly", {}).get("channel_b_label", "Réseau EDF — mesure Shelly")).strip() or "Réseau EDF — mesure Shelly"
 
@@ -295,7 +319,7 @@ def dashboard_ui_action(action, _values=None):
         devices = values.get("devices")
         if not isinstance(devices, dict):
             return {"error": "Liste des équipements attendue"}
-        allowed = ("linky", "shelly", "battery", "shelly2", "hoymiles_proxy", "esp_router")
+        allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "hoymiles_proxy", "esp_router")
         updated = json.loads(json.dumps(CONFIG))
         for name in allowed:
             item = devices.get(name)
@@ -311,10 +335,16 @@ def dashboard_ui_action(action, _values=None):
             updated.setdefault(name, {}).update(enabled=item["enabled"], host=host)
         complete = values.get("production_complete")
         reverse = values.get("shelly2_reverse")
-        if not isinstance(complete, bool) or not isinstance(reverse, bool):
+        shelly_pv_reverse = values.get("shelly_pv_reverse")
+        shelly_grid_reverse = values.get("shelly_grid_reverse")
+        if not all(isinstance(value, bool) for value in (complete, reverse, shelly_pv_reverse, shelly_grid_reverse)):
             return {"error": "Choix de production invalide"}
         updated["production_complete"] = complete
         updated.setdefault("shelly2", {})["reverse"] = reverse
+        updated.setdefault("shelly", {})["pv_reverse"] = shelly_pv_reverse
+        # La logique historique porte le nom export_positive : basculer le
+        # signe de la pince réseau revient exactement à basculer ce réglage.
+        updated.setdefault("shelly", {})["grid_export_positive"] = shelly_grid_reverse
         CONFIG_FILE.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
         CONFIG.clear()
         CONFIG.update(updated)
@@ -1041,6 +1071,7 @@ def move_cursor(event):
 fig.canvas.mpl_connect("motion_notify_event", move_cursor)
 
 ddsu_modbus_status = "lecture non effectuée"
+dtu_modbus_lock = threading.RLock()
 
 
 def read_ddsu_modbus(host):
@@ -1090,20 +1121,21 @@ def read_dtu():
     # il expose à la place Modbus-TCP sur le port 502. L'interroger d'abord
     # évite trois délais de 12 secondes inutiles à chaque cycle de lecture.
     if not str(HOST).startswith("10.10.100.") and HoymilesModbusTCP is not None:
-        try:
-            plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
-            global ddsu_modbus_status
-            ddsu = read_ddsu_modbus(HOST)
-            ddsu_modbus_status = ddsu["status"]
-            return {
-                "_source": "modbus_tcp",
-                "_modbus_pv_w": float(plant.pv_power),
-                "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
-                "meterData": [{}],
-                "_ddsu_modbus": ddsu,
-            }
-        except Exception as exc:
-            modbus_error = f"Modbus TCP {HOST}: {exc}"
+        with dtu_modbus_lock:
+            try:
+                plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
+                global ddsu_modbus_status
+                ddsu = read_ddsu_modbus(HOST)
+                ddsu_modbus_status = ddsu["status"]
+                return {
+                    "_source": "modbus_tcp",
+                    "_modbus_pv_w": float(plant.pv_power),
+                    "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
+                    "meterData": [{}],
+                    "_ddsu_modbus": ddsu,
+                }
+            except Exception as exc:
+                modbus_error = f"Modbus TCP {HOST}: {exc}"
     else:
         modbus_error = ""
 
@@ -1116,15 +1148,41 @@ def read_dtu():
     # Le programme hoymiles-wifi est donc dans le même dossier que Python, et
     # n'est pas forcément visible dans le PATH général du Mac.
     executable_dir = Path(sys.executable).resolve().parent
-    cli_candidates = (executable_dir / "hoymiles-wifi", executable_dir / "hoymiles-wifi.exe")
+    # Sous systemd, sys.executable peut être résolu vers Python système même
+    # lorsque l'application utilise le venv du projet. Le client installé à
+    # côté de ce projet doit donc être recherché en premier.
+    project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
+    cli_candidates = (
+        project_venv_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi.exe",
+    )
     hoymiles_cli = next((str(candidate) for candidate in cli_candidates if candidate.exists()), "hoymiles-wifi")
 
     errors = []
     for host in hosts:
-        cmd = [hoymiles_cli, "--host", host, "--as-json", "get-real-data-new"]
+        # hoymiles-wifi doit envoyer ses paquets depuis l'interface qui atteint
+        # le DTU. C'est indispensable quand le Raspberry a simultanément le
+        # LAN Livebox et le Wi-Fi direct du DTU.
+        local_addr = str(CONFIG.get("dtu_wifi_local_addr", "")).strip()
+        if not local_addr:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                    probe.connect((host, 9))
+                    local_addr = str(probe.getsockname()[0])
+            except OSError:
+                local_addr = ""
+
+        cmd = [hoymiles_cli, "--host", host]
+        if local_addr:
+            cmd.extend(["--local_addr", local_addr])
+        cmd.extend(["--timeout", "8", "--as-json", "--disable-interactive", "get-real-data-new"])
         try:
+            # Le DTU peut demander quelques secondes pour réveiller la session
+            # radio. Le client interne attend déjà 8 s : 20 s évite que Python
+            # coupe une lecture qui allait aboutir.
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=12,
+                cmd, capture_output=True, text=True, timeout=20,
                 startupinfo=startupinfo, creationflags=creationflags
             )
             text = result.stdout.strip()
@@ -1355,9 +1413,8 @@ def read_shelly_pro_em():
     """Lit les deux canaux du Shelly Pro EM via l'API RPC Gen2, sans écriture.
 
     ``EM1.GetStatus`` contient la puissance instantanée signée ``act_power``.
-    Une valeur négative est conservée telle quelle : elle est utile pour
-    diagnostiquer le sens d'une pince, et ne doit jamais être corrigée par le
-    logiciel sans validation physique de l'installation.
+    La valeur est conservée telle quelle, sauf pour la pince A lorsque
+    l'utilisateur a explicitement validé son inversion dans Équipements.
     """
     cfg = CONFIG.get("shelly", {})
     if not cfg.get("enabled"):
@@ -1375,7 +1432,10 @@ def read_shelly_pro_em():
                 status = json.loads(response.read().decode("utf-8"))
             if "act_power" not in status:
                 raise RuntimeError(f"puissance absente pour la pince {channel + 1}")
-            values.append(float(status["act_power"]))
+            value = float(status["act_power"])
+            if channel == 0 and cfg.get("pv_reverse", False):
+                value *= -1
+            values.append(value)
         return tuple(values), "Shelly Pro EM connecté"
     except (OSError, URLError, ValueError, json.JSONDecodeError, RuntimeError) as exc:
         return None, f"Shelly hors ligne ({exc})"
@@ -1705,7 +1765,12 @@ def capture_screen(event=None):
 def hoymiles_cli_path():
     """Retourne le client local Hoymiles, sous Windows comme sous macOS."""
     executable_dir = Path(sys.executable).resolve().parent
-    candidates = (executable_dir / "hoymiles-wifi", executable_dir / "hoymiles-wifi.exe")
+    project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
+    candidates = (
+        project_venv_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi.exe",
+    )
     return next((str(candidate) for candidate in candidates if candidate.exists()), "hoymiles-wifi")
 
 
@@ -3652,7 +3717,12 @@ def update(_):
 
         source = data.get("_source", "wifi_direct")
         sgs = data["sgsData"][0]
-        meter = data["meterData"][0]
+        # Le DTU peut fournir la production sans fournir de mesure DDSU dans
+        # la même réponse.  Le Shelly Pro EM est la référence réseau locale ;
+        # une absence ponctuelle de ``meterData`` ne doit donc pas faire
+        # perdre une production DTU valide ni créer un faux échec de lecture.
+        meter_rows = data.get("meterData") or [{}]
+        meter = meter_rows[0] if isinstance(meter_rows[0], dict) else {}
         # Selon le firmware, la puissance de production est soit à la racine
         # (dtuPower / activePower), soit dans sgsData. Les champs à zéro sont
         # omis par le DTU dans son JSON : la nuit, leur absence signifie donc 0 W.
@@ -3663,13 +3733,14 @@ def update(_):
         # Certains firmwares ne renvoient temporairement que la valeur de phase.
         # Les deux champs représentent la même mesure sur cette installation monophasée.
         grid_raw = meter.get("phaseTotalPower", meter.get("phaseAPower"))
-        if grid_raw is None and source != "modbus_tcp":
-            raise RuntimeError("puissance réseau absente de la réponse DTU")
         if source == "modbus_tcp":
             grid = float("nan")
             limit_w = float(CONFIG.get("dtu_lan_limit_pct", DEFAULT_DTU_LIMIT_PCT))
         else:
-            grid = float(grid_raw)
+            # Une réponse Wi-Fi partielle reste une réponse DTU utilisable :
+            # le graphique laisse le DDSU vide et le tableau de bord continue
+            # à employer le Shelly pour la puissance réseau.
+            grid = float(grid_raw) if grid_raw is not None else float("nan")
             # Le champ Wi-Fi ``powerLimit`` fluctue suivant le firmware DTU
             # et peut même reprendre une puissance PV (500 %, 800 %, etc.).
             # Il ne s'agit pas d'une commande envoyée par ce programme. On
@@ -3730,6 +3801,9 @@ def update(_):
         )
         publish_mobile_snapshot("online")
     except Exception as e:
+        # Visible dans journalctl : indispensable pour distinguer un problème
+        # de lecture DTU d'un simple basculement de secours vers le Shelly.
+        print(f"Lecture DTU échouée : {e}", file=sys.stderr, flush=True)
         dtu_failures += 1
         failed_at = datetime.now()
         if dtu_failure_since is None:
@@ -3815,9 +3889,10 @@ def open_equipment_settings(event=None):
     window.title("Mes équipements")
     frame = ttk.Frame(window, padding=16)
     frame.pack(fill="both", expand=True)
-    ttk.Label(frame, text="Choisissez les équipements utilisés en complément du DTU.").grid(row=0, column=0, columnspan=3, sticky="w")
+    ttk.Label(frame, text="Configuration locale de cet ordinateur", font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=3, sticky="w")
+    ttk.Label(frame, text="Cette fenêtre ne lit ni ne modifie les réglages du Raspberry Pi. Pour l’installation en service (6 panneaux), utilisez le tableau web du Raspberry.", wraplength=690).grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 12))
     fields = {}
-    for row, (name, label) in enumerate((("linky", "Linky / Dinky"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth"), ("esp_router", "ESP32 — routeur Wi-Fi")), 1):
+    for row, (name, label) in enumerate((("linky", "Linky / Denky D4"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC"), ("shelly2", "Shelly EM Gen3 — production 2"), ("tp_link", "TP-Link — nano-routeur DTU"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth Hoymiles"), ("esp_router", "ESP32 — routeur Wi-Fi solaire")), 2):
         active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
         address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
         ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)
@@ -3825,15 +3900,19 @@ def open_equipment_settings(event=None):
         ttk.Entry(frame, textvariable=address, width=25).grid(row=row, column=2)
         fields[name] = active, address
     complete = tk.BooleanVar(value=bool(CONFIG.get("production_complete", False)))
-    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=7, column=0, columnspan=3, sticky="w")
+    ttk.Checkbutton(frame, text="Toutes les lignes solaires sont mesurées par les Shelly", variable=complete).grid(row=8, column=0, columnspan=3, sticky="w")
+    reverse1 = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("pv_reverse", False)))
+    ttk.Checkbutton(frame, text="Inverser le signe de la première pince de production", variable=reverse1).grid(row=9, column=0, columnspan=3, sticky="w")
+    reverse_grid = tk.BooleanVar(value=bool(CONFIG.get("shelly", {}).get("grid_export_positive", False)))
+    ttk.Checkbutton(frame, text="Inverser le signe de la pince réseau (achat ↔ injection)", variable=reverse_grid).grid(row=10, column=0, columnspan=3, sticky="w")
     reverse2 = tk.BooleanVar(value=bool(CONFIG.get("shelly2", {}).get("reverse", False)))
-    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=8, column=0, columnspan=3, sticky="w")
-    feedback = tk.StringVar(value="Shelly EM Gen3 : pince sur le canal 0. Laissez la production complète décochée tant que la seconde ligne n’est pas mesurée.")
-    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=9, column=0, columnspan=3, sticky="w", pady=10)
+    ttk.Checkbutton(frame, text="Inverser le signe de la seconde pince de production", variable=reverse2).grid(row=11, column=0, columnspan=3, sticky="w")
+    feedback = tk.StringVar(value="Une pince mesure le courant dans les deux sens. Cochez uniquement si la production est négative en plein soleil, ou si achat et injection EDF sont inversés.")
+    ttk.Label(frame, textvariable=feedback, wraplength=520).grid(row=12, column=0, columnspan=3, sticky="w", pady=10)
     esp_status = tk.StringVar(value="Vérification des ESP32…")
-    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=10, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=esp_status, wraplength=650).grid(row=13, column=0, columnspan=3, sticky="w", pady=8)
     control_status = tk.StringVar(value="")
-    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=11, column=0, columnspan=3, sticky="w", pady=8)
+    ttk.Label(frame, textvariable=control_status, wraplength=650).grid(row=14, column=0, columnspan=3, sticky="w", pady=8)
     def refresh_state():
         if not window.winfo_exists():
             return
@@ -3843,7 +3922,7 @@ def open_equipment_settings(event=None):
         state = surplus_controller.snapshot() if surplus_controller else {}
         proxy = proxy_reader.snapshot()
         dtu = state.get("dtu", {})
-        control_status.set(f"Gestion solaire : {'automatique' if state.get('commands_enabled') else 'arrêtée'} · {state.get('controlled_panels', 0)} panneaux\n"
+        control_status.set(f"Gestion solaire locale : {'automatique' if state.get('commands_enabled') else 'arrêtée'} · {state.get('controlled_panels', 0)} panneaux\n"
                            f"Limite HMS lue : {proxy.get('limit_pct', '—')} % · limites DTU : {dtu.get('port_limits_pct', '—')}\n"+state.get('reason', 'En attente'))
         window.after(2000, refresh_state)
     def probe_devices():
@@ -3857,8 +3936,8 @@ def open_equipment_settings(event=None):
     def toggle_solar():
         state = surplus_controller.snapshot() if surplus_controller else {}
         dashboard_ui_action('surplus_control', {'enabled': not state.get('commands_enabled', False)})
-    ttk.Button(frame, text="Activer / arrêter la gestion solaire", command=toggle_solar).grid(row=12, column=0, columnspan=2, sticky="w", pady=8)
-    ttk.Button(frame, text="Tableau de bord et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=12, column=2, sticky="e", pady=8)
+    ttk.Button(frame, text="Activer / arrêter la gestion locale", command=toggle_solar).grid(row=15, column=0, columnspan=2, sticky="w", pady=8)
+    ttk.Button(frame, text="Tableau local et options batterie", command=lambda: __import__('webbrowser').open('http://127.0.0.1:8765/')).grid(row=15, column=2, sticky="e", pady=8)
     refresh_state()
     def save():
         for name, (active, address) in fields.items():
@@ -3869,11 +3948,15 @@ def open_equipment_settings(event=None):
             # Write a copy: the running collector keeps its current configuration.
             data = json.loads(json.dumps(CONFIG))
             data["production_complete"] = complete.get()
+            data.setdefault("shelly", {})["pv_reverse"] = reverse1.get()
+            data.setdefault("shelly", {})["grid_export_positive"] = reverse_grid.get()
             data.setdefault("shelly2", {})["reverse"] = reverse2.get()
             for name, (active, address) in fields.items():
                 data.setdefault(name, {}).update(enabled=active.get(), host=address.get().strip())
             CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
             CONFIG["production_complete"] = complete.get()
+            CONFIG.setdefault("shelly", {})["pv_reverse"] = reverse1.get()
+            CONFIG.setdefault("shelly", {})["grid_export_positive"] = reverse_grid.get()
             CONFIG.setdefault("shelly2", {})["reverse"] = reverse2.get()
             pending_equipment.update({name: {"enabled": active.get(), "host": address.get().strip()}
                                       for name, (active, address) in fields.items()})
@@ -3881,7 +3964,7 @@ def open_equipment_settings(event=None):
             messagebox.showinfo("Équipements enregistrés", "Fermez puis relancez le logiciel pour appliquer vos réglages.", parent=dialog_parent())
         except OSError as exc:
             feedback.set(f"Enregistrement impossible : {exc}")
-    ttk.Button(frame, text="Enregistrer", command=save).grid(row=13, column=2, sticky="e")
+    ttk.Button(frame, text="Enregistrer", command=save).grid(row=16, column=2, sticky="e")
 
 equipment_button_ax = plt.axes([0.82, 0.774, 0.13, 0.040])
 equipment_button = Button(equipment_button_ax, "Équipements", color="#eff6ff", hovercolor="#bfdbfe")
@@ -4011,9 +4094,15 @@ def surplus_control_sample():
             "battery": battery, "proxy": proxy_reader.snapshot()}
 
 surplus_cfg = CONFIG.get("surplus_control", {})
+# La lecture DTU utilise le Wi-Fi direct, mais la régulation des quatre
+# panneaux du HMS-2000-4T passe par Modbus TCP sur l'Ethernet du nano-routeur.
+# Les commandes restent opt-in dans la configuration et le contrôleur ramène
+# les deux groupes à 100 % en cas de donnée ou de liaison incohérente.
+control_enabled = bool(surplus_cfg.get("enabled", False))
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
-    enabled=bool(surplus_cfg.get("enabled", False)), rated_w=float(surplus_cfg.get("rated_w", 1000)),
-    dtu=DtuControl(HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000))) if surplus_cfg.get("dtu_enabled", False) else None)
+    enabled=control_enabled, rated_w=float(surplus_cfg.get("rated_w", 1000)),
+    dtu=DtuControl(DTU_MODBUS_HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock)
+    if surplus_cfg.get("dtu_enabled", False) else None)
 surplus_controller.start()
 atexit.register(surplus_controller.stop)
 

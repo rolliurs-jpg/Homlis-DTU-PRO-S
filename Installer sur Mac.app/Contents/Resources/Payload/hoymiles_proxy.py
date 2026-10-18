@@ -8,7 +8,7 @@ if hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
 
 DEFAULT_PROXY = {
     "enabled": False,
-    "host": "192.168.1.239",
+    "host": "",
     "port": 6053,
     "address": "",
     "serial_tail": "",
@@ -61,7 +61,15 @@ class ProxyReader:
                 if self.snapshot()["state"] == "authentication_required":
                     return
             except Exception as exc:
-                self._set(state="offline", reason="Lecture interrompue : " + type(exc).__name__)
+                # Le type seul (par ex. RuntimeError) ne permet pas de
+                # distinguer un onduleur non vu d'une lecture ou d'une
+                # confirmation de limite interrompue. Le détail est borné
+                # pour rester affichable dans le tableau de bord.
+                detail = str(exc).replace("\n", " ").strip()[:160]
+                reason = "Lecture interrompue : " + type(exc).__name__
+                if detail:
+                    reason += " · " + detail
+                self._set(state="offline", reason=reason)
             if self._stop.wait(45):
                 break
 

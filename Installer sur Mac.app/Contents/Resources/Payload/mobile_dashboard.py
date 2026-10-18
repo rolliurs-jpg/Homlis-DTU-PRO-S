@@ -1,7 +1,7 @@
 """Tableau de bord mobile local, compatible avec un accès privé Tailscale.
 
-Le serveur est strictement en lecture seule. Il ne contacte jamais la DTU, le
-Dinky ou le Shelly : les mesures lui sont transmises par l'application
+Le serveur est strictement en lecture seule. Il ne contacte jamais le DTU, le
+Denky D4 ou le Shelly : les mesures lui sont transmises par l'application
 principale après chaque cycle de collecte.
 """
 
@@ -89,7 +89,7 @@ MOBILE_HTML = r"""<!doctype html>
     <article class="card pv"><div class="label">Production solaire</div><div class="value" id="pv">—</div><div class="hint" id="pvSource">DTU / Shelly</div></article>
     <article class="card home"><div class="label">Consommation maison</div><div class="value" id="home">—</div><div class="hint">Calculée avec les mesures disponibles ; — si incomplètes</div></article>
     <article class="card gridflow" id="flowCard"><div class="label" id="flowLabel">Réseau</div><div class="value" id="flow">—</div><div class="hint" id="flowHint">Linky / Shelly</div></article>
-    <article class="card linky"><div class="label">Linky / Dinky</div><div class="value" id="linky">—</div><div class="hint">Téléinformation locale</div></article>
+    <article class="card linky"><div class="label">Linky & Denky D4</div><div class="value" id="linky">—</div><div class="hint">Téléinformation locale</div></article>
     <article class="card pv" id="hoymilesCard" hidden><div class="label">Micro-onduleur Hoymiles</div><div class="value" id="hoymilesPower">—</div><div class="hint" id="hoymilesHint">En attente</div></article>
     <article class="card wide" id="batteryCard" hidden><div class="label">Batterie Zendure</div><svg viewBox="0 0 340 125" role="img" aria-label="Batterie" style="width:100%;max-width:340px;display:block;margin:auto">
 <rect x="24" y="14" width="280" height="96" rx="12" fill="none" stroke="#64748b" stroke-width="4" id="batteryOutline"/>
@@ -110,7 +110,7 @@ MOBILE_HTML = r"""<!doctype html>
       Une restitution batterie peut aussi contribuer au surplus. Le temps en décharge exclut les pauses et les trous de mesure. Décharge et recharge sont confirmées après 2 minutes au-dessus de 20 W nets ; une recharge le lendemain reste sur la ligne du plein de la veille.</div>
     </article>
     <article class="card wide"><div class="label">Dernières heures</div><div class="legend"><span class="key" style="--c:#4f7cff">Production</span><span class="key" style="--c:#fff">Consommation</span><span class="key" style="--c:#22c55e">Soutirage</span><span class="key" style="--c:#ffd000">Injection</span></div><canvas id="chart"></canvas></article>
-    <article class="card wide"><div class="label">État des appareils</div><div class="states"><div class="state" id="dtuState"><strong>DTU</strong><span>—</span></div><div class="state" id="linkyState"><strong>Dinky</strong><span>—</span></div><div class="state" id="shellyState"><strong>Shelly</strong><span>—</span></div></div></article>
+    <article class="card wide"><div class="label">État des appareils</div><div class="states"><div class="state" id="dtuState"><strong>DTU</strong><span>—</span></div><div class="state" id="linkyState"><strong>Denky D4</strong><span>—</span></div><div class="state" id="shellyState"><strong>Shelly</strong><span>—</span></div></div></article>
   </section>
   <div class="foot">Lecture seule · données fournies par l’ordinateur de la maison · aucune commande envoyée aux appareils</div>
 </main>
@@ -135,7 +135,7 @@ function showMonitoring(){
  const age=(m.age_seconds||0)+(lastReceived?(now-lastReceived)/1000:0), active=m.active||age>=(m.threshold_seconds||300);
  el.style.borderColor=active?'#ef4444':'#17683b';
  el.textContent=active?`SUIVI INTERROMPU — ${computer} : aucune mesure enregistrée depuis ${Math.floor(age/60)} min.\n`+
-   'Vérifiez la collecte dans le logiciel et l’état DTU, Dinky et Shelly. La cause exacte n’est pas identifiée ; cela ne prouve pas un arrêt des panneaux.':
+   'Vérifiez la collecte dans le logiciel et l’état DTU, Denky D4 et Shelly. La cause exacte n’est pas identifiée ; cela ne prouve pas un arrêt des panneaux.':
    m.last_measure?`SUIVI EN COURS — ${computer} : les mesures sont enregistrées normalement.`:'DÉMARRAGE — en attente de la première mesure.';
  if(m.last_ping){
    const pingAge=(now-m.last_ping*1000)/1000;
@@ -167,7 +167,7 @@ let fullBatteryReceived=0;
 function fullBatteryText(r){
  const d=r.display;
  if(!d)return 'Cycle indisponible — actualisez le logiciel sur l’ordinateur.';
- return `${d[0]} · Batterie pleine à ${d[1]}\nSurplus après plein : ${d[2]}\nFin solaire : ${d[3]}\nDécharge dès : ${d[4]}\nTemps en décharge : ${d[5]}\nRecharge dès : ${d[6]}`+(d[7]&&d[7]!=='—'?`\n${d[7]}`:'');
+ return `${d[0]} · Batterie pleine à ${d[1]}\nSurplus après plein : ${d[2]}\nFin solaire : ${d[3]}\nDécharge dès : ${d[4]}\nTemps en décharge : ${d[5]}\nRecharge dès le prochain ensoleillement : ${d[6]}`+(d[7]&&d[7]!=='—'?`\n${d[7]}`:'');
 }
 
 function renderFullBattery(d){
@@ -402,7 +402,10 @@ class MobileDashboard:
                         response=dashboard.data_service.set_autostart(data.get('values',{}).get('enabled'))
                         self._send(json.dumps(response,ensure_ascii=False).encode('utf-8'),'application/json; charset=utf-8')
                         return
-                    if action not in {'settings','tariffs','pause'} and self.client_address[0] not in ('127.0.0.1','::1'):
+                    # La régulation ne crée pas de fenêtre sur le Raspberry.
+                    # Le bouton reste protégé par le jeton de cette page et
+                    # l'accès privé/Tailscale déjà vérifié ci-dessus.
+                    if action not in {'settings','tariffs','pause','surplus_control'} and self.client_address[0] not in ('127.0.0.1','::1'):
                         self.send_error(403,'This action opens a window on the home computer');return
                     if dashboard.ui_action is None:
                         self.send_error(503);return

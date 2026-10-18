@@ -1,5 +1,6 @@
 {
   "dtu_host": "192.168.x.x",
+  "dtu_modbus_host": "192.168.x.x",
   "linky": {
     "enabled": false,
     "mode": "dinky_http",
@@ -42,6 +43,12 @@
     "timeout_s": 2,
     "channel": 0,
     "reverse": false
+  },
+  "tp_link": {
+    "enabled": false,
+    "host": "",
+    "port": 80,
+    "timeout_s": 2
   },
   "production_complete": false,
   "hoymiles_proxy": {
