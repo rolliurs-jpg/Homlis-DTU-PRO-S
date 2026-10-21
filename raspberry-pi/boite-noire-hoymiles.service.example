@@ -2,6 +2,8 @@
 Description=Boite noire Hoymiles (tableau solaire)
 Wants=network-online.target
 After=network-online.target
+# Ne jamais abandonner les tentatives de redemarrage apres une coupure longue.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -10,8 +12,10 @@ User=YOUR_LINUX_USER
 WorkingDirectory=/home/YOUR_LINUX_USER/solaire
 Environment=HOME=/home/YOUR_LINUX_USER
 ExecStart=/home/YOUR_LINUX_USER/solaire/.venv/bin/python /home/YOUR_LINUX_USER/solaire/boite_noire_hoymiles.py --web-only
-Restart=on-failure
-RestartSec=10
+# Une sortie inattendue, y compris propre, ne doit jamais laisser le tableau arrete.
+Restart=always
+RestartSec=15
+TimeoutStartSec=90
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

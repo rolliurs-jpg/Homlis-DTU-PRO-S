@@ -6,6 +6,8 @@ set -euo pipefail
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALL_DIR="${1:-$HOME/solaire}"
 SERVICE_NAME="boite-noire-hoymiles.service"
+RECOVERY_SERVICE="solaire-network-recovery.service"
+RECOVERY_TIMER="solaire-network-recovery.timer"
 USER_NAME="$(id -un)"
 
 if [ "$(id -u)" -eq 0 ]; then
@@ -30,6 +32,9 @@ for file in "${FILES[@]}"; do
 done
 install -m 0644 "$SOURCE_DIR/raspberry-pi/README.md" "$INSTALL_DIR/raspberry-pi/README.md"
 install -m 0644 "$SOURCE_DIR/raspberry-pi/boite-noire-hoymiles.service.example" "$INSTALL_DIR/raspberry-pi/boite-noire-hoymiles.service.example"
+install -m 0755 "$SOURCE_DIR/raspberry-pi/solaire-network-recovery.sh" "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.sh"
+install -m 0644 "$SOURCE_DIR/raspberry-pi/solaire-network-recovery.service.example" "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.service.example"
+install -m 0644 "$SOURCE_DIR/raspberry-pi/solaire-network-recovery.timer.example" "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.timer.example"
 
 if [ ! -f "$HOME/AppData/Local/BoiteNoireHoymiles/config_v5.json" ]; then
   mkdir -p "$HOME/AppData/Local/BoiteNoireHoymiles"
@@ -47,8 +52,16 @@ sed \
   -e "s|YOUR_LINUX_USER|$USER_NAME|g" \
   "$INSTALL_DIR/raspberry-pi/boite-noire-hoymiles.service.example" \
   | sudo tee "/etc/systemd/system/$SERVICE_NAME" >/dev/null
+sed \
+  -e "s|/home/YOUR_LINUX_USER/solaire|$INSTALL_DIR|g" \
+  "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.service.example" \
+  | sudo tee "/etc/systemd/system/$RECOVERY_SERVICE" >/dev/null
+sudo install -m 0644 \
+  "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.timer.example" \
+  "/etc/systemd/system/$RECOVERY_TIMER"
 sudo systemctl daemon-reload
 sudo systemctl enable --now "$SERVICE_NAME"
+sudo systemctl enable --now "$RECOVERY_TIMER"
 
 echo
 echo "Installation terminée. Ouvrez : http://ADRESSE_DU_RASPBERRY:8765/"

@@ -61,6 +61,29 @@ Sur Raspberry, l’encadré web indique **Démarrage du Raspberry Pi — Automat
 le service ci-dessus est déjà responsable du lancement au démarrage.
 Il n’y a aucun choix Oui/Non à faire dans le tableau web.
 
+## Reprise automatique après une coupure EDF
+
+L’installateur active aussi une vérification toutes les deux minutes de
+l’antenne Alfa (`wlan2`). Si elle n’est plus associée au réseau **Solaire
+cabanon**, le Raspberry réutilise automatiquement son profil Wi-Fi enregistré.
+Le service du tableau est relancé sans limite après une interruption ; aucune
+intervention manuelle n’est nécessaire après le retour du courant.
+
+Pour appliquer cette protection sur une installation déjà en place, relancez
+l’installateur depuis le dossier du projet :
+
+```bash
+cd ~/solaire
+bash raspberry-pi/INSTALLER_RASPBERRY.sh
+```
+
+Puis contrôlez les deux protections :
+
+```bash
+systemctl is-active boite-noire-hoymiles
+systemctl is-active solaire-network-recovery.timer
+```
+
 ## Zéro-injection : contrôle externe volontaire via Modbus
 
 Par défaut, le collecteur Raspberry reste en lecture seule. Le contrôle externe ne doit être activé qu’après validation des mesures et de la liaison Modbus TCP du DTU. Dans l’application Hoymiles, activez **Remote Control / Modbus Protocol** avec l’adresse `101`, puis activez la gestion solaire dans le tableau web.

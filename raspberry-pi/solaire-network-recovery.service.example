@@ -1,0 +1,8 @@
+[Unit]
+Description=Reconnexion Wi-Fi solaire cabanon apres coupure
+Wants=NetworkManager.service network-online.target
+After=NetworkManager.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/YOUR_LINUX_USER/solaire/raspberry-pi/solaire-network-recovery.sh

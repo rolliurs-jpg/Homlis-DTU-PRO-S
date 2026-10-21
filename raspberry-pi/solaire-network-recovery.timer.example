@@ -1,0 +1,11 @@
+[Unit]
+Description=Verification periodique du Wi-Fi solaire cabanon
+
+[Timer]
+OnBootSec=45
+OnUnitActiveSec=2min
+Persistent=true
+Unit=solaire-network-recovery.service
+
+[Install]
+WantedBy=timers.target
