@@ -268,7 +268,12 @@ class DashboardData:
                 for line in (completed.stdout or '').splitlines():
                     interface, separator, state = line.partition(':')
                     if separator:
-                        states[interface] = state
+                        # NetworkManager may preserve the interface spelling
+                        # supplied by a USB driver (for example ``WLAN2``).
+                        # Linux interface matching is otherwise
+                        # case-sensitive, while our two expected links are
+                        # deliberately named in lower case below.
+                        states[interface.lower()] = state
         except (OSError, subprocess.SubprocessError):
             pass
 

@@ -31,6 +31,16 @@ class DashboardDataTests(unittest.TestCase):
         self.assertIn('USB 2.0 obligatoire', links[0]['role'])
         self.assertIn('USB 3.0 obligatoire', links[1]['role'])
 
+    def test_wireless_interfaces_accepts_uppercase_driver_name(self):
+        completed = type('Completed', (), {
+            'returncode': 0,
+            'stdout': 'WLAN2:connected\n',
+        })()
+        with patch('dashboard_data.subprocess.run', return_value=completed):
+            links = DashboardData.wireless_interfaces()
+        alfa = next(link for link in links if link['interface'] == 'wlan2')
+        self.assertTrue(alfa['connected'])
+
     def test_router_is_probed_by_ping_not_port_80(self):
         config = {
             "hoymiles_proxy": {"enabled": False},
