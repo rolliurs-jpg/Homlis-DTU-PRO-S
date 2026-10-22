@@ -9,6 +9,12 @@ SERVICE_NAME="boite-noire-hoymiles.service"
 RECOVERY_SERVICE="solaire-network-recovery.service"
 RECOVERY_TIMER="solaire-network-recovery.timer"
 USER_NAME="$(id -un)"
+NETWORK_ENV="/etc/solaire-network.env"
+ALFA_PROFILE="solaire-cabanon-alfa"
+ALFA_SSID="Cabanon Solaire"
+ALFA_BSSID="70:4B:CA:16:BC:C9"
+DTU_PROFILE="${DTU_WIFI_PROFILE:-dtu-direct-4p}"
+PRIMARY_WIFI_PROFILE="${PRIMARY_WIFI_PROFILE:-netplan-wlan0-livebox-B560}"
 
 if [ "$(id -u)" -eq 0 ]; then
   echo "Lancez cet installateur depuis votre compte Raspberry habituel, sans sudo."
@@ -59,6 +65,48 @@ sed \
 sudo install -m 0644 \
   "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.timer.example" \
   "/etc/systemd/system/$RECOVERY_TIMER"
+
+# Verrouille les profils sur leurs interfaces dédiées. Le profil cabanon est
+# aussi fixé sur le BSSID du routeur ESP : une Livebox ou un SSID similaire ne
+# pourra jamais être choisi à sa place. Les mots de passe déjà enregistrés par
+# NetworkManager ne sont ni affichés ni modifiés.
+if nmcli -t -f NAME connection show | grep -Fxq "$ALFA_PROFILE"; then
+  sudo nmcli connection modify "$ALFA_PROFILE" \
+    connection.interface-name wlan2 connection.autoconnect yes \
+    connection.autoconnect-priority 100 connection.autoconnect-retries 0 \
+    802-11-wireless.ssid "$ALFA_SSID" 802-11-wireless.bssid "$ALFA_BSSID" \
+    802-11-wireless.powersave 2 ipv4.never-default yes
+else
+  echo "Profil cabanon absent : $ALFA_PROFILE (aucune modification Wi-Fi effectuée)."
+fi
+if nmcli -t -f NAME connection show | grep -Fxq "$DTU_PROFILE"; then
+  sudo nmcli connection modify "$DTU_PROFILE" \
+    connection.interface-name wlan1 connection.autoconnect yes \
+    connection.autoconnect-priority 100 connection.autoconnect-retries 0 \
+    802-11-wireless.powersave 2 ipv4.never-default yes
+else
+  echo "Profil DTU absent : $DTU_PROFILE (aucune modification Wi-Fi effectuée)."
+fi
+# Le profil principal de la Livebox appartenait à wlan0 mais, sans cette
+# contrainte, NetworkManager pouvait l'associer à wlan2 après une coupure.
+if nmcli -t -f NAME connection show | grep -Fxq "$PRIMARY_WIFI_PROFILE"; then
+  sudo nmcli connection modify "$PRIMARY_WIFI_PROFILE" \
+    connection.interface-name wlan0 connection.autoconnect yes \
+    connection.autoconnect-priority 200
+else
+  echo "Profil Wi-Fi principal absent : $PRIMARY_WIFI_PROFILE (aucune modification Wi-Fi effectuée)."
+fi
+sudo tee "$NETWORK_ENV" >/dev/null <<'EOF'
+# Réseaux dédiés à l'installation solaire. Pas de mot de passe dans ce fichier.
+ALFA_DEVICE=wlan2
+ALFA_PROFILE=solaire-cabanon-alfa
+ALFA_ROUTER_HOST=192.168.4.1
+ALFA_PROXY_HOST=192.168.4.2
+DTU_DEVICE=wlan1
+DTU_PROFILE=dtu-direct-4p
+DTU_HOST=10.10.100.254
+EOF
+sudo chmod 0644 "$NETWORK_ENV"
 sudo systemctl daemon-reload
 sudo systemctl enable --now "$SERVICE_NAME"
 sudo systemctl enable --now "$RECOVERY_TIMER"
