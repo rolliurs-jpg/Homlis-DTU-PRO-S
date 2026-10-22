@@ -12,13 +12,20 @@ esp32:
 
 logger:
   level: DEBUG
+  # Débit explicite : le journal USB reste lisible avec un moniteur série à
+  # 115200 bauds lors d'un diagnostic sur place.
+  baud_rate: 115200
 
 wifi:
   ssid: "Solaire cabanon"
   password: ""
+  # Le proxy ne connaît qu'un seul point d'accès dédié : se reconnecter sans
+  # balayage complet réduit les aléas après le redémarrage du routeur ESP32.
+  fast_connect: true
   # Après une coupure EDF, ne pas attendre le délai ESPHome par défaut
-  # (15 minutes) si l'association Wi-Fi ne revient pas.
-  reboot_timeout: 60s
+  # (15 minutes) si l'association Wi-Fi ne revient pas. Trois minutes laissent
+  # néanmoins au routeur le temps de démarrer avant tout redémarrage du proxy.
+  reboot_timeout: 3min
   power_save_mode: none
   manual_ip:
     static_ip: 192.168.4.2
