@@ -40,22 +40,34 @@ class DtuControl:
 
     def snapshot(self):
         with (self.lock or nullcontext()):
-            try:
-                if self.transaction(4, 0x3004, 1) != [1]:
-                    raise ValueError('Nombre de micro-onduleurs DTU inattendu')
-                data = self.transaction(3, 0xD006, self.ports*6)
-                limits = [data[i*6+1] for i in range(self.ports)]
-                if any(data[i*6] != 1 for i in range(self.ports)) or not all(2 <= n <= 100 for n in limits):
-                    raise ValueError('Ports DTU arrêtés ou limites invalides')
-                power = self.transaction(4, 0x3108, 2)
-                state = dict(state='online', timestamp=time.time(), power_w=((power[0]<<16)|power[1])/10,
-                             limit_pct=min(limits), port_limits_pct=limits, rated_w=self.rated_w)
-                if self.last_command is not None:
-                    state.update(last_command_pct=self.last_command,
-                                 last_command_confirmed=all(n == self.last_command for n in limits))
-                return state
-            except Exception as exc:
-                return dict(state='offline', reason=type(exc).__name__)
+            last_error = None
+            # Le pont Ethernet/Wi-Fi du DTU peut perdre une seule trame. Une
+            # seconde lecture brève évite de figer la régulation pour ce seul
+            # incident ; une réponse Modbus invalide reste immédiatement un
+            # état hors ligne, donc aucune commande risquée n'est envoyée.
+            for attempt in range(3):
+                try:
+                    if self.transaction(4, 0x3004, 1) != [1]:
+                        raise ValueError('Nombre de micro-onduleurs DTU inattendu')
+                    data = self.transaction(3, 0xD006, self.ports*6)
+                    limits = [data[i*6+1] for i in range(self.ports)]
+                    if any(data[i*6] != 1 for i in range(self.ports)) or not all(2 <= n <= 100 for n in limits):
+                        raise ValueError('Ports DTU arrêtés ou limites invalides')
+                    power = self.transaction(4, 0x3108, 2)
+                    state = dict(state='online', timestamp=time.time(), power_w=((power[0]<<16)|power[1])/10,
+                                 limit_pct=min(limits), port_limits_pct=limits, rated_w=self.rated_w)
+                    if self.last_command is not None:
+                        state.update(last_command_pct=self.last_command,
+                                     last_command_confirmed=all(n == self.last_command for n in limits))
+                    return state
+                except (ConnectionError, TimeoutError, OSError) as exc:
+                    last_error = exc
+                    if attempt < 2:
+                        time.sleep(0.25)
+                        continue
+                except Exception as exc:
+                    return dict(state='offline', reason=type(exc).__name__)
+            return dict(state='offline', reason=type(last_error).__name__)
 
     def request_limit(self, percent, snapshot):
         with (self.lock or nullcontext()):

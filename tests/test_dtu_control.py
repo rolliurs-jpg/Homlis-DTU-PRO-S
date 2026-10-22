@@ -33,3 +33,12 @@ class DtuTests(unittest.TestCase):
   d=DtuControl('host')
   with patch.object(d,'transaction') as request:
    d.request_limit(100,dict(state='online',port_limits_pct=[100]*4));request.assert_not_called()
+ def test_snapshot_retries_a_transient_timeout(self):
+  d=DtuControl('host')
+  ports=[]
+  for _ in range(4):ports += [1,17,0,0,0,0]
+  with patch.object(d,'transaction',side_effect=[TimeoutError(),[1],ports,[0,9223]]):
+   state=d.snapshot()
+  self.assertEqual(state['state'],'online')
+  self.assertEqual(state['power_w'],922.3)
+  self.assertEqual(state['port_limits_pct'],[17]*4)
