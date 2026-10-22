@@ -169,18 +169,37 @@ class ProxyReader:
                             raise RuntimeError("LimitCommandRejected")
                         confirmed = await asyncio.wait_for(hf.async_get_real_data_new(), 40)
                         if confirmed is None or not confirmed.sgs_data:
-                            raise RuntimeError("LimitConfirmationMissing")
-                        observed = confirmed.sgs_data[0].power_limit / 100.0
-                        if abs(observed-target) > 1:
-                            # Restore full production on an unconfirmed reduction.
-                            await asyncio.wait_for(hf.async_set_power_limit(100), 20)
-                            raise RuntimeError("LimitNotConfirmed")
-                        with self._lock:
-                            self._control = {"commands_enabled": True, "last_command_pct": target,
-                                             "last_command_timestamp": time.time(), "last_command_confirmed": True}
-                        self._set(state="online", timestamp=time.time(),
-                                  power_w=round(sum(float(row.active_power) for row in confirmed.sgs_data)/10, 1),
-                                  limit_pct=observed, serial=serial, reason="Lecture locale via ESP32")
+                            # Le micro-onduleur applique parfois la consigne
+                            # avant de la publier dans sa télémétrie Bluetooth.
+                            # Une lecture vide juste après l'écriture ne doit
+                            # ni déconnecter le proxy ni remettre la production
+                            # à 100 %. La boucle suivante relira la limite.
+                            with self._lock:
+                                self._control = {"commands_enabled": True, "last_command_pct": target,
+                                                 "last_command_timestamp": time.time(), "last_command_confirmed": False}
+                            self._set(state="online", timestamp=time.time(), power_w=round(power_w, 1),
+                                      limit_pct=limit_pct, serial=serial,
+                                      reason="Consigne transmise — confirmation Hoymiles en attente")
+                        else:
+                            observed = confirmed.sgs_data[0].power_limit / 100.0
+                            if abs(observed-target) > 1:
+                                # Le retour d'état Hoymiles est souvent différé de
+                                # quelques secondes. Conserver la consigne évite un
+                                # cycle nuisible  limite basse → 100 % → limite basse.
+                                with self._lock:
+                                    self._control = {"commands_enabled": True, "last_command_pct": target,
+                                                     "last_command_timestamp": time.time(), "last_command_confirmed": False}
+                                self._set(state="online", timestamp=time.time(),
+                                          power_w=round(sum(float(row.active_power) for row in confirmed.sgs_data)/10, 1),
+                                          limit_pct=observed, serial=serial,
+                                          reason="Consigne transmise — confirmation Hoymiles en attente")
+                            else:
+                                with self._lock:
+                                    self._control = {"commands_enabled": True, "last_command_pct": target,
+                                                     "last_command_timestamp": time.time(), "last_command_confirmed": True}
+                                self._set(state="online", timestamp=time.time(),
+                                          power_w=round(sum(float(row.active_power) for row in confirmed.sgs_data)/10, 1),
+                                          limit_pct=observed, serial=serial, reason="Lecture locale via ESP32")
                 if once:
                     return
                 for _ in range(15):
