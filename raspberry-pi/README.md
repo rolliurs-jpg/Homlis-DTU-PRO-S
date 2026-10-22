@@ -92,6 +92,11 @@ Cette configuration peut désactiver la gestion DDSU native du DTU. Ne laissez p
 
 Pour les liaisons Wi-Fi physiques : la **TP-Link doit être branchée en USB 2.0** pour le Wi-Fi direct du DTU ; l’**Alfa doit être branchée en USB 3.0** pour le Wi-Fi solaire du cabanon. Ces deux liaisons ont des rôles différents et restent volontairement séparées.
 
+L'installateur active aussi une vérification toutes les deux minutes. Si la clé
+TP-Link du DTU (`wlan1`) se fige après une veille ou une coupure, elle désactive
+la veille Wi-Fi, redémarre uniquement cette interface et réactive le profil
+`dtu-direct-4p`. Les autres réseaux ne sont pas interrompus.
+
 ## Diagnostic local DTU, sans commande
 
 Le script `local_dtu_probe.py` vérifie que le Raspberry peut lire un DTU via
