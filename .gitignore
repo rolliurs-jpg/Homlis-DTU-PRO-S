@@ -10,6 +10,7 @@ Historiques_importes/
 .DS_Store
 *.log
 *.env
+esphome/secrets.yaml
 .idea/
 .vscode/
 

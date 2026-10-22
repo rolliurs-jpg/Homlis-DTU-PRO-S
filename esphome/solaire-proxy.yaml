@@ -19,7 +19,7 @@ logger:
 wifi:
   # Nom relevé sur le routeur installé (BSSID 70:4B:CA:16:BC:C9).
   ssid: "Cabanon Solaire"
-  password: ""
+  password: !secret cabanon_solaire_password
   # Le proxy ne connaît qu'un seul point d'accès dédié : se reconnecter sans
   # balayage complet réduit les aléas après le redémarrage du routeur ESP32.
   fast_connect: true

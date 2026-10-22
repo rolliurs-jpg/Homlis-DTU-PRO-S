@@ -1,5 +1,5 @@
 # Point d'acces local dedie au Raspberry et au futur proxy Bluetooth.
-# Il ne fournit volontairement ni Internet ni mot de passe.
+# Il ne fournit pas Internet, mais reste protégé en WPA2.
 # Adresse du point d'acces : 192.168.4.1/24
 
 esphome:
@@ -20,7 +20,7 @@ wifi:
   ap:
     # Conserver le même SSID que le routeur installé et le proxy Bluetooth.
     ssid: "Cabanon Solaire"
-    # Pas de cle : reseau volontairement ouvert, isole et sans Internet.
+    password: !secret cabanon_solaire_password
     channel: 6
     ap_timeout: 1s
     manual_ip:
