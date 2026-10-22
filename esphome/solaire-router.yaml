@@ -18,7 +18,8 @@ wifi:
   # Sans reseau "station" configure, cet ESP reste un point d'acces local.
   power_save_mode: none
   ap:
-    ssid: "Solaire cabanon"
+    # Conserver le même SSID que le routeur installé et le proxy Bluetooth.
+    ssid: "Cabanon Solaire"
     # Pas de cle : reseau volontairement ouvert, isole et sans Internet.
     channel: 6
     ap_timeout: 1s

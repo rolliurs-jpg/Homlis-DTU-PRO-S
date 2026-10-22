@@ -1,5 +1,5 @@
 # Proxy Bluetooth LE pour les micro-onduleurs du second ensemble.
-# Il rejoint uniquement le point d'acces local "Solaire cabanon".
+# Il rejoint uniquement le point d'accès local "Cabanon Solaire".
 
 esphome:
   name: solaire-proxy
@@ -17,7 +17,8 @@ logger:
   baud_rate: 115200
 
 wifi:
-  ssid: "Solaire cabanon"
+  # Nom relevé sur le routeur installé (BSSID 70:4B:CA:16:BC:C9).
+  ssid: "Cabanon Solaire"
   password: ""
   # Le proxy ne connaît qu'un seul point d'accès dédié : se reconnecter sans
   # balayage complet réduit les aléas après le redémarrage du routeur ESP32.
