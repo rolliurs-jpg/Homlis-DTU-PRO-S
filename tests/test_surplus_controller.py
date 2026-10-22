@@ -15,6 +15,12 @@ class ControllerTests(unittest.TestCase):
   c=self.controller()
   for _ in range(20):r=c.evaluate(self.sample(),1000)
   self.assertFalse(r['battery_full_confirmed'])
+ def test_98_percent_at_rest_confirms_full(self):
+  c=self.controller()
+  for t in range(1000,1121,15):
+   s=self.sample(t);s['battery']['soc_pct']=98
+   r=c.evaluate(s,t)
+  self.assertTrue(r['battery_full_confirmed'])
  def test_missing_and_stale_hold_previous_commands(self):
   c=self.controller();self.full(c)
   r=c.evaluate({},1135);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])

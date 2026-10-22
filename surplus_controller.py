@@ -52,6 +52,24 @@ class SurplusController:
                           write_hold=True,
                           reason='Mesures absentes ou anciennes : consignes précédentes conservées, aucune commande envoyée.')
             return result
+        # Le BMS Zendure peut afficher 98 à 100 % pendant la phase terminale,
+        # alors que la batterie est déjà au repos. Pour l'autoconsommation,
+        # 98 % est donc un plein ; l'état reste mémorisé jusqu'à 97 % afin
+        # d'éviter les oscillations de l'affichage de niveau.
+        if self.last_sample is not None and not 0 <= b['timestamp']-self.last_sample <= 45:
+            self.full_since, self.full = None, False
+        self.last_sample = b['timestamp']
+        if b['soc_pct'] <= 97 or b['ac_charge_w'] > 50 or b['ac_discharge_w'] > 20:
+            self.full_since, self.full = None, False
+        elif not self.full:
+            if b['soc_pct'] >= 98 and b['ac_charge_w'] <= 30 and b['ac_discharge_w'] <= 20:
+                if self.full_since is None:
+                    self.full_since = b['timestamp']
+                if b['timestamp']-self.full_since >= 120:
+                    self.full = True
+            else:
+                self.full_since = None
+        result['battery_full_confirmed'] = self.full
         if self.dtu:
             d = s.get('dtu', {})
             try:
@@ -64,28 +82,12 @@ class SurplusController:
             except (KeyError, TypeError, ValueError):
                 # Une lecture Modbus manquée ne dit rien de l'état de charge
                 # de la batterie. On bloque toute écriture tant que le DTU
-                # est douteux, mais on ne remet pas à zéro les deux minutes
-                # de confirmation d'un plein déjà mesuré. Sans cela, une
-                # micro-coupure du DTU toutes les quelques secondes empêche
-                # indéfiniment la régulation après batterie pleine.
+                # est douteux, mais la confirmation batterie continue pour
+                # reprendre la régulation dès que le DTU répond à nouveau.
                 result.update(hms1000_limit_pct=None, dtu_limit_pct=None,
                               write_hold=True,
                               reason='Mesures DTU absentes ou incohérentes : consignes précédentes conservées, aucune commande envoyée.')
                 return result
-        if self.last_sample is not None and not 0 <= b['timestamp']-self.last_sample <= 45:
-            self.full_since, self.full = None, False
-        self.last_sample = b['timestamp']
-        if b['soc_pct'] <= 97 or b['ac_charge_w'] > 50 or b['ac_discharge_w'] > 20:
-            self.full_since, self.full = None, False
-        elif not self.full:
-            if b['soc_pct'] >= 100 and b['ac_charge_w'] <= 30 and b['ac_discharge_w'] <= 20:
-                if self.full_since is None:
-                    self.full_since = b['timestamp']
-                if b['timestamp']-self.full_since >= 120:
-                    self.full = True
-            else:
-                self.full_since = None
-        result['battery_full_confirmed'] = self.full
         if not self.full:
             result.update(hms1000_limit_pct=100, reason='Priorité à la maison et à la charge batterie.')
         elif abs(s['grid_w']-30) <= 15:
