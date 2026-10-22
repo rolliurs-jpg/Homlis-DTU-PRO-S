@@ -19,6 +19,9 @@ class SurplusController:
         # envoyer une consigne 100 % avant d'avoir reconstruit deux minutes
         # de mesures cohérentes.
         self.hold_until = time.time() + 120 if enabled else 0.0
+        # Après une perte de liaison, la reprise doit être automatique mais
+        # prudente : deux minutes de mesures complètes avant toute commande.
+        self._awaiting_measurements = False
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._state = {}
@@ -130,6 +133,7 @@ class SurplusController:
             # doit jamais commencer par une hausse de production. On conserve
             # les limites observées pendant deux minutes de mesures stables.
             self.hold_until = time.time() + 120 if enabled else 0.0
+            self._awaiting_measurements = False
             # La désactivation demande explicitement 100 % au HMS ; le proxy
             # doit donc rester autorisé à transmettre cette unique consigne.
             self.proxy.config["commands_enabled"] = True
@@ -138,6 +142,21 @@ class SurplusController:
             self._state = dict(mode="automatic" if enabled else "paused", commands_enabled=enabled,
                                controlled_panels=6 if self.dtu else 2, hms1000_limit_pct=100, dtu_limit_pct=100 if self.dtu else None,
                                reason="Validation des mesures pendant 2 min : limites actuelles conservées." if enabled else "Gestion arrêtée : retour à 100 % demandé.")
+
+    def network_gate(self, result, now):
+        """Réarme automatiquement la régulation après le retour des liaisons."""
+        if not self.enabled:
+            self._awaiting_measurements = False
+            return False
+        if result.get('write_hold'):
+            self._awaiting_measurements = True
+            return True
+        if self._awaiting_measurements:
+            self._awaiting_measurements = False
+            self.hold_until = now + 120
+            result['reason'] = 'Liaisons rétablies : validation des mesures pendant 2 min avant reprise automatique.'
+            return True
+        return now < self.hold_until
 
     def start(self):
         self._thread = threading.Thread(target=self._worker, daemon=True)
@@ -156,10 +175,12 @@ class SurplusController:
                 sample = {}
             with self._lock:
                 result = self.evaluate(sample, time.time())
+                now = time.time()
                 target = result.get('hms1000_limit_pct')
-                hold = self.enabled and time.time() < self.hold_until
+                hold = self.network_gate(result, now)
                 if hold:
-                    result['reason'] = 'Validation des mesures pendant 2 min : aucune commande envoyée.'
+                    if not result.get('write_hold') and not result.get('reason', '').startswith('Liaisons rétablies'):
+                        result['reason'] = 'Validation des mesures pendant 2 min : aucune commande envoyée.'
                     result['write_hold'] = True
                 suppress_writes = hold or bool(result.get('write_hold'))
                 if self.enabled and not suppress_writes and target is not None:

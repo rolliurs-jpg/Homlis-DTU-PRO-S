@@ -57,6 +57,15 @@ class ControllerTests(unittest.TestCase):
   c.set_enabled(True);self.assertTrue(c.enabled);self.assertEqual(p.requested,[100])
   with self.assertRaises(ValueError):c.set_enabled('yes')
 
+ def test_network_recovery_rearms_automatically(self):
+  c=self.controller();c.hold_until=0
+  self.assertTrue(c.network_gate({'write_hold':True},1000))
+  restored={}
+  self.assertTrue(c.network_gate(restored,1010))
+  self.assertIn('Liaisons rétablies',restored['reason'])
+  self.assertTrue(c.network_gate({},1120))
+  self.assertFalse(c.network_gate({},1131))
+
  def combined(self):
   class Dtu: rated_w=2000
   return SurplusController(None,None,enabled=True,dtu=Dtu())
