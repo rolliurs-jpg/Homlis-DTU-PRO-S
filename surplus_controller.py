@@ -62,8 +62,12 @@ class SurplusController:
                 if d['power_w'] < 0 or not 2 <= d['limit_pct'] <= 100 or len(set(d['port_limits_pct'])) != 1:
                     raise ValueError()
             except (KeyError, TypeError, ValueError):
-                self.full_since = self.last_sample = None
-                self.full = False
+                # Une lecture Modbus manquée ne dit rien de l'état de charge
+                # de la batterie. On bloque toute écriture tant que le DTU
+                # est douteux, mais on ne remet pas à zéro les deux minutes
+                # de confirmation d'un plein déjà mesuré. Sans cela, une
+                # micro-coupure du DTU toutes les quelques secondes empêche
+                # indéfiniment la régulation après batterie pleine.
                 result.update(hms1000_limit_pct=None, dtu_limit_pct=None,
                               write_hold=True,
                               reason='Mesures DTU absentes ou incohérentes : consignes précédentes conservées, aucune commande envoyée.')

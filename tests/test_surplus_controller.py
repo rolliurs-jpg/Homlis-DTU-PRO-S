@@ -67,6 +67,15 @@ class ControllerTests(unittest.TestCase):
   c=self.combined();s=self.combined_sample();s['dtu']['port_limits_pct']=[90,100,100,100]
   r=c.evaluate(s,1000)
   self.assertIsNone(r['hms1000_limit_pct']);self.assertIsNone(r['dtu_limit_pct']);self.assertTrue(r['write_hold'])
+ def test_dtu_gap_does_not_restart_battery_full_confirmation(self):
+  c=self.combined()
+  c.evaluate(self.combined_sample(1000),1000)
+  c.evaluate(self.combined_sample(1015),1015)
+  interrupted=self.combined_sample(1030);interrupted['dtu']['state']='offline'
+  held=c.evaluate(interrupted,1030)
+  self.assertTrue(held['write_hold'])
+  for t in range(1045,1121,15):r=c.evaluate(self.combined_sample(t),t)
+  self.assertTrue(r['battery_full_confirmed'])
  def test_six_panels_import_recovery(self):
   c=self.combined()
   for t in range(1000,1121,15):c.evaluate(self.combined_sample(t),t)
