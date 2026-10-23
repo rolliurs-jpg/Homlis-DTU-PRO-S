@@ -4,7 +4,7 @@ import threading
 import time
 
 class SurplusController:
-    def __init__(self, proxy, sample, enabled=False, rated_w=1000, dtu=None):
+    def __init__(self, proxy, sample, enabled=False, rated_w=1000, dtu=None, native_panels=0):
         self.proxy, self.sample = proxy, sample
         self.enabled, self.rated_w = enabled, rated_w
         # After a service restart, an already enabled controller must also
@@ -13,6 +13,9 @@ class SurplusController:
         if self.proxy is not None and hasattr(self.proxy, "config"):
             self.proxy.config["commands_enabled"] = bool(enabled)
         self.dtu = dtu
+        # Les panneaux régulés nativement par un DDSU sont inclus dans le
+        # bilan global, mais ne reçoivent jamais de commande de ce programme.
+        self.native_panels = max(0, int(native_panels))
         self.full_since = self.last_sample = None
         self.full = False
         # Après un redémarrage alors que le pilotage est déjà actif, ne pas
@@ -32,8 +35,11 @@ class SurplusController:
 
     def evaluate(self, s, now):
         p, b = s.get('proxy', {}), s.get('battery', {})
+        direct_panels = 6 if self.dtu else 2
         result = dict(mode='automatic' if self.enabled else 'paused', commands_enabled=self.enabled,
-                      controlled_panels=6 if self.dtu else 2, battery_full_confirmed=False, hms1000_limit_pct=None, dtu_limit_pct=100 if self.dtu else None)
+                      controlled_panels=direct_panels, native_panels=self.native_panels,
+                      managed_panels=direct_panels + self.native_panels,
+                      battery_full_confirmed=False, hms1000_limit_pct=None, dtu_limit_pct=100 if self.dtu else None)
         try:
             values = [s['grid_w'], s['timestamp'], b['timestamp'], b['soc_pct'],
                       b['ac_charge_w'], b['ac_discharge_w'], p['power_w'], p['timestamp'], p['limit_pct']]
@@ -139,8 +145,11 @@ class SurplusController:
             self.proxy.config["commands_enabled"] = True
             if not enabled:
                 self.proxy.request_limit(100)
+            direct_panels = 6 if self.dtu else 2
             self._state = dict(mode="automatic" if enabled else "paused", commands_enabled=enabled,
-                               controlled_panels=6 if self.dtu else 2, hms1000_limit_pct=100, dtu_limit_pct=100 if self.dtu else None,
+                               controlled_panels=direct_panels, native_panels=self.native_panels,
+                               managed_panels=direct_panels + self.native_panels,
+                               hms1000_limit_pct=100, dtu_limit_pct=100 if self.dtu else None,
                                reason="Validation des mesures pendant 2 min : limites actuelles conservées." if enabled else "Gestion arrêtée : retour à 100 % demandé.")
 
     def network_gate(self, result, now):

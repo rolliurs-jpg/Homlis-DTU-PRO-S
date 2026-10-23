@@ -4108,10 +4108,12 @@ external_dtu_commands = bool(
     surplus_cfg.get("dtu_enabled", False)
     and surplus_cfg.get("dtu_command_enabled", False)
 )
+native_dtu_panels = 4 if bool(surplus_cfg.get("dtu_enabled", False)) and not external_dtu_commands else 0
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
     enabled=control_enabled, rated_w=float(surplus_cfg.get("rated_w", 1000)),
     dtu=DtuControl(DTU_MODBUS_HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock)
-    if external_dtu_commands else None)
+    if external_dtu_commands else None,
+    native_panels=native_dtu_panels)
 surplus_controller.start()
 atexit.register(surplus_controller.stop)
 
