@@ -127,7 +127,11 @@ class ProxyReader:
             # radio. Une ouverture observée sur le terrain dépasse parfois
             # 45 s : ne pas détruire une session BLE saine avant 90 s.
             await asyncio.wait_for(hf.connect(), 90)
-            await asyncio.wait_for(hf.async_extract_enc_rand(), 60)
+            # ``enc_rand`` est obtenu une seule fois pendant PAIRER_HOYMILES
+            # puis conservé dans la configuration. Rejouer le handshake V0 à
+            # chaque lecture perturbe la session V1 des HMS-WB et peut mener
+            # à un timeout. Après une reconnexion il faut uniquement refaire
+            # le CommCmd handshake ci-dessous.
             self._set(state="authenticating", reason="Ouverture de la session Hoymiles")
             from hiflow_ble.hiflow import _get_action_sts
             raw_request = hf._raw_request
