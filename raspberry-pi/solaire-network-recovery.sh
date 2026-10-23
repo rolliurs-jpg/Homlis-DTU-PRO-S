@@ -23,6 +23,11 @@ DTU_DEVICE="${DTU_DEVICE:-wlan1}"
 DTU_HOST="${DTU_HOST:-10.10.100.254}"
 # Nom créé lors de l'installation de la liaison Wi-Fi directe DTU.
 DTU_PROFILE="${DTU_PROFILE:-dtu-direct-4p}"
+# Une réinitialisation USB équivaut à débrancher/rebrancher la clé. Elle est
+# volontairement rare : elle ne doit intervenir qu'après l'échec du cycle
+# réseau normal et jamais plus d'une fois toutes les 30 minutes.
+DTU_USB_RESET_COOLDOWN="${DTU_USB_RESET_COOLDOWN:-1800}"
+DTU_USB_RESET_STAMP="${DTU_USB_RESET_STAMP:-/run/solaire-tplink-usb-reset}"
 
 activate_profile() {
   local profile="$1" device="$2"
@@ -47,6 +52,44 @@ disable_power_save() {
   if command -v iw >/dev/null 2>&1; then
     iw dev "$device" set power_save off 2>/dev/null || true
   fi
+}
+
+usb_device_for_interface() {
+  local device="$1" path
+  path="$(readlink -f "/sys/class/net/$device/device" 2>/dev/null || true)"
+  while [[ -n "$path" && "$path" != "/" ]]; do
+    # Un vrai périphérique USB dispose de ces deux fichiers dans sysfs. Cela
+    # évite de toucher à une interface PCI ou à un autre adaptateur réseau.
+    if [[ -f "$path/idVendor" && -f "$path/authorized" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+    path="$(dirname "$path")"
+  done
+  return 1
+}
+
+reset_usb_wifi_if_allowed() {
+  local device="$1" usb_path now previous=0
+  usb_path="$(usb_device_for_interface "$device" || true)"
+  if [[ -z "$usb_path" ]]; then
+    logger -t solaire-network-recovery "Réinitialisation USB impossible : périphérique $device introuvable"
+    return 1
+  fi
+  now="$(date +%s)"
+  if [[ -r "$DTU_USB_RESET_STAMP" ]]; then
+    previous="$(cat "$DTU_USB_RESET_STAMP" 2>/dev/null || echo 0)"
+  fi
+  if [[ "$previous" =~ ^[0-9]+$ ]] && (( now - previous < DTU_USB_RESET_COOLDOWN )); then
+    logger -t solaire-network-recovery "Réinitialisation USB $device différée (délai de sécurité)"
+    return 1
+  fi
+  logger -t solaire-network-recovery "Réinitialisation matérielle de la clé TP-Link $device"
+  printf '0' > "$usb_path/authorized"
+  sleep 3
+  printf '1' > "$usb_path/authorized"
+  printf '%s\n' "$now" > "$DTU_USB_RESET_STAMP"
+  sleep 8
 }
 
 # Liaison cabanon : le routeur et le proxy ont des IP fixes. Le routeur suffit
@@ -77,3 +120,10 @@ fi
 # profil DTU dédié, jamais un réseau voisin.
 cycle_device "$DTU_DEVICE"
 activate_profile "$DTU_PROFILE" "$DTU_DEVICE"
+
+# Si le pilote reste figé malgré le cycle réseau, une réinitialisation du seul
+# périphérique USB wlan1 remplace le débranchement manuel constaté ce matin.
+if ! /bin/ping -I "$DTU_DEVICE" -c 1 -W 2 "$DTU_HOST" >/dev/null 2>&1; then
+  reset_usb_wifi_if_allowed "$DTU_DEVICE" || true
+  activate_profile "$DTU_PROFILE" "$DTU_DEVICE"
+fi

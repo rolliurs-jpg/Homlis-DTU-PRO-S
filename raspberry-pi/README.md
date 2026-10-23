@@ -95,7 +95,10 @@ Pour les liaisons Wi-Fi physiques : la **TP-Link doit être branchée en USB 2.0
 L'installateur active aussi une vérification toutes les deux minutes. Si la clé
 TP-Link du DTU (`wlan1`) se fige après une veille ou une coupure, elle désactive
 la veille Wi-Fi, redémarre uniquement cette interface et réactive le profil
-`dtu-direct-4p`. Les autres réseaux ne sont pas interrompus.
+`dtu-direct-4p`. Si ce cycle logiciel échoue, le Raspberry réinitialise
+automatiquement **la seule clé USB TP-Link**, au maximum une fois toutes les
+30 minutes : c'est l'équivalent du débranchement/rebranchement manuel. Les
+autres réseaux ne sont pas interrompus.
 
 ## Diagnostic local DTU, sans commande
 
