@@ -1,11 +1,11 @@
 """Appairage local et unique du HMS-WB via un proxy ESPHome."""
 import asyncio
+import argparse
+import getpass
 import json
 import time
 import sys
 from pathlib import Path
-import tkinter as tk
-from tkinter import messagebox, simpledialog
 
 if hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -55,17 +55,19 @@ async def pair(pin):
             await asyncio.sleep(0.5)
         if device is None:
             raise RuntimeError("L’onduleur n’est pas visible depuis le proxy ESP32.")
-        hf = HiFlow(address, enc_rand=None, sn=sn, timeout=15,
+        # Passer l'objet BLE fourni par ESPHome, pas son adresse : c'est ce
+        # qui route la session via le proxy ESP32 au lieu du Bluetooth local.
+        hf = HiFlow(device, enc_rand=None, sn=sn, timeout=30,
                     max_reconnect_attempts=1, ble_id=ble_id, pin=pin)
         PAIR_STAGE.write_text("connexion Bluetooth", encoding="utf-8")
-        await asyncio.wait_for(hf.connect(), 45)
+        await asyncio.wait_for(hf.connect(), 90)
         PAIR_STAGE.write_text("lecture de la clé chiffrée", encoding="utf-8")
-        enc_rand = await asyncio.wait_for(hf.async_extract_enc_rand(), 30)
+        enc_rand = await asyncio.wait_for(hf.async_extract_enc_rand(), 60)
         PAIR_STAGE.write_text("vérification du code Bluetooth", encoding="utf-8")
         await asyncio.wait_for(hf.async_do_comm_cmd_handshake(
-            ble_id=ble_id, pin=pin, tz_offset=7200), 45)
+            ble_id=ble_id, pin=pin, tz_offset=7200), 90)
         PAIR_STAGE.write_text("lecture de la puissance", encoding="utf-8")
-        real = await asyncio.wait_for(hf.async_get_real_data_new(), 40)
+        real = await asyncio.wait_for(hf.async_get_real_data_new(), 60)
         if real is None or not real.sgs_data:
             raise RuntimeError("Le code Bluetooth a été refusé ou la lecture n’a pas répondu.")
         power_w = sum(float(row.active_power) for row in real.sgs_data) / 10.0
@@ -92,6 +94,8 @@ async def pair(pin):
             pass
 
 def main():
+    import tkinter as tk
+    from tkinter import messagebox, simpledialog
     root = tk.Tk()
     root.withdraw()
     pin = simpledialog.askstring(
@@ -114,7 +118,31 @@ def main():
         pin = None
         root.destroy()
 
+def cli_main():
+    """Appairage sur Raspberry sans interface graphique ni PIN en clair."""
+    print("Appairage Hoymiles via le proxy ESP32 (lecture seule).")
+    print("Fermez S-Miles Home avant de continuer : un seul client Bluetooth est admis.")
+    pin = getpass.getpass("Code Bluetooth Hoymiles (non affiché) : ")
+    if not pin:
+        print("Appairage annulé : aucun code saisi.")
+        return 2
+    try:
+        power = asyncio.run(pair(pin))
+    except Exception as exc:
+        stage = PAIR_STAGE.read_text(encoding="utf-8") if PAIR_STAGE.exists() else "inconnue"
+        print(f"Appairage non terminé. Étape : {stage}. Erreur : {type(exc).__name__}: {exc}")
+        return 1
+    finally:
+        pin = None
+    print(f"Connexion validée : {power:.1f} W lus. Clé enregistrée localement.")
+    return 0
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Appairage local Hoymiles")
+    parser.add_argument("--cli", action="store_true", help="mode terminal pour Raspberry sans écran")
+    args = parser.parse_args()
+    if args.cli:
+        raise SystemExit(cli_main())
     main()
 
 
