@@ -92,14 +92,21 @@ reset_usb_wifi_if_allowed() {
   sleep 8
 }
 
-# Liaison cabanon : le routeur et le proxy ont des IP fixes. Le routeur suffit
-# à prouver l'association Wi-Fi ; le proxy peut attendre son propre démarrage.
+# Liaison cabanon : le routeur et le proxy ont des IP fixes. Les vérifier tous
+# les deux évite qu'une Alfa encore associée au routeur reste incapable de
+# joindre le proxy Bluetooth. Au démarrage du proxy, ce contrôle ne s'exécute
+# que toutes les deux minutes, ce qui lui laisse largement le temps de démarrer.
 disable_power_save "$ALFA_DEVICE"
 if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_ROUTER_HOST" >/dev/null 2>&1; then
   activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
   sleep 3
 fi
 if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_ROUTER_HOST" >/dev/null 2>&1; then
+  cycle_device "$ALFA_DEVICE"
+  activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
+fi
+if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_PROXY_HOST" >/dev/null 2>&1; then
+  logger -t solaire-network-recovery "Proxy solaire injoignable : reconnexion de $ALFA_DEVICE"
   cycle_device "$ALFA_DEVICE"
   activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
 fi
