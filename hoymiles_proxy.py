@@ -123,8 +123,11 @@ class ProxyReader:
             hf = HiFlow(device, enc_rand=enc_rand,
                         sn=str(cfg.get("serial_tail") or "4161A38B58B4"),
                         timeout=15, max_reconnect_attempts=1, ble_id=ble_id)
-            await asyncio.wait_for(hf.connect(), 45)
-            await asyncio.wait_for(hf.async_extract_enc_rand(), 30)
+            # L'HMS peut répondre lentement après une veille ou une reprise
+            # radio. Une ouverture observée sur le terrain dépasse parfois
+            # 45 s : ne pas détruire une session BLE saine avant 90 s.
+            await asyncio.wait_for(hf.connect(), 90)
+            await asyncio.wait_for(hf.async_extract_enc_rand(), 60)
             self._set(state="authenticating", reason="Ouverture de la session Hoymiles")
             from hiflow_ble.hiflow import _get_action_sts
             raw_request = hf._raw_request
@@ -138,7 +141,7 @@ class ProxyReader:
                 return response
             hf._raw_request = observed_request
             handshake_ok = await asyncio.wait_for(hf.async_do_comm_cmd_handshake(
-                ble_id=ble_id, tz_offset=7200), 45)
+                ble_id=ble_id, tz_offset=7200), 90)
             if login_status.get("status") == 3:
                 self._set(state="authentication_required", reason="L’onduleur demande explicitement le code Bluetooth.")
                 return
@@ -146,7 +149,7 @@ class ProxyReader:
                 raise RuntimeError("InverterHandshakeUnavailable")
 
             while not self._stop.is_set():
-                real = await asyncio.wait_for(hf.async_get_real_data_new(), 40)
+                real = await asyncio.wait_for(hf.async_get_real_data_new(), 60)
                 if real is None or not real.sgs_data:
                     raise RuntimeError("InverterDataUnavailable")
                 power_w = sum(float(row.active_power) for row in real.sgs_data) / 10.0
@@ -167,7 +170,7 @@ class ProxyReader:
                         response = await asyncio.wait_for(hf.async_set_power_limit(target), 20)
                         if response is None or response.err_code != 0:
                             raise RuntimeError("LimitCommandRejected")
-                        confirmed = await asyncio.wait_for(hf.async_get_real_data_new(), 40)
+                        confirmed = await asyncio.wait_for(hf.async_get_real_data_new(), 60)
                         if confirmed is None or not confirmed.sgs_data:
                             # Le micro-onduleur applique parfois la consigne
                             # avant de la publier dans sa télémétrie Bluetooth.
