@@ -36,6 +36,10 @@ wifi:
 # API ESPHome locale utilisee par le Raspberry et habluetooth.
 api:
   port: 6053
+  # Si le Raspberry ne peut plus joindre l'API pendant cinq minutes,
+  # redémarrer le proxy. Cela récupère les blocages où le Wi-Fi paraît
+  # encore associé mais où le proxy n'est plus réellement accessible.
+  reboot_timeout: 5min
 
 ota:
   - platform: esphome
