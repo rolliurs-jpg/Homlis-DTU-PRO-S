@@ -164,6 +164,10 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "rated_w": 1000,
         "dtu_enabled": False,
+        # Les quatre panneaux du HMS-2000 sont normalement régulés par le
+        # DDSU Hoymiles. Les commandes DTU externes doivent donc être un choix
+        # distinct et explicite, jamais une conséquence d'un ancien réglage.
+        "dtu_command_enabled": False,
         "dtu_rated_w": 2000,
     },
     "tarifs_edf": {
@@ -4100,10 +4104,14 @@ surplus_cfg = CONFIG.get("surplus_control", {})
 # Les commandes restent opt-in dans la configuration et le contrôleur ramène
 # les deux groupes à 100 % en cas de donnée ou de liaison incohérente.
 control_enabled = bool(surplus_cfg.get("enabled", False))
+external_dtu_commands = bool(
+    surplus_cfg.get("dtu_enabled", False)
+    and surplus_cfg.get("dtu_command_enabled", False)
+)
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,
     enabled=control_enabled, rated_w=float(surplus_cfg.get("rated_w", 1000)),
     dtu=DtuControl(DTU_MODBUS_HOST, rated_w=float(surplus_cfg.get("dtu_rated_w", 2000)), lock=dtu_modbus_lock)
-    if surplus_cfg.get("dtu_enabled", False) else None)
+    if external_dtu_commands else None)
 surplus_controller.start()
 atexit.register(surplus_controller.stop)
 

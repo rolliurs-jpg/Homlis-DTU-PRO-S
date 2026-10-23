@@ -67,6 +67,7 @@
     "enabled": false,
     "rated_w": 1000,
     "dtu_enabled": false,
+    "dtu_command_enabled": false,
     "dtu_rated_w": 2000
   }
 }
