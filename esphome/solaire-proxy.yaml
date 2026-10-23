@@ -48,4 +48,7 @@ esp32_ble_tracker:
 
 bluetooth_proxy:
   active: true
-  connection_slots: 3
+  # Un seul micro-onduleur est lu ici. Réserver un seul créneau BLE évite que
+  # l'ESP32 partage sa mémoire radio entre plusieurs connexions inutiles et
+  # que la session Hoymiles soit interrompue pendant son authentification.
+  connection_slots: 1
