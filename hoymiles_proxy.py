@@ -130,11 +130,11 @@ class ProxyReader:
             # radio. Une ouverture observée sur le terrain dépasse parfois
             # 45 s : ne pas détruire une session BLE saine avant 90 s.
             await asyncio.wait_for(hf.connect(), 90)
-            # ``enc_rand`` est obtenu une seule fois pendant PAIRER_HOYMILES
-            # puis conservé dans la configuration. Rejouer le handshake V0 à
-            # chaque lecture perturbe la session V1 des HMS-WB et peut mener
-            # à un timeout. Après une reconnexion il faut uniquement refaire
-            # le CommCmd handshake ci-dessous.
+            # ``enc_rand`` est normalement conservé après PAIRER_HOYMILES.
+            # On ne lance donc pas V0 à chaque lecture. En revanche, si le
+            # handshake V1 est refusé, une unique relecture V0 est le moyen
+            # sûr de récupérer une clé qui aurait changé côté onduleur, sans
+            # PIN Bluetooth ni commande de puissance.
             self._set(state="authenticating", reason="Ouverture de la session Hoymiles")
             from hiflow_ble.hiflow import _get_action_sts
             raw_request = hf._raw_request
@@ -153,7 +153,18 @@ class ProxyReader:
                 self._set(state="authentication_required", reason="L’onduleur demande explicitement le code Bluetooth.")
                 return
             if not handshake_ok:
-                raise RuntimeError("InverterHandshakeUnavailable")
+                self._set(state="authenticating", reason="Récupération de la clé Hoymiles")
+                refreshed_enc_rand = await asyncio.wait_for(hf.async_extract_enc_rand(), 60)
+                cfg["enc_rand"] = refreshed_enc_rand.hex()
+                self.config["enc_rand"] = cfg["enc_rand"]
+                login_status.clear()
+                handshake_ok = await asyncio.wait_for(hf.async_do_comm_cmd_handshake(
+                    ble_id=ble_id, tz_offset=7200), 90)
+                if login_status.get("status") == 3:
+                    self._set(state="authentication_required", reason="L’onduleur demande explicitement le code Bluetooth.")
+                    return
+                if not handshake_ok:
+                    raise RuntimeError("InverterHandshakeUnavailable")
 
             while not self._stop.is_set():
                 real = await asyncio.wait_for(hf.async_get_real_data_new(), 60)
