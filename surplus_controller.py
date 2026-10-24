@@ -189,7 +189,7 @@ class SurplusController:
                 hold = self.network_gate(result, now)
                 if hold:
                     if not result.get('write_hold') and not result.get('reason', '').startswith('Liaisons rétablies'):
-                        result['reason'] = 'Validation des mesures pendant 2 min : aucune commande envoyée.'
+                        result['reason'] = 'Connexion rétablie : délai de stabilité de 2 min avant reprise, aucune commande envoyée.'
                     result['write_hold'] = True
                 suppress_writes = hold or bool(result.get('write_hold'))
                 if self.enabled and not suppress_writes and target is not None:
