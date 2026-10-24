@@ -122,7 +122,10 @@ class ProxyReader:
             self._set(state="connecting", reason="Connexion Bluetooth à l’onduleur")
             hf = HiFlow(device, enc_rand=enc_rand,
                         sn=str(cfg.get("serial_tail") or "4161A38B58B4"),
-                        timeout=15, max_reconnect_attempts=1, ble_id=ble_id)
+                        # Le premier appairage validé utilise 30 s par requête.
+                        # Garder 15 s ici faisait échouer l'action 104 (synchronisation
+                        # d'heure) sur un HMS encore en réveil, malgré un BLE relié.
+                        timeout=30, max_reconnect_attempts=1, ble_id=ble_id)
             # L'HMS peut répondre lentement après une veille ou une reprise
             # radio. Une ouverture observée sur le terrain dépasse parfois
             # 45 s : ne pas détruire une session BLE saine avant 90 s.
