@@ -1,11 +1,11 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky & Denky D4 et Shelly Pro EM
 
-**Raspberry Pi : suivi local permanent et régulation externe optionnelle après activation Modbus du DTU.**
+**Raspberry Pi : suivi local permanent. Le pilotage de puissance externe est suspendu tant que sa validation matérielle n'est pas achevée.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
-> Suivi et régulation locale du surplus solaire Hoymiles : DTU Pro-S, Linky & Denky D4, Shelly Pro EM et batterie Zendure. Après le plein confirmé, le Raspberry Pi peut limiter la production pour éviter l’injection, sans cloud et avec des garde-fous de liaison.
+> Suivi local du solaire Hoymiles : DTU Pro-S, Linky & Denky D4, Shelly Pro EM et batterie Zendure. Les mesures, historiques et alertes fonctionnent sans cloud. Le pilotage automatique de puissance est actuellement suspendu : il ne doit pas être utilisé avec la gestion des exportations Hoymiles/DDSU.
 
-[![Version](https://img.shields.io/badge/version-7.0.69-2563eb)](RELEASE_NOTES_7.0.69.md)
+[![Version](https://img.shields.io/badge/version-7.0.70-2563eb)](RELEASE_NOTES_7.0.70.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
@@ -93,9 +93,11 @@ Le **[TP-Link TL-WR802N](https://www.tp-link.com/fr/home-networking/wifi-router/
 Le DTU peut être joint de deux manières complémentaires :
 
 - **Wi-Fi direct** : une antenne TP-Link dédiée en **USB 2.0** relie le Raspberry directement au Wi-Fi du DTU. Elle reste indépendante du réseau de la maison et fournit une voie de lecture locale.
-- **Modbus TCP sur le LAN** : lorsque le DTU est relié à la box par Ethernet ou par pont Wi-Fi, le Raspberry lit ses données par le port Modbus TCP `502`. Cette voie est utilisée pour le suivi permanent et, lorsque l'option est activée, pour les limites externes de puissance.
+- **Modbus TCP sur le LAN** : lorsque le DTU est relié à la box par Ethernet ou par pont Wi-Fi, le Raspberry lit ses données par le port Modbus TCP `502`. Cette voie est utilisée pour le suivi permanent ; les commandes externes de puissance sont suspendues dans cette version.
 
-Dans l’application Hoymiles, **Remote Control / Modbus Protocol** doit être activé avec l’adresse de port `101` avant toute commande externe. Cette option peut désactiver le contrôle d’exportation DDSU natif ; ne laissez jamais le DDSU/Hoymiles et le contrôleur externe commander simultanément la même limite. Le logiciel attend des mesures récentes, maintient une marge d’achat réseau et revient à 100 % si la liaison de contrôle devient incertaine.
+> **Important — pas de double régulation.** La gestion Hoymiles **« Gestion des exportations / Limite de puissance d'exportation »** utilise le DDSU/compteur pour réduire les micro-onduleurs. Elle doit rester **désactivée** si des essais de commande Modbus externe sont entrepris. Inversement, si elle est activée, laissez le pilotage externe du logiciel désactivé. Une valeur de limite (même `0,10 kW` ou `1 kW`) n'est pas une simple information : elle active le contrôle Hoymiles.
+
+Le mode **Remote Control / Modbus Protocol** et l’adresse `101` ne doivent être configurés que par une personne qui valide la compatibilité du DTU, des micro-onduleurs et de la mesure réseau. Dans la version courante, le pilotage automatique est volontairement suspendu : le logiciel surveille l'installation mais n'envoie aucune limite de puissance par défaut.
 
 Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée au Wi-Fi solaire du cabanon et à ses ESP32. Elle est donc distincte de la TP-Link USB 2.0 du DTU.
 
@@ -160,7 +162,7 @@ gestion solaire de l'ancienne application Mac ou Windows : elle ne constitue
 plus qu'un outil de secours. Le navigateur ouvre alors exactement la même
 interface sur tous les appareils.
 
-> **Un seul pilote par installation.** Si le Raspberry collecte et régule,
+> **Un seul collecteur par installation.** Si le Raspberry collecte les mesures,
 > laissez désactivés dans le logiciel Mac ou Windows le **proxy Bluetooth
 > Hoymiles**, le **routeur Wi-Fi solaire ESP32** et la gestion solaire locale.
 > Les ESP32 restent physiquement en marche pour le Raspberry ; il ne faut
@@ -202,7 +204,7 @@ La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle re
 4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_RASPBERRY:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
 5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`. Sur Android, Chrome → menu `⋮` → **Installer l’application** ou **Ajouter à l’écran d’accueil** crée un bouton « Mon solaire ».
 
-Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky & Denky D4, l’état des trois appareils et les dernières heures sous forme de graphique. Il est entièrement en lecture seule hors du mode de régulation explicitement activé.
+Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky & Denky D4, l’état des trois appareils et les dernières heures sous forme de graphique. Il est en lecture seule : le pilotage automatique de puissance est suspendu dans cette version.
 
 L’âge de la mesure est contrôlé indépendamment de la connexion au serveur : vert jusqu’à 90 secondes, orange en cas de retard et rouge lorsque les données sont anciennes. La source de production et la qualité de la mesure sont également indiquées.
 
@@ -289,32 +291,11 @@ Voir [les notes de la version 7.0.54](RELEASE_NOTES_7.0.54.md). Le suivi Zendure
 
 Le suivi batterie propose désormais **Plein à 100 % et surplus après charge** : heure du premier plein observé, injection nette après le plein, fin solaire estimée si toutes les productions sont mesurées, couverture et export quotidien CSV. Voir les notes de version.
 
-## Gestion automatique : maison, batterie pleine et panneaux à 100 %
+## Pilotage de puissance : suspendu en attendant validation
 
-La gestion solaire est désactivée par défaut et ne doit être activée qu'après
-vérification des mesures. Lorsqu'elle est active, son comportement est le
-suivant :
+Le suivi, les courbes, les bilans et les alertes ne commandent jamais la batterie Zendure, les relais Shelly ou les paramètres Hoymiles. La fonction de limitation automatique des micro-onduleurs est **suspendue** dans cette version : un acquittement Modbus ne constitue pas une preuve que la puissance a réellement changé.
 
-1. **Batterie en charge ou sous 100 %** : les panneaux pilotés sont demandés à
-   **100 %**. La production donne priorité à la consommation de la maison puis
-   à la recharge de la batterie ; elle n'est pas bridée prématurément.
-2. **Batterie pleine confirmée** : le plein doit être observé pendant au moins
-   deux minutes, sans charge ni décharge significative. Cette précaution évite
-   de limiter les panneaux sur une mesure passagère.
-3. **Après le plein** : la maison passe en mode **zéro-injection**. La puissance
-   réellement demandée aux panneaux est recalculée après la consommation réelle
-   de la maison : seul le surplus est réduit. La cible pratique est environ
-   **30 W prélevés au réseau** ; ce léger écart volontaire stabilise le
-   zéro-injection et évite les oscillations ou une injection durable.
-4. **Panneaux concernés** : le proxy Bluetooth pilote les deux panneaux du
-   second ensemble. Si le contrôle DTU est activé et que ses mesures sont
-   valides, la même régulation s'applique aux **six panneaux**. Si une mesure ou
-   une liaison devient ancienne, un retour à **100 %** est demandé afin de ne
-   pas brider la production à l'aveugle.
-
-La batterie Zendure, les relais Shelly et le réglage interne de zéro-injection
-Hoymiles ne sont jamais modifiés par ce logiciel. Il ajuste uniquement les
-limites de production des équipements explicitement configurés pour ce mode.
+Avant toute réactivation future, l'installation devra démontrer, sur les mesures indépendantes du Shelly, que chaque consigne est appliquée puis que le retour à 100 % est effectif. Le contrôleur devra aussi se libérer complètement pour la maintenance S-Miles et refuser toute activation lorsque la gestion des exportations Hoymiles/DDSU est active.
 
 
 ### Bilan après plein sur mobile

@@ -162,6 +162,10 @@ DEFAULT_CONFIG = {
     # l'utilisateur n'a pas explicitement activé la régulation.
     "surplus_control": {
         "enabled": False,
+        # Le pilotage de puissance des micro-onduleurs reste expérimental :
+        # aucune commande n'est autorisée sans validation explicite de
+        # l'installation et de l'absence de contrôle DDSU/Hoymiles concurrent.
+        "experimental_control_acknowledged": False,
         "rated_w": 1000,
         "dtu_enabled": False,
         # Les quatre panneaux du HMS-2000 sont normalement régulés par le
@@ -267,7 +271,10 @@ atexit.register(monitor.stop)
 
 CONFIG = load_config()
 proxy_cfg = dict(CONFIG.get("hoymiles_proxy", {}))
-proxy_cfg["commands_enabled"] = bool(CONFIG.get("surplus_control", {}).get("enabled", False))
+proxy_cfg["commands_enabled"] = bool(
+    CONFIG.get("surplus_control", {}).get("enabled", False)
+    and CONFIG.get("surplus_control", {}).get("experimental_control_acknowledged", False)
+)
 proxy_reader = ProxyReader(proxy_cfg)
 proxy_reader.start()
 atexit.register(proxy_reader.stop)
@@ -313,6 +320,8 @@ def dashboard_ui_action(action, _values=None):
         enabled = (_values or {}).get("enabled")
         if not isinstance(enabled, bool):
             return {"error": "Activation attendue : oui ou non"}
+        if enabled and not bool(CONFIG.get("surplus_control", {}).get("experimental_control_acknowledged", False)):
+            return {"error": "Pilotage de puissance suspendu : vérifiez d'abord que la limite d'exportation Hoymiles/DDSU est désactivée et validez les essais."}
         CONFIG.setdefault("surplus_control", {})["enabled"] = enabled
         config_file = BASE / "config_v5.json"
         config_file.write_text(json.dumps(CONFIG, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -4103,10 +4112,14 @@ surplus_cfg = CONFIG.get("surplus_control", {})
 # panneaux du HMS-2000-4T passe par Modbus TCP sur l'Ethernet du nano-routeur.
 # Les commandes restent opt-in dans la configuration et le contrôleur ramène
 # les deux groupes à 100 % en cas de donnée ou de liaison incohérente.
-control_enabled = bool(surplus_cfg.get("enabled", False))
+control_enabled = bool(
+    surplus_cfg.get("enabled", False)
+    and surplus_cfg.get("experimental_control_acknowledged", False)
+)
 external_dtu_commands = bool(
     surplus_cfg.get("dtu_enabled", False)
     and surplus_cfg.get("dtu_command_enabled", False)
+    and surplus_cfg.get("experimental_control_acknowledged", False)
 )
 native_dtu_panels = 4 if bool(surplus_cfg.get("dtu_enabled", False)) and not external_dtu_commands else 0
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,

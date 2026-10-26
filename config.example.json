@@ -65,6 +65,7 @@
   },
   "surplus_control": {
     "enabled": false,
+    "experimental_control_acknowledged": false,
     "rated_w": 1000,
     "dtu_enabled": false,
     "dtu_command_enabled": false,
