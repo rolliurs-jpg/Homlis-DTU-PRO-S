@@ -256,7 +256,12 @@ class DashboardData:
 
     @staticmethod
     def wireless_interfaces():
-        """Return the two USB Wi-Fi links, without exposing their IP addresses."""
+        """Return the two USB Wi-Fi links and their useful network references.
+
+        An Alfa USB adapter is an interface of the Raspberry Pi, not a device
+        with its own Livebox lease.  Showing that explicitly avoids sending
+        the user looking for a non-existent Alfa IP in the Livebox.
+        """
         states = {}
         try:
             completed = subprocess.run(
@@ -279,12 +284,15 @@ class DashboardData:
 
         links = (
             ('wlan1', 'TP-Link · antenne Wi-Fi DTU',
-             'USB 2.0 obligatoire · liaison Wi-Fi directe vers le DTU'),
+             'USB 2.0 obligatoire · liaison Wi-Fi directe vers le DTU',
+             ('TP-Link / Livebox : 192.168.1.205', 'DTU local : 10.10.100.254')),
             ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',
-             'USB 3.0 obligatoire · liaison Wi-Fi vers le cabanon'),
+             'USB 3.0 obligatoire · liaison Wi-Fi vers le cabanon',
+             ('Clé USB : aucune adresse Livebox propre',
+              'Routeur ESP : 192.168.4.1', 'Proxy Hoymiles : 192.168.4.2')),
         )
         result = []
-        for interface, name, role in links:
+        for interface, name, role, references in links:
             connected = states.get(interface) == 'connected'
             if interface not in states:
                 try:
@@ -292,7 +300,7 @@ class DashboardData:
                 except OSError:
                     connected = False
             result.append(dict(interface=interface, name=name, role=role,
-                               connected=connected))
+                               references=list(references), connected=connected))
         return result
 
     def settings(self):

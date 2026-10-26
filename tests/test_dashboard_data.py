@@ -30,6 +30,8 @@ class DashboardDataTests(unittest.TestCase):
         self.assertTrue(all(link['connected'] for link in links))
         self.assertIn('USB 2.0 obligatoire', links[0]['role'])
         self.assertIn('USB 3.0 obligatoire', links[1]['role'])
+        self.assertIn('192.168.1.205', links[0]['references'][0])
+        self.assertIn('aucune adresse Livebox propre', links[1]['references'][0])
 
     def test_wireless_interfaces_accepts_uppercase_driver_name(self):
         completed = type('Completed', (), {
