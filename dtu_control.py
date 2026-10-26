@@ -73,7 +73,17 @@ class DtuControl:
         with (self.lock or nullcontext()):
             if isinstance(percent, bool) or not isinstance(percent, int) or not 2 <= percent <= 100:
                 raise ValueError('Limite DTU hors plage')
-            if snapshot.get('state') == 'online' and snapshot.get('port_limits_pct') == [percent]*self.ports:
+            # Certains firmwares DTU-Pro-S répercutent la valeur écrite dans
+            # le registre global D001 dans les quatre états lus, sans lancer
+            # pour autant la commande radio vers le micro-onduleur. Écrire la
+            # limite temporaire de chaque port force cette propagation. Les
+            # quatre ports d'un HMS-2000-4T doivent impérativement recevoir la
+            # même valeur ; aucune limite permanente (D008/D00E/...) n'est
+            # modifiée ici.
+            if (self.last_command == percent
+                    and snapshot.get('state') == 'online'
+                    and snapshot.get('port_limits_pct') == [percent]*self.ports):
                 return
-            self.transaction(6, 0xD001, percent)
+            for port in range(self.ports):
+                self.transaction(6, 0xD007 + port * 6, percent)
             self.last_command = percent
