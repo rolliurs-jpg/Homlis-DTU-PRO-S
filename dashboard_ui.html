@@ -80,9 +80,25 @@ const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 function navigate(view){document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===view)));['direct','bilans','battery','devices'].forEach(v=>$('view-'+v).hidden=v!==view);if(view==='bilans')loadReport();if(view==='battery'){loadCycles();loadBatteryTotals();}if(view==='devices')loadSettings();}
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>navigate(b.dataset.view));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>navigate(b.dataset.go));
 function battery(s){const valid=Number.isFinite(s.battery_soc_pct),net=(s.battery_charge_w||0)-(s.battery_discharge_w||0),color=!valid?'var(--muted)':net>20?'var(--green)':net< -20?'var(--red)':'var(--muted)',label=!valid?'Mesure indisponible':net>20?`En charge · ${Math.round(net)} W`:net< -20?`En décharge · ${Math.round(-net)} W`:s.battery_soc_pct>=100?'Pleine · au repos':'Au repos';document.querySelectorAll('.battery').forEach(el=>{el.style.setProperty('--battery',color);el.querySelector('.battery-fill').style.width=valid?Math.max(0,Math.min(100,s.battery_soc_pct))+'%':'0';el.querySelector('.battery-value').textContent=valid?Math.round(s.battery_soc_pct)+' %':'—'});document.querySelectorAll('.battery-state').forEach(el=>el.textContent=label);$('battery-power').textContent=valid?'Niveau mesuré : '+Math.round(s.battery_soc_pct)+' %':'—';$('battery-power-full').textContent=valid?'Niveau mesuré : '+Math.round(s.battery_soc_pct)+' %':'—';const fresh=valid&&Number.isFinite(s.battery_timestamp)&&Date.now()/1000-s.battery_timestamp<=45;$('battery-charge-now').innerHTML=fmtW(fresh?s.battery_ac_charge_w:null);$('battery-discharge-now').innerHTML=fmtW(fresh?s.battery_ac_discharge_w:null);$('battery-measured-at').textContent=fresh?'Mesure du '+new Date(s.battery_timestamp*1000).toLocaleTimeString('fr-FR'):'Mesure batterie absente ou ancienne';$('battery-summary').hidden=!s.battery_enabled;}
-function draw(history){
+function fillShortChartGaps(history, key, maximumSeconds=300){
+ const result=history.map(point=>({...point}));
+ let start=null;
+ for(let i=0;i<result.length;i++){
+  if(!Number.isFinite(result[i][key])){if(start===null)start=i;continue}
+  if(start===null)continue;
+  const before=start-1,after=i,first=new Date(result[before]?.timestamp).getTime(),last=new Date(result[after].timestamp).getTime();
+  if(before>=0&&Number.isFinite(result[before][key])&&Number.isFinite(first)&&Number.isFinite(last)&&last-first<=maximumSeconds*1000){
+   for(let j=start;j<after;j++){const ratio=(j-before)/(after-before);result[j][key]=result[before][key]+(result[after][key]-result[before][key])*ratio;result[j]._estimated=true}
+  }
+  start=null;
+ }
+ return result;
+}
+function draw(rawHistory){
  const svg=$('chart'),w=Math.max(300,svg.clientWidth),h=svg.clientHeight||230;
- if(!history||history.length<2){svg.innerHTML='<text x="15" y="35" fill="var(--muted)">Pas assez de mesures pour tracer la courbe.</text>';return}
+ if(!rawHistory||rawHistory.length<2){svg.innerHTML='<text x="15" y="35" fill="var(--muted)">Pas assez de mesures pour tracer la courbe.</text>';return}
+ let history=rawHistory;
+ ['production_w','consumption_w','export_w','battery_charge_w','battery_discharge_w'].forEach(key=>{history=fillShortChartGaps(history,key)});
  const net=p=>Number.isFinite(p.battery_charge_w)&&Number.isFinite(p.battery_discharge_w)?p.battery_charge_w-p.battery_discharge_w:null;
  const keys=[['production_w','var(--blue)'],['consumption_w','#fff'],['export_w','var(--gold)']];
  const positive=history.flatMap(p=>keys.map(([k])=>p[k]).filter(Number.isFinite));
@@ -94,13 +110,15 @@ function draw(history){
  for(let i=1;i<history.length;i++){const a=net(history[i-1]),b=net(history[i]);if(!Number.isFinite(a)||!Number.isFinite(b))continue;const xa=x(i-1),xb=x(i);if((a>=0&&b>=0)||(a<=0&&b<=0)){html+=`<line x1="${xa}" y1="${y(a)}" x2="${xb}" y2="${y(b)}" stroke="${a<0||b<0?'var(--red)':'var(--green)'}" stroke-width="2.4" stroke-linecap="round"/>`}else{const cross=xa+(xb-xa)*a/(a-b),first=a<0?'var(--red)':'var(--green)',second=b<0?'var(--red)':'var(--green)';html+=`<line x1="${xa}" y1="${y(a)}" x2="${cross}" y2="${y(0)}" stroke="${first}" stroke-width="2.4"/><line x1="${cross}" y1="${y(0)}" x2="${xb}" y2="${y(b)}" stroke="${second}" stroke-width="2.4"/>`}}
  html+='<g id="chart-cursor" class="chart-cursor" visibility="hidden" pointer-events="none"></g>';
  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.innerHTML=html;
+ const estimated=history.filter(point=>point._estimated).length;
+ $('chart-detail').textContent=estimated?`Courbes continues : ${estimated} relevé${estimated===1?'':'s'} manquant${estimated===1?'':'s'} sur moins de 5 min sont estimés entre les deux mesures voisines.`:'Passez le curseur sur le graphique pour lire l’heure et les puissances. Charge verte, décharge rouge.';
  chartModel={history,w,h,x,y,net};chartIndex=Math.min(chartIndex,history.length-1);
 }
 function showChartCursor(index){
  if(!chartModel)return;const {history,w,h,x,y,net}=chartModel,p=history[Math.max(0,Math.min(history.length-1,index))],g=$('chart-cursor');if(!p||!g)return;
  chartIndex=Math.max(0,Math.min(history.length-1,index));const px=x(chartIndex),right=px<w*.68,tx=px+(right?10:-10),anchor=right?'start':'end',stamp=new Date(p.timestamp),clock=Number.isNaN(stamp.getTime())?'Heure inconnue':stamp.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
  const values=[['Production',p.production_w,'var(--blue)'],['Maison',p.consumption_w,'#fff'],['Injection',p.export_w,'var(--gold)']];const battery=net(p);if(Number.isFinite(battery))values.push([battery<0?'Décharge':'Charge',Math.abs(battery),battery<0?'var(--red)':'var(--green)']);
- let content=`<line x1="${px}" x2="${px}" y1="12" y2="${h-15}" stroke="#91a8c0" stroke-width="1" stroke-dasharray="3 4"/><text x="${tx}" y="17" text-anchor="${anchor}" fill="#cbd5e1">${clock}</text>`;
+ let content=`<line x1="${px}" x2="${px}" y1="12" y2="${h-15}" stroke="#91a8c0" stroke-width="1" stroke-dasharray="3 4"/><text x="${tx}" y="17" text-anchor="${anchor}" fill="#cbd5e1">${clock}${p._estimated?' · estimation courte':''}</text>`;
  values.forEach(([label,value,color],i)=>{if(!Number.isFinite(value))return;const py=y(label==='Décharge'?-value:value);content+=`<circle cx="${px}" cy="${py}" r="3.5" fill="${color}" stroke="var(--panel)" stroke-width="1.5"/><text x="${tx}" y="${34+i*16}" text-anchor="${anchor}" fill="${color}">${label} ${Math.round(value).toLocaleString('fr-FR')} W</text>`});g.innerHTML=content;g.setAttribute('visibility','visible');
 }
 function chartPointer(e){if(!chartModel)return;const rect=$('chart').getBoundingClientRect(),vx=(e.clientX-rect.left)*chartModel.w/rect.width,ratio=Math.max(0,Math.min(1,(vx-42)/(chartModel.w-54)));showChartCursor(Math.round(ratio*(chartModel.history.length-1)))}
