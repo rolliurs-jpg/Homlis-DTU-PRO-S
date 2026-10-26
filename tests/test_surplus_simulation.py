@@ -15,7 +15,7 @@ class SimulationTests(unittest.TestCase):
   r=self.full(e);self.assertTrue(r['battery_full_confirmed']);self.assertEqual(r['hms1000_limit_pct'],27)
  def test_charge_priority(self):
   e=ClockSimulation();self.full(e)
-  r=e.evaluate(self.sample(1135,battery_ac_charge_w=100),1135);self.assertEqual(r['hms1000_limit_pct'],100)
+  r=e.evaluate(self.sample(1135,battery_ac_charge_w=100,export_w=0),1135);self.assertEqual(r['hms1000_limit_pct'],100)
  def test_discharge_release(self):
   e=ClockSimulation();self.full(e)
   self.assertEqual(e.evaluate(self.sample(1135,battery_ac_discharge_w=100),1135)['hms1000_limit_pct'],100)

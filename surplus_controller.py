@@ -61,20 +61,26 @@ class SurplusController:
                           write_hold=True,
                           reason='Mesures absentes ou anciennes : consignes précédentes conservées, aucune commande envoyée.')
             return result
-        # Le BMS Zendure peut afficher 98 à 100 % pendant la phase terminale,
-        # alors que la batterie est déjà au repos. Pour l'autoconsommation,
-        # 98 % est donc un plein ; l'état reste mémorisé jusqu'à 97 % afin
-        # d'éviter les oscillations de l'affichage de niveau.
+        # Le BMS Zendure peut rester à 99 % pendant la phase de finition. Si
+        # le réseau reçoit déjà du surplus à ce moment-là, attendre 100 % et
+        # la fin absolue de charge crée une injection évitable. On commence
+        # donc l'autoconsommation dès 99 % avec un export stable, mais on ne
+        # limite jamais une batterie qui charge encore sans surplus réseau.
         if self.last_sample is not None and not 0 <= b['timestamp']-self.last_sample <= 45:
             self.full_since, self.full = None, False
         self.last_sample = b['timestamp']
-        if b['soc_pct'] <= 97 or b['ac_charge_w'] > 50 or b['ac_discharge_w'] > 20:
+        terminal_export = (b['soc_pct'] >= 99 and b['ac_discharge_w'] <= 20
+                           and s['grid_w'] <= -80)
+        charging_without_export = b['ac_charge_w'] > 50 and s['grid_w'] > -80
+        if b['soc_pct'] <= 97 or b['ac_discharge_w'] > 20 or charging_without_export:
             self.full_since, self.full = None, False
         elif not self.full:
-            if b['soc_pct'] >= 98 and b['ac_charge_w'] <= 30 and b['ac_discharge_w'] <= 20:
+            battery_at_rest = (b['soc_pct'] >= 98 and b['ac_charge_w'] <= 30
+                               and b['ac_discharge_w'] <= 20)
+            if terminal_export or battery_at_rest:
                 if self.full_since is None:
                     self.full_since = b['timestamp']
-                if b['timestamp']-self.full_since >= 120:
+                if b['timestamp']-self.full_since >= 30:
                     self.full = True
             else:
                 self.full_since = None
@@ -108,7 +114,7 @@ class SurplusController:
             else:
                 target = p['limit_pct']+(s['grid_w']-30)/self.rated_w*100
             result.update(hms1000_limit_pct=max(1, min(100, round(target))),
-                          reason='Batterie pleine : régulation des deux panneaux du HMS.')
+                          reason='Batterie pleine ou en finition : régulation des deux panneaux du HMS.')
         if self.dtu and self.full:
             if abs(s['grid_w']-30) <= 15:
                 a, z = p['limit_pct'], d['limit_pct']
@@ -122,7 +128,7 @@ class SurplusController:
                 step = (s['grid_w']-30)/(self.rated_w+self.dtu.rated_w)*100
                 a, z = p['limit_pct']+step, d['limit_pct']+step
             result.update(hms1000_limit_pct=max(1,min(100,round(a))), dtu_limit_pct=max(2,min(100,round(z))),
-                          reason='Batterie pleine : régulation des six panneaux.')
+                          reason='Batterie pleine ou en finition : régulation des six panneaux.')
         result['uncontrolled_surplus_w'] = round(max(0, -s['grid_w']-p['power_w']-(d['power_w'] if self.dtu else 0)), 1)
         if result['uncontrolled_surplus_w'] > 30:
             result['reason'] += ' Surplus des autres panneaux non pilotés.'

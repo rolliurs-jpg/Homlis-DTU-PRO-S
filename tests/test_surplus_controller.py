@@ -21,6 +21,20 @@ class ControllerTests(unittest.TestCase):
    s=self.sample(t);s['battery']['soc_pct']=98
    r=c.evaluate(s,t)
   self.assertTrue(r['battery_full_confirmed'])
+ def test_99_percent_export_starts_early_autoconsumption(self):
+  c=self.controller()
+  for t in (1000,1015,1030):
+   s=self.sample(t,grid_w=-300);s['battery'].update(soc_pct=99,ac_charge_w=250)
+   r=c.evaluate(s,t)
+  self.assertTrue(r['battery_full_confirmed'])
+  self.assertLess(r['hms1000_limit_pct'],100)
+ def test_99_percent_without_export_keeps_charging_priority(self):
+  c=self.controller()
+  for t in (1000,1015,1030):
+   s=self.sample(t,grid_w=0);s['battery'].update(soc_pct=99,ac_charge_w=250)
+   r=c.evaluate(s,t)
+  self.assertFalse(r['battery_full_confirmed'])
+  self.assertEqual(r['hms1000_limit_pct'],100)
  def test_missing_and_stale_hold_previous_commands(self):
   c=self.controller();self.full(c)
   r=c.evaluate({},1135);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])

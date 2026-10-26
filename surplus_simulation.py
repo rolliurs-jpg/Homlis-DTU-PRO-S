@@ -31,25 +31,31 @@ class SurplusSimulation:
         if self.last_stamp is not None and (stamp<self.last_stamp or stamp-self.last_stamp>90):
             self.full_since=None;self.full=False
         self.last_stamp=stamp
-        if soc<=97 or charge>50 or discharge>20:
+        # Dès 99 %, un export stable montre que le BMS termine la charge sans
+        # pouvoir absorber tout le solaire : l'estimation doit alors basculer
+        # en autoconsommation sans attendre 100 %.
+        terminal_export = soc>=99 and discharge<=20 and s['export_w']>=80
+        charging_without_export = charge>50 and s['export_w']<80
+        if soc<=97 or discharge>20 or charging_without_export:
             self.full=False;self.full_since=None
         elif not self.full:
-            if soc>=100 and charge<=30 and discharge<=20:
+            battery_at_rest = soc>=98 and charge<=30 and discharge<=20
+            if terminal_export or battery_at_rest:
                 if self.full_since is None:self.full_since=stamp
-                if stamp-self.full_since>=120:self.full=True
+                if stamp-self.full_since>=30:self.full=True
             else:self.full_since=None
         out['battery_full_confirmed']=self.full
         out['grid_w']=grid
         if not self.full:
             out['hms1000_limit_pct']=100
-            out['reason']='Laisser produire pour la maison et la charge batterie.' if self.full_since is None else 'Plein détecté : confirmation pendant 2 minutes avant réduction.'
+            out['reason']='Laisser produire pour la maison et la charge batterie.' if self.full_since is None else 'Finition de charge détectée : confirmation pendant 30 secondes avant réduction.'
             return out
         # Indicative ceiling only, based on the measured contribution of the two panels.
         # +30 W grid import margin. Do not treat this as a production forecast.
         desired=max(100,min(1000,pv+grid-30))
         out['hms1000_limit_pct']=round(desired/10,1)
         out['uncontrolled_surplus_w']=round(max(0,-grid-max(0,pv-100)),1)
-        out['reason']='Batterie pleine confirmée : plafond indicatif pour les deux panneaux.'
+        out['reason']='Batterie pleine ou en finition : plafond indicatif pour les deux panneaux.'
         if out['uncontrolled_surplus_w']>30:
             out['reason']+=' Les quatre autres panneaux doivent aussi être limités.'
         out['note']='Estimation seule : aucune commande. Le plafond ne prédit pas la production réelle.'
