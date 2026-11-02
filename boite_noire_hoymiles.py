@@ -9,6 +9,10 @@ surplus_simulation = SurplusSimulation()
 from monitoring import Monitoring, has_measure, open_settings
 import json
 import re
+import base64
+import hashlib
+import hmac
+import secrets
 import shutil
 import socket
 import subprocess
@@ -162,10 +166,6 @@ DEFAULT_CONFIG = {
     # l'utilisateur n'a pas explicitement activé la régulation.
     "surplus_control": {
         "enabled": False,
-        # Le pilotage de puissance des micro-onduleurs reste expérimental :
-        # aucune commande n'est autorisée sans validation explicite de
-        # l'installation et de l'absence de contrôle DDSU/Hoymiles concurrent.
-        "experimental_control_acknowledged": False,
         "rated_w": 1000,
         "dtu_enabled": False,
         # Les quatre panneaux du HMS-2000 sont normalement régulés par le
@@ -271,10 +271,7 @@ atexit.register(monitor.stop)
 
 CONFIG = load_config()
 proxy_cfg = dict(CONFIG.get("hoymiles_proxy", {}))
-proxy_cfg["commands_enabled"] = bool(
-    CONFIG.get("surplus_control", {}).get("enabled", False)
-    and CONFIG.get("surplus_control", {}).get("experimental_control_acknowledged", False)
-)
+proxy_cfg["commands_enabled"] = bool(CONFIG.get("surplus_control", {}).get("enabled", False))
 proxy_reader = ProxyReader(proxy_cfg)
 proxy_reader.start()
 atexit.register(proxy_reader.stop)
@@ -313,15 +310,65 @@ def _launch_classic_interface():
             pass
 
 
+SETTINGS_PASSWORD_KEY = "settings_password"
+SETTINGS_PASSWORD_ITERATIONS = 240000
+
+def _settings_password_record(config=None):
+    record = (config or CONFIG).get(SETTINGS_PASSWORD_KEY)
+    return record if isinstance(record, dict) else None
+
+def _settings_password_enabled(config=None):
+    record = _settings_password_record(config)
+    return bool(record and record.get("salt") and record.get("digest"))
+
+def _verify_settings_password(password, config=None):
+    if not isinstance(password, str) or not _settings_password_enabled(config):
+        return False
+    record = _settings_password_record(config)
+    try:
+        salt = base64.b64decode(record["salt"], validate=True)
+        expected = base64.b64decode(record["digest"], validate=True)
+        iterations = int(record.get("iterations", SETTINGS_PASSWORD_ITERATIONS))
+        if not salt or iterations < 100000:
+            return False
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
+        return hmac.compare_digest(digest, expected)
+    except (ValueError, TypeError, KeyError):
+        return False
+
+def _set_settings_password(config, password):
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, SETTINGS_PASSWORD_ITERATIONS)
+    config[SETTINGS_PASSWORD_KEY] = {"salt": base64.b64encode(salt).decode("ascii"), "digest": base64.b64encode(digest).decode("ascii"), "iterations": SETTINGS_PASSWORD_ITERATIONS}
+
+def _write_dashboard_config(updated):
+    CONFIG_FILE.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
+    CONFIG.clear()
+    CONFIG.update(updated)
+
 def dashboard_ui_action(action, _values=None):
+    if action == "settings_password":
+        values = _values or {}
+        current, new_password = values.get("current_password", ""), values.get("new_password", "")
+        if not isinstance(current, str) or not isinstance(new_password, str):
+            return {"error": "Mot de passe invalide"}
+        if _settings_password_enabled() and not _verify_settings_password(current):
+            return {"error": "Mot de passe actuel incorrect"}
+        updated = json.loads(json.dumps(CONFIG))
+        if new_password:
+            _set_settings_password(updated, new_password)
+            status = "Mot de passe créé." if not _settings_password_enabled() else "Mot de passe modifié."
+        else:
+            updated.pop(SETTINGS_PASSWORD_KEY, None)
+            status = "Protection retirée."
+        _write_dashboard_config(updated)
+        return {"ok": True, "enabled": bool(new_password), "message": status}
     if action == "surplus_control":
         if surplus_controller is None:
             return {"error": "Gestion en démarrage"}
         enabled = (_values or {}).get("enabled")
         if not isinstance(enabled, bool):
             return {"error": "Activation attendue : oui ou non"}
-        if enabled and not bool(CONFIG.get("surplus_control", {}).get("experimental_control_acknowledged", False)):
-            return {"error": "Pilotage de puissance suspendu : vérifiez d'abord que la limite d'exportation Hoymiles/DDSU est désactivée et validez les essais."}
         CONFIG.setdefault("surplus_control", {})["enabled"] = enabled
         config_file = BASE / "config_v5.json"
         config_file.write_text(json.dumps(CONFIG, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -334,6 +381,7 @@ def dashboard_ui_action(action, _values=None):
             return {"error": "Liste des équipements attendue"}
         allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "hoymiles_proxy", "esp_router")
         updated = json.loads(json.dumps(CONFIG))
+        ip_changed = False
         for name in allowed:
             item = devices.get(name)
             if item is None:
@@ -345,6 +393,9 @@ def dashboard_ui_action(action, _values=None):
                 return {"error": f"Adresse nécessaire pour {name}"}
             if len(host) > 253 or any(ch.isspace() for ch in host):
                 return {"error": f"Adresse invalide pour {name}"}
+            previous = CONFIG.get(name, {})
+            if previous.get("enabled") != item["enabled"] or str(previous.get("host", "")) != host:
+                ip_changed = True
             updated.setdefault(name, {}).update(enabled=item["enabled"], host=host)
         complete = values.get("production_complete")
         reverse = values.get("shelly2_reverse")
@@ -352,15 +403,16 @@ def dashboard_ui_action(action, _values=None):
         shelly_grid_reverse = values.get("shelly_grid_reverse")
         if not all(isinstance(value, bool) for value in (complete, reverse, shelly_pv_reverse, shelly_grid_reverse)):
             return {"error": "Choix de production invalide"}
+        clamp_changed = (bool(CONFIG.get("shelly", {}).get("pv_reverse")) != shelly_pv_reverse or bool(CONFIG.get("shelly", {}).get("grid_export_positive")) != shelly_grid_reverse or bool(CONFIG.get("shelly2", {}).get("reverse")) != reverse)
+        if (ip_changed or clamp_changed) and _settings_password_enabled() and not _verify_settings_password(values.get("settings_password", "")):
+            return {"error": "Mot de passe requis pour modifier les adresses IP ou les pinces"}
         updated["production_complete"] = complete
         updated.setdefault("shelly2", {})["reverse"] = reverse
         updated.setdefault("shelly", {})["pv_reverse"] = shelly_pv_reverse
         # La logique historique porte le nom export_positive : basculer le
         # signe de la pince réseau revient exactement à basculer ce réglage.
         updated.setdefault("shelly", {})["grid_export_positive"] = shelly_grid_reverse
-        CONFIG_FILE.write_text(json.dumps(updated, indent=2, ensure_ascii=False), encoding="utf-8")
-        CONFIG.clear()
-        CONFIG.update(updated)
+        _write_dashboard_config(updated)
         pending_equipment.clear()
         pending_equipment.update({name: {"enabled": updated[name].get("enabled", False),
                                          "host": updated[name].get("host", "")}
@@ -1239,9 +1291,9 @@ def reconnect_dtu_wifi():
         detail = (result.stdout or result.stderr or "commande envoyée").strip().replace("\n", " ")
         if result.returncode != 0:
             raise RuntimeError(detail)
-        return f"TP-Link reconnecté au profil {profile} ({detail[:90]})"
+        return f"Alfa AWUS036NHA reconnecté au profil {profile} ({detail[:90]})"
     except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
-        return f"reconnexion TP-Link impossible : {exc}"
+        return f"reconnexion Alfa AWUS036NHA impossible : {exc}"
 
 def record_dtu_wifi_recovery(message):
     try:
@@ -3905,7 +3957,7 @@ def open_equipment_settings(event=None):
     ttk.Label(frame, text="Configuration locale de cet ordinateur", font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=3, sticky="w")
     ttk.Label(frame, text="Cette fenêtre ne lit ni ne modifie les réglages du Raspberry Pi. Pour l’installation en service (6 panneaux), utilisez le tableau web du Raspberry.", wraplength=690).grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 12))
     fields = {}
-    for row, (name, label) in enumerate((("linky", "Linky / Denky D4"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC + Smart Meter"), ("shelly2", "Shelly EM Gen3 — production 2"), ("tp_link", "TP-Link — nano-routeur DTU"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth Hoymiles"), ("esp_router", "ESP32 — routeur Wi-Fi solaire")), 2):
+    for row, (name, label) in enumerate((("linky", "Linky / Denky D4"), ("shelly", "Shelly Pro EM"), ("battery", "Batterie Zendure 2400 AC + Smart Meter"), ("shelly2", "Shelly EM Gen3 — production 2"), ("tp_link", "Alfa AWUS036NHA — Wi-Fi DTU"), ("hoymiles_proxy", "ESP32 — proxy Bluetooth Hoymiles"), ("esp_router", "ESP32 — routeur Wi-Fi solaire")), 2):
         active = tk.BooleanVar(value=pending_equipment.get(name, {}).get("enabled", equipment_enabled(name)))
         address = tk.StringVar(value=str(pending_equipment.get(name, {}).get("host", CONFIG.get(name, {}).get("host", ""))))
         ttk.Checkbutton(frame, text=label, variable=active).grid(row=row, column=0, sticky="w", pady=8)
@@ -4112,14 +4164,10 @@ surplus_cfg = CONFIG.get("surplus_control", {})
 # panneaux du HMS-2000-4T passe par Modbus TCP sur l'Ethernet du nano-routeur.
 # Les commandes restent opt-in dans la configuration et le contrôleur ramène
 # les deux groupes à 100 % en cas de donnée ou de liaison incohérente.
-control_enabled = bool(
-    surplus_cfg.get("enabled", False)
-    and surplus_cfg.get("experimental_control_acknowledged", False)
-)
+control_enabled = bool(surplus_cfg.get("enabled", False))
 external_dtu_commands = bool(
     surplus_cfg.get("dtu_enabled", False)
     and surplus_cfg.get("dtu_command_enabled", False)
-    and surplus_cfg.get("experimental_control_acknowledged", False)
 )
 native_dtu_panels = 4 if bool(surplus_cfg.get("dtu_enabled", False)) and not external_dtu_commands else 0
 surplus_controller = SurplusController(proxy_reader, surplus_control_sample,

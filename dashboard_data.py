@@ -228,16 +228,13 @@ class DashboardData:
             proxy = self.config.get('hoymiles_proxy', {})
             router = self.config.get('esp_router', {})
             tp_link = self.config.get('tp_link', {})
-            devices = [dict(id='proxy', name='ESP32 · Proxy Bluetooth Hoymiles',
+            devices = [dict(id='proxy', name='ESP32 — proxy Bluetooth cabanon',
                             hosts=[str(proxy.get('host') or '')], port=int(proxy.get('port',6053)),
-                            role='Près du micro-onduleur · liaison Bluetooth', enabled=bool(proxy.get('enabled', False))),
-                       dict(id='router', name='ESP32 · Routeur Solaire cabanon',
+                            role='Près des panneaux cabanon · liaison Bluetooth', enabled=bool(proxy.get('enabled', False))),
+                       dict(id='router', name='ESP32 — routeur Wi-Fi Solaire cabanon',
                             hosts=[str(router.get('ap_host') or ''), str(router.get('host') or '')], port=80,
                             role='Point d’accès Wi-Fi local', enabled=bool(router.get('enabled', False)),
-                            probe='icmp'),
-                       dict(id='tp_link', name='TP-Link · Nano-routeur DTU',
-                            hosts=[str(tp_link.get('host') or '')], port=int(tp_link.get('port', 80)),
-                            role='Pont Wi-Fi client entre le DTU et la Livebox', enabled=bool(tp_link.get('enabled', False)))]
+                            probe='icmp')]
             for device in devices:
                 reachable = []
                 for host in device['hosts'] if device['enabled'] else []:
@@ -283,7 +280,7 @@ class DashboardData:
             pass
 
         links = (
-            ('wlan1', 'TP-Link · antenne Wi-Fi DTU',
+            ('wlan1', 'Alfa AWUS036NHA — Wi-Fi DTU',
              'USB 2.0 obligatoire · liaison Wi-Fi directe vers le DTU',
              ('TP-Link / Livebox : 192.168.1.205', 'DTU local : 10.10.100.254')),
             ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',
@@ -305,6 +302,7 @@ class DashboardData:
 
     def settings(self):
         result = {'dtu_host':str(self.config.get('dtu_host','')),
+                  'settings_password_enabled':bool(isinstance(self.config.get('settings_password'),dict) and self.config.get('settings_password',{}).get('salt') and self.config.get('settings_password',{}).get('digest')),
                   'production_complete':bool(self.config.get('production_complete')),
                   'tarifs_edf':{k:self.config.get('tarifs_edf',{}).get(k) for k in
                                 ('hp_eur_kwh','hc_eur_kwh','abonnement_journalier_eur','plages_hc')}}

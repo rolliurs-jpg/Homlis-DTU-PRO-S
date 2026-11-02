@@ -391,7 +391,7 @@ class MobileDashboard:
                     if not isinstance(data,dict):
                         raise ValueError('Objet attendu')
                     action=data.get('action')
-                    allowed={'settings','tariffs','pause','classic','diagnostic','capture','alarm','manual_edf','export','autostart','surplus_control'}
+                    allowed={'settings','settings_password','tariffs','pause','classic','diagnostic','capture','alarm','manual_edf','export','autostart','surplus_control'}
                     if action not in allowed:
                         raise ValueError('Action inconnue')
                     if action == 'autostart':
@@ -405,7 +405,7 @@ class MobileDashboard:
                     # La régulation ne crée pas de fenêtre sur le Raspberry.
                     # Le bouton reste protégé par le jeton de cette page et
                     # l'accès privé/Tailscale déjà vérifié ci-dessus.
-                    if action not in {'settings','tariffs','pause','surplus_control'} and self.client_address[0] not in ('127.0.0.1','::1'):
+                    if action not in {'settings','settings_password','tariffs','pause','surplus_control'} and self.client_address[0] not in ('127.0.0.1','::1'):
                         self.send_error(403,'This action opens a window on the home computer');return
                     if dashboard.ui_action is None:
                         self.send_error(503);return
