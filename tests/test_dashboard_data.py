@@ -28,7 +28,7 @@ class DashboardDataTests(unittest.TestCase):
             links = DashboardData.wireless_interfaces()
         self.assertEqual([link['interface'] for link in links], ['wlan1', 'wlan2'])
         self.assertTrue(all(link['connected'] for link in links))
-        self.assertIn('USB 2.0 obligatoire', links[0]['role'])
+        self.assertIn('Liaison Wi-Fi directe', links[0]['role'])
         self.assertIn('USB 3.0 obligatoire', links[1]['role'])
         self.assertIn('192.168.1.205', links[0]['references'][0])
         self.assertIn('aucune adresse Livebox propre', links[1]['references'][0])

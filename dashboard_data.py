@@ -281,7 +281,7 @@ class DashboardData:
 
         links = (
             ('wlan1', 'Alfa AWUS036NHA — Wi-Fi DTU',
-             'USB 2.0 obligatoire · liaison Wi-Fi directe vers le DTU',
+             'Liaison Wi-Fi directe vers le DTU',
              ('TP-Link / Livebox : 192.168.1.205', 'DTU local : 10.10.100.254')),
             ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',
              'USB 3.0 obligatoire · liaison Wi-Fi vers le cabanon',
