@@ -25,6 +25,9 @@ class SurplusController:
         # Après une perte de liaison, la reprise doit être automatique mais
         # prudente : deux minutes de mesures complètes avant toute commande.
         self._awaiting_measurements = False
+        # Dernier état DTU connu. Il est conservé pour l'affichage lorsque
+        # la régulation est arrêtée, sans maintenir de trafic Modbus.
+        self._last_dtu_snapshot = {}
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._state = {}
@@ -85,7 +88,7 @@ class SurplusController:
             else:
                 self.full_since = None
         result['battery_full_confirmed'] = self.full
-        if self.dtu:
+        if self.dtu and self.enabled:
             d = s.get('dtu', {})
             try:
                 if d['state'] != 'online' or not 0 <= now-d['timestamp'] <= 45:
@@ -115,7 +118,7 @@ class SurplusController:
                 target = p['limit_pct']+(s['grid_w']-30)/self.rated_w*100
             result.update(hms1000_limit_pct=max(1, min(100, round(target))),
                           reason='Batterie pleine ou en finition : régulation des deux panneaux du HMS.')
-        if self.dtu and self.full:
+        if self.dtu and self.enabled and self.full:
             if abs(s['grid_w']-30) <= 15:
                 a, z = p['limit_pct'], d['limit_pct']
             elif s['grid_w'] < 15:
@@ -129,7 +132,8 @@ class SurplusController:
                 a, z = p['limit_pct']+step, d['limit_pct']+step
             result.update(hms1000_limit_pct=max(1,min(100,round(a))), dtu_limit_pct=max(2,min(100,round(z))),
                           reason='Batterie pleine ou en finition : régulation des six panneaux.')
-        result['uncontrolled_surplus_w'] = round(max(0, -s['grid_w']-p['power_w']-(d['power_w'] if self.dtu else 0)), 1)
+        dtu_power = d['power_w'] if self.dtu and self.enabled else 0
+        result['uncontrolled_surplus_w'] = round(max(0, -s['grid_w']-p['power_w']-dtu_power), 1)
         if result['uncontrolled_surplus_w'] > 30:
             result['reason'] += ' Surplus des autres panneaux non pilotés.'
         return result
@@ -184,8 +188,11 @@ class SurplusController:
         while not self._stop.is_set():
             try:
                 sample = self.sample()
-                if self.dtu:
-                    sample['dtu'] = self.dtu.snapshot()
+                if self.dtu and self.enabled:
+                    self._last_dtu_snapshot = self.dtu.snapshot()
+                    sample['dtu'] = self._last_dtu_snapshot
+                elif self.dtu:
+                    sample['dtu'] = dict(self._last_dtu_snapshot)
             except Exception:
                 sample = {}
             with self._lock:
@@ -220,4 +227,4 @@ class SurplusController:
                             self.full_since = self.last_sample = None
                             self.full = False
                 self._state = result
-            self._stop.wait(15)
+            self._stop.wait(30)

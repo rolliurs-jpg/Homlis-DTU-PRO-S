@@ -129,8 +129,8 @@
     </section>
 
     <section class="section split-section" id="dtu-local">
-      <div><p class="eyebrow blue">DTU PRO-S · DEUX LIAISONS LOCALES</p><h2>Wi-Fi direct pour joindre le DTU, Modbus TCP pour le suivre.</h2><p>Le Raspberry Pi peut garder une liaison Wi-Fi directe vers le DTU avec une antenne TP-Link dédiée en <strong>USB 2.0</strong>. Cette liaison est indépendante du réseau de la maison. L’antenne Alfa, en <strong>USB 3.0</strong>, assure séparément la liaison Wi-Fi vers le cabanon solaire.</p><p>Lorsque le DTU est aussi relié au LAN par Ethernet ou par pont Wi-Fi, Modbus TCP permet la lecture locale. Les commandes de puissance ne sont pas proposées tant que leur validation complète n'est pas terminée.</p></div>
-      <div class="diagram topology">TP-Link USB 2.0 → Wi-Fi direct → DTU Pro-S<br>DTU Pro-S → Ethernet / pont → LAN → Modbus TCP<br>Alfa USB 3.0 → Wi-Fi solaire → cabanon / ESP32<br>Raspberry Pi → tableau privé et suivi local</div>
+      <div><p class="eyebrow blue">DTU PRO-S · DEUX LIAISONS LOCALES</p><h2>Wi-Fi direct pour joindre le DTU, Modbus TCP pour le suivre.</h2><p>Le Raspberry Pi garde une Alfa dédiée au Wi-Fi local du DTU. Une seconde Alfa assure séparément la liaison Wi-Fi vers le cabanon solaire et ses ESP32. Ces deux chemins restent indépendants du réseau domestique.</p><p>Le DTU est relié en Ethernet au nano-routeur TP-Link configuré en Client/Pont ; Modbus TCP permet alors la lecture locale des quatre entrées PV. Le tableau affiche les six panneaux individuellement, sans dépendre du cloud.</p></div>
+      <div class="diagram topology">Alfa DTU → Wi-Fi direct → DTU Pro-S<br>DTU Pro-S → Ethernet → nano-routeur TP-Link → LAN → Modbus TCP<br>Alfa solaire → Wi-Fi cabanon → ESP32 / HiFlow<br>Raspberry Pi → tableau privé et suivi local des 6 panneaux</div>
     </section>
 
     <section id="installation" class="section split-section">

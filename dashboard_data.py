@@ -280,7 +280,7 @@ class DashboardData:
             pass
 
         links = (
-            ('wlan1', 'Alfa AWUS036NHA — Wi-Fi DTU',
+            ('wlan1', 'Alfa AWUS036NHA — Wi-Fi direct DTU',
              'Liaison Wi-Fi directe vers le DTU',
              ('TP-Link / Livebox : 192.168.1.205', 'DTU local : 10.10.100.254')),
             ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',

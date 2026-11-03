@@ -30,7 +30,7 @@ class DtuControl:
                 data = receive(length-1)
                 if data[0] != function:
                     raise ValueError('Commande Modbus refusée')
-                if function == 6:
+                if function in (5, 6):
                     if data != struct.pack('>BHH', function, address, value):
                         raise ValueError('Accusé Modbus incorrect')
                     return
@@ -56,6 +56,32 @@ class DtuControl:
                     power = self.transaction(4, 0x3108, 2)
                     state = dict(state='online', timestamp=time.time(), power_w=((power[0]<<16)|power[1])/10,
                                  limit_pct=min(limits), port_limits_pct=limits, rated_w=self.rated_w)
+                    # Un bloc de vingt registres est publié par entrée PV.
+                    # Cette lecture groupée est uniquement informative : elle
+                    # ne modifie jamais la consigne du DTU. Les positions ont
+                    # été vérifiées sur le firmware installé du DTU-Pro-S.
+                    try:
+                        raw_ports = self.transaction(3, 0x1000, self.ports * 20)
+                        panels = []
+                        for offset in range(0, len(raw_ports), 20):
+                            row = raw_ports[offset:offset + 20]
+                            if len(row) != 20:
+                                continue
+                            port = row[3] & 0xFF
+                            if not 1 <= port <= self.ports:
+                                continue
+                            panels.append({
+                                "port": port,
+                                "voltage_v": round(row[4] / 10.0, 1),
+                                "current_a": round(row[5] / 100.0, 2),
+                                "power_w": round(row[8] / 10.0, 1),
+                            })
+                        if len(panels) == self.ports:
+                            state["panels"] = sorted(panels, key=lambda panel: panel["port"])
+                    except (ConnectionError, TimeoutError, OSError, ValueError):
+                        # L'état global reste exploitable si un firmware ne
+                        # propose pas la télémétrie par port.
+                        pass
                     if self.last_command is not None:
                         state.update(last_command_pct=self.last_command,
                                      last_command_confirmed=all(n == self.last_command for n in limits))
@@ -73,17 +99,13 @@ class DtuControl:
         with (self.lock or nullcontext()):
             if isinstance(percent, bool) or not isinstance(percent, int) or not 2 <= percent <= 100:
                 raise ValueError('Limite DTU hors plage')
-            # Certains firmwares DTU-Pro-S répercutent la valeur écrite dans
-            # le registre global D001 dans les quatre états lus, sans lancer
-            # pour autant la commande radio vers le micro-onduleur. Écrire la
-            # limite temporaire de chaque port force cette propagation. Les
-            # quatre ports d'un HMS-2000-4T doivent impérativement recevoir la
-            # même valeur ; aucune limite permanente (D008/D00E/...) n'est
-            # modifiée ici.
-            if (self.last_command == percent
-                    and snapshot.get('state') == 'online'
-                    and snapshot.get('port_limits_pct') == [percent]*self.ports):
+            # En Modbus TCP, la commande active est le registre de statut
+            # C001 avec la fonction 05 (et non les registres de données Dxxx
+            # lus pour le suivi). Cette limite concerne tous les ports du
+            # DTU : un HMS-2000-4T reçoit donc la même consigne sur ses quatre
+            # entrées. C'est une consigne de fonctionnement, pas un réglage
+            # permanent enregistré dans le micro-onduleur.
+            if self.last_command == percent:
                 return
-            for port in range(self.ports):
-                self.transaction(6, 0xD007 + port * 6, percent)
+            self.transaction(5, 0xC001, percent)
             self.last_command = percent

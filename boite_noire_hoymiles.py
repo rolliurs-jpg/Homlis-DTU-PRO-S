@@ -609,6 +609,7 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "dtu_state": dtu_state,
             "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
             "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
+            "tp_link_state": network_device_state(CONFIG.get("tp_link", {})),
         })
         if equipment_enabled("battery") or equipment_enabled("shelly2"):
             current["production_source"] = "Total Shelly" if current["production_w"] is not None else "Production totale incomplète"
@@ -622,6 +623,26 @@ def publish_mobile_snapshot(dtu_state="waiting"):
     except Exception:
         # Le tableau mobile ne doit jamais interrompre la collecte principale.
         pass
+
+
+def network_device_state(config):
+    """Retourne l'état d'un équipement réseau sans interroger son interface.
+
+    Le nano-routeur TP-Link est un pont : une simple ouverture TCP suffit à
+    distinguer sa disponibilité de celle du DTU qui est derrière lui.
+    """
+    if not config.get("enabled"):
+        return "disabled"
+    host = str(config.get("host") or "").strip()
+    try:
+        port = int(config.get("port", 80) or 80)
+        timeout = float(config.get("timeout_s", 2) or 2)
+        if not host:
+            return "offline"
+        with socket.create_connection((host, port), timeout=timeout):
+            return "online"
+    except (OSError, ValueError):
+        return "offline"
 
 
 def show_nonblocking_injection_alert(injection_w, measured_at=None):
