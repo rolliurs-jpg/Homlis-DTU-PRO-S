@@ -220,10 +220,14 @@ class SurplusController:
                         try:
                             self.dtu.request_limit(result['dtu_limit_pct'], result['dtu'])
                         except Exception as exc:
-                            result['dtu_command_error'] = type(exc).__name__
+                            detail = str(exc).strip()
+                            result['dtu_command_error'] = type(exc).__name__ + (': ' + detail if detail else '')
                             result['reason'] += ' Commande DTU non confirmée ; retour du HMS à 100 % demandé.'
                             self.proxy.request_limit(100)
-                            self.full_since = self.last_sample = None
-                            self.full = False
+                            # Un refus du DTU ne signifie pas que la batterie
+                            # a cessé d'être pleine. Conserver cet état permet
+                            # de reprendre la régulation dès que la commande
+                            # est à nouveau acceptée, sans attendre un nouveau
+                            # cycle complet de charge.
                 self._state = result
             self._stop.wait(15)
