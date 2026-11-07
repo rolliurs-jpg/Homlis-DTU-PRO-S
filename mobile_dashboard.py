@@ -235,7 +235,40 @@ def _clean_number(value):
     return number if math.isfinite(number) else None
 
 
-def _is_this_computer(address):
+
+def home_assistant_payload(current):
+    """Return a small, stable, read-only view for Home Assistant."""
+    current = current if isinstance(current, dict) else {}
+    battery_charge = _clean_number(current.get("battery_ac_charge_w"))
+    if battery_charge is None:
+        battery_charge = _clean_number(current.get("battery_charge_w"))
+    battery_discharge = _clean_number(current.get("battery_ac_discharge_w"))
+    if battery_discharge is None:
+        battery_discharge = _clean_number(current.get("battery_discharge_w"))
+    quality = str(current.get("quality") or "missing")
+    timestamp = current.get("timestamp")
+    return {
+        "schema_version": 1,
+        "timestamp": timestamp,
+        "available": bool(timestamp and quality != "missing"),
+        "quality": quality,
+        "power": {
+            "solar_w": _clean_number(current.get("production_w")),
+            "home_w": _clean_number(current.get("consumption_w")),
+            "grid_import_w": _clean_number(current.get("import_w")),
+            "grid_export_w": _clean_number(current.get("export_w")),
+            "battery_charge_w": battery_charge,
+            "battery_discharge_w": battery_discharge,
+        },
+        "battery": {"soc_pct": _clean_number(current.get("battery_soc_pct"))},
+        "devices": {
+            "dtu": str(current.get("dtu_state") or "unknown"),
+            "linky": str(current.get("linky_state") or "unknown"),
+            "shelly": str(current.get("shelly_state") or "unknown"),
+        },
+    }
+
+_is_this_computer(address):
     """True lorsque le navigateur tourne sur le même ordinateur que le suivi."""
     local = {'127.0.0.1', '::1'}
     try:
@@ -272,6 +305,20 @@ class MobileDashboard:
         self._battery_lock = threading.Lock()
         self._battery_cache = None
         self._battery_cache_time = 0
+
+    def status_payload(self):
+        """Build the private dashboard state once for all read-only clients."""
+        with self._lock:
+            payload = deepcopy(self._payload)
+        if self.proxy_snapshot is not None:
+            payload.setdefault("current", {})["hoymiles_proxy"] = self.proxy_snapshot()
+        if self.control_snapshot is not None:
+            payload.setdefault("current", {})["surplus_simulation"] = self.control_snapshot()
+        if self.battery_snapshot is not None:
+            payload.setdefault("current", {}).update(self.battery_snapshot())
+        if self.monitoring is not None:
+            payload["monitoring"] = self.monitoring()
+        return payload
 
     def start(self):
         dashboard = self
@@ -334,17 +381,17 @@ class MobileDashboard:
                         self._send(json.dumps(report, ensure_ascii=False, allow_nan=False).encode('utf-8'), 'application/json; charset=utf-8')
                     return
                 if path == "/api/status":
-                    with dashboard._lock:
-                        payload = deepcopy(dashboard._payload)
-                    if dashboard.proxy_snapshot is not None:
-                        payload.setdefault("current", {})["hoymiles_proxy"] = dashboard.proxy_snapshot()
-                    if dashboard.control_snapshot is not None:
-                        payload.setdefault("current", {})["surplus_simulation"] = dashboard.control_snapshot()
-                    if dashboard.battery_snapshot is not None:
-                        payload.setdefault("current", {}).update(dashboard.battery_snapshot())
-                    if dashboard.monitoring is not None:
-                        payload["monitoring"] = dashboard.monitoring()
+                    payload = dashboard.status_payload()
                     body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
+                    self._send(body, "application/json; charset=utf-8")
+                    return
+                if path == "/api/home-assistant":
+                    payload = dashboard.status_payload()
+                    body = json.dumps(
+                        home_assistant_payload(payload.get("current")),
+                        ensure_ascii=False,
+                        allow_nan=False,
+                    ).encode("utf-8")
                     self._send(body, "application/json; charset=utf-8")
                     return
                 if path == "/manifest.webmanifest":
