@@ -52,12 +52,18 @@ class SurplusController:
             if min(b['ac_charge_w'], b['ac_discharge_w'], p['power_w']) < 0 or self.rated_w <= 0:
                 raise ValueError()
         except (KeyError, TypeError, ValueError):
+            # Une mesure momentanément absente ne doit pas effacer un plein
+            # déjà confirmé : au retour des liaisons, le contrôleur peut
+            # reprendre avec cette information, tout en gardant les
+            # commandes bloquées jusqu'à avoir des mesures cohérentes.
+            # En revanche, une confirmation encore en cours ne traverse pas
+            # un trou de mesures.
             self.full_since = self.last_sample = None
-            self.full = False
             # En contrôle à distance, une mesure momentanément absente ne doit
             # jamais relancer toute la production : on garde les dernières
             # consignes connues jusqu'au prochain échantillon complet.
-            result.update(hms1000_limit_pct=None, dtu_limit_pct=None,
+            result.update(battery_full_confirmed=self.full,
+                          hms1000_limit_pct=None, dtu_limit_pct=None,
                           write_hold=True,
                           reason='Mesures absentes ou anciennes : consignes précédentes conservées, aucune commande envoyée.')
             return result
