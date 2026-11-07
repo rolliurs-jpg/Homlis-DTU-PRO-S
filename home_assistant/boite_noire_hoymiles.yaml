@@ -1,0 +1,68 @@
+# Boîte noire Hoymiles — intégration Home Assistant locale, lecture seule.
+#
+# Dans secrets.yaml, indiquez l'URL locale de votre Raspberry :
+# boite_noire_hoymiles_url: "http://ADRESSE-DU-RASPBERRY:8765/api/home-assistant"
+#
+# Ajoutez ce fichier avec !include dans configuration.yaml, ou copiez son
+# contenu sous la clé rest: puis redémarrez Home Assistant.
+#
+# Cette configuration ne contient aucune commande : elle ne peut ni limiter
+# les panneaux, ni modifier la batterie, ni changer les réglages Hoymiles.
+rest:
+  - resource: !secret boite_noire_hoymiles_url
+    scan_interval: 30
+    timeout: 8
+    sensor:
+      - name: "Solaire production"
+        unique_id: boite_noire_hoymiles_solar_power
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: "{{ value_json.available }}"
+        value_template: "{{ value_json.power.solar_w }}"
+      - name: "Solaire maison"
+        unique_id: boite_noire_hoymiles_home_power
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: "{{ value_json.available and value_json.power.home_w is not none }}"
+        value_template: "{{ value_json.power.home_w }}"
+      - name: "Solaire achat EDF"
+        unique_id: boite_noire_hoymiles_grid_import
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: "{{ value_json.available and value_json.power.grid_import_w is not none }}"
+        value_template: "{{ value_json.power.grid_import_w }}"
+      - name: "Solaire injection EDF"
+        unique_id: boite_noire_hoymiles_grid_export
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: "{{ value_json.available and value_json.power.grid_export_w is not none }}"
+        value_template: "{{ value_json.power.grid_export_w }}"
+      - name: "Solaire batterie"
+        unique_id: boite_noire_hoymiles_battery_soc
+        device_class: battery
+        state_class: measurement
+        unit_of_measurement: "%"
+        availability: "{{ value_json.available and value_json.battery.soc_pct is not none }}"
+        value_template: "{{ value_json.battery.soc_pct }}"
+      - name: "Solaire charge batterie"
+        unique_id: boite_noire_hoymiles_battery_charge
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: "{{ value_json.available and value_json.power.battery_charge_w is not none }}"
+        value_template: "{{ value_json.power.battery_charge_w }}"
+      - name: "Solaire décharge batterie"
+        unique_id: boite_noire_hoymiles_battery_discharge
+        device_class: power
+        state_class: measurement
+        unit_of_measurement: W
+        availability: "{{ value_json.available and value_json.power.battery_discharge_w is not none }}"
+        value_template: "{{ value_json.power.battery_discharge_w }}"
+      - name: "Solaire état DTU"
+        unique_id: boite_noire_hoymiles_dtu_state
+        availability: "{{ value_json.timestamp is not none }}"
+        value_template: "{{ value_json.devices.dtu }}"
