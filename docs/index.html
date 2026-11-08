@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Suivi solaire Hoymiles | DTU Pro-S, Zendure, Denky D4</title>
-  <meta name="description" content="Suivi solaire local Hoymiles : DTU Pro-S, Linky &amp; Denky D4, Shelly, HiFlow et Zendure. Six panneaux lus individuellement sans cloud.">
-  <meta name="keywords" content="suivi solaire Hoymiles, DTU Pro-S Modbus TCP, Wi-Fi direct DTU, batterie Zendure, Shelly Pro EM, Linky, Denky D4, téléinformation, autoconsommation photovoltaïque">
+  <title>Suivi solaire Hoymiles local | DTU Pro-S, Linky, Shelly, Zendure</title>
+  <meta name="description" content="Tableau solaire local pour Hoymiles DTU Pro-S : production photovoltaïque, Linky/Denky D4, Shelly Pro EM, batterie Zendure SolarFlow, autoconsommation et injection EDF.">
+  <meta name="keywords" content="suivi solaire Hoymiles, Hoymiles DTU Pro-S, DTU-Pro S, production photovoltaïque locale, autoconsommation, injection EDF, Linky, Denky D4, téléinformation TIC, Shelly Pro EM, Shelly EM Gen3, Zendure SolarFlow 2400 AC, Zendure Smart Meter, Raspberry Pi, Home Assistant, Modbus TCP">
   <link rel="canonical" href="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta name="author" content="Communauté Boîte noire Hoymiles">
   <meta name="robots" content="index,follow">
@@ -15,6 +15,20 @@
   <meta property="og:description" content="Suivi local du solaire : DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et Zendure.">
   <meta property="og:url" content="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta property="og:image" content="assets/tableau-web-raspberry-20261017.png">
+  <script type="application/ld+json">
+  {
+    "@context":"https://schema.org",
+    "@type":"SoftwareApplication",
+    "name":"Boîte noire Hoymiles",
+    "applicationCategory":"UtilitiesApplication",
+    "operatingSystem":"Raspberry Pi OS, Windows, macOS",
+    "inLanguage":"fr-FR",
+    "url":"https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/",
+    "downloadUrl":"https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases",
+    "description":"Suivi solaire local pour Hoymiles DTU Pro-S, Linky et Denky D4, Shelly Pro EM et batterie Zendure SolarFlow.",
+    "isAccessibleForFree":true
+  }
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -24,6 +38,7 @@
       <div class="nav-links">
         <a href="#fonctionnalites">Fonctions</a>
         <a href="#economies">Économies</a>
+        <a href="#compatibilite">Compatibilité</a>
         <a href="#choisir">Mon installation</a>
         <a href="#installation">Installation</a>
         <a href="#alarmes">Alarmes</a>
@@ -136,6 +151,21 @@
         </div>
         <p class="screen-gallery-note">Les captures « Bilan complet » et « Budget EDF » illustrent la séparation entre l’énergie achetée, le solaire, la batterie et l’abonnement. Les montants affichés sont des exemples anonymisés.</p>
       </div>
+    </section>
+
+    <section class="section intro" id="compatibilite">
+      <p class="eyebrow blue">COMPATIBILITÉ VÉRIFIÉE SUR L’INSTALLATION DU PROJET</p>
+      <h2>Les appareils réellement utilisés et documentés.</h2>
+      <p>Boîte noire Hoymiles est pensée pour une installation modulaire : activez uniquement les équipements présents chez vous. Les termes ci-dessous décrivent les appareils testés ou utilisés dans le projet ; ils ne constituent pas une promesse de compatibilité pour un modèle voisin.</p>
+      <div class="cards">
+        <article class="card"><span>PV</span><h3>Hoymiles DTU Pro-S</h3><p>Lecture locale par Wi-Fi direct ou Modbus TCP, avec les micro-onduleurs Hoymiles de l’installation suivie.</p></article>
+        <article class="card"><span>RÉSEAU</span><h3>Linky · Denky D4 · TIC</h3><p>Index HP/HC et puissance réseau locale par téléinformation, utilisés comme référence du bilan EDF.</p></article>
+        <article class="card"><span>MESURE</span><h3>Shelly Pro EM · Shelly EM Gen3</h3><p>Mesure indépendante de la production, de l’achat et de l’injection. Les données locales restent prioritaires.</p></article>
+        <article class="card"><span>BAT</span><h3>Zendure SolarFlow 2400 AC</h3><p>Suivi de charge et de décharge avec Smart Meter Zendure, sans commande automatique de la batterie.</p></article>
+        <article class="card"><span>PASSERELLE</span><h3>Raspberry Pi · ESP32 · TP-Link</h3><p>Collecte permanente sur Raspberry Pi, extension ESP32 pour panneaux éloignés et pont réseau TP-Link TL-WR802N.</p></article>
+        <article class="card"><span>DOMOTIQUE</span><h3>Home Assistant</h3><p>Intégration locale en lecture seule : production, maison, EDF, batterie et état DTU, sans action sur les appareils.</p></article>
+      </div>
+      <p class="small muted">S-Miles/Hoymiles Cloud peut servir d’historique complémentaire, mais le tableau privilégie les mesures locales Shelly, Denky et Linky pour les flux et le budget.</p>
     </section>
 
     <section class="section split-section" id="esp32">
