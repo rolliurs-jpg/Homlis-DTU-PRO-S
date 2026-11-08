@@ -85,6 +85,76 @@ def integrate(points, key, start, end):
     return (energy if seconds else None), seconds
 
 
+def hc_windows(value):
+    """Lit les plages HC saisies sous la forme 22:00-06:00,13:00-15:00."""
+    windows = []
+    for item in str(value or '').split(','):
+        try:
+            left, right = (part.strip() for part in item.split('-', 1))
+            start_h, start_m = (int(part) for part in left.split(':', 1))
+            end_h, end_m = (int(part) for part in right.split(':', 1))
+            start_minute, end_minute = start_h * 60 + start_m, end_h * 60 + end_m
+            if 0 <= start_minute < 1440 and 0 <= end_minute < 1440:
+                windows.append((start_minute, end_minute))
+        except (TypeError, ValueError):
+            continue
+    return windows
+
+
+def is_hc(when, windows):
+    minute = when.hour * 60 + when.minute
+    return any(
+        start <= minute < end if start < end else minute >= start or minute < end
+        for start, end in windows
+    )
+
+
+def detailed_energy(points, start, end, hp_rate, hc_rate, hc_ranges):
+    """Estime les kWh qui couvrent directement la maison, sans double compte."""
+    result = dict(solar_direct_hp_kwh=0.0, solar_direct_hc_kwh=0.0,
+                  battery_hp_kwh=0.0, battery_hc_kwh=0.0,
+                  solar_seconds=0.0, battery_seconds=0.0)
+    windows = hc_windows(hc_ranges)
+    for a, b in zip(points, points[1:]):
+        left, right = a['stamp'], b['stamp']
+        if not 0 < right - left <= 180:
+            continue
+        lo, hi = max(start, left), min(end, right)
+        if hi <= lo:
+            continue
+        values = {}
+        for key in ('production_w', 'consumption_w', 'battery_ac_discharge_w'):
+            first, second = number(a.get(key)), number(b.get(key))
+            values[key] = None if first is None or second is None else max(0.0, (first + second) / 2)
+        if values['production_w'] is None or values['consumption_w'] is None:
+            continue
+        direct_solar = min(values['production_w'], values['consumption_w'])
+        duration = hi - lo
+        energy = direct_solar * duration / 3_600_000
+        target = 'hc' if is_hc(datetime.fromtimestamp((lo + hi) / 2), windows) else 'hp'
+        result[f'solar_direct_${target}_kwh'] += energy
+        result['solar_seconds'] += duration
+        if values['battery_ac_discharge_w'] is not None:
+            battery = min(values['battery_ac_discharge_w'], max(0.0, values['consumption_w'] - direct_solar))
+            result[f'battery_${target}_kwh'] += battery * duration / 3_600_000
+            result['battery_seconds'] += duration
+    solar_kwh = result['solar_direct_hp_kwh'] + result['solar_direct_hc_kwh']
+    battery_kwh = result['battery_hp_kwh'] + result['battery_hc_kwh']
+    result['solar_direct_kwh'] = solar_kwh if result['solar_seconds'] else None
+    result['battery_covered_kwh'] = battery_kwh if result['battery_seconds'] else None
+    if hp_rate is not None and hc_rate is not None and hp_rate > 0 and hc_rate > 0:
+        result['solar_gain_hp_eur'] = result['solar_direct_hp_kwh'] * hp_rate
+        result['solar_gain_hc_eur'] = result['solar_direct_hc_kwh'] * hc_rate
+        result['solar_gain_eur'] = result['solar_gain_hp_eur'] + result['solar_gain_hc_eur']
+        result['battery_gain_hp_eur'] = result['battery_hp_kwh'] * hp_rate
+        result['battery_gain_hc_eur'] = result['battery_hc_kwh'] * hc_rate
+        result['battery_gain_eur'] = result['battery_gain_hp_eur'] + result['battery_gain_hc_eur']
+    else:
+        result.update(solar_gain_hp_eur=None, solar_gain_hc_eur=None, solar_gain_eur=None,
+                      battery_gain_hp_eur=None, battery_gain_hc_eur=None, battery_gain_eur=None)
+    return result
+
+
 def index_energy(rows, start, end):
     """Only intervals entirely within the requested period. Resets are excluded.
 
@@ -197,7 +267,8 @@ class DashboardData:
                                import_w=None if grid is None else max(0,grid),
                                export_w=None if grid is None else max(0,-grid),
                                battery_charge_w=number(b.get('charge_w')),
-                               battery_discharge_w=number(b.get('discharge_w'))))
+                               battery_discharge_w=number(b.get('discharge_w')),
+                               battery_ac_discharge_w=number(b.get('ac_discharge_w'))))
         production, pv_seconds = integrate(points,'production_w',start,end)
         exported, grid_seconds = integrate(points,'export_w',start,end)
         billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
@@ -211,6 +282,7 @@ class DashboardData:
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
         subscription = None if daily_fee is None else max(0,days)*daily_fee
         totals = self.battery.totals(start,end)
+        detail = detailed_energy(points, start, end, hp_rate, hc_rate, tariffs.get('plages_hc'))
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
                     updated_at=now.isoformat(timespec='seconds'), production_kwh=production,
                     production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
@@ -218,6 +290,7 @@ class DashboardData:
                     subscription=subscription, total_cost=None if energy_cost is None or subscription is None else energy_cost+subscription,
                     battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
+                    detailed_energy=detail,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
                     source='Index Linky enregistrés ; intervalles à cheval sur la période exclus. Les relevés EDF manuels restent accessibles dans les outils classiques.')
 
