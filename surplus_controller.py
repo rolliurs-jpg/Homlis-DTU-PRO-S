@@ -228,7 +228,7 @@ class SurplusController:
                         except Exception as exc:
                             detail = str(exc).strip()
                             result['dtu_command_error'] = type(exc).__name__ + (': ' + detail if detail else '')
-                            result['reason'] += ' Commande DTU non confirmée ; retour du HMS à 100 % demandé.'
+                            result['reason'] += ' Le DTU n’a pas confirmé sa dernière consigne : les deux panneaux HMS restent provisoirement à 100 %, sans réduire la production. Une nouvelle vérification sera faite automatiquement.'
                             self.proxy.request_limit(100)
                             # Un refus du DTU ne signifie pas que la batterie
                             # a cessé d'être pleine. Conserver cet état permet
