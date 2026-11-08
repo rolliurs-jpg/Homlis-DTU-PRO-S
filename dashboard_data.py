@@ -132,11 +132,11 @@ def detailed_energy(points, start, end, hp_rate, hc_rate, hc_ranges):
         duration = hi - lo
         energy = direct_solar * duration / 3_600_000
         target = 'hc' if is_hc(datetime.fromtimestamp((lo + hi) / 2), windows) else 'hp'
-        result[f'solar_direct_${target}_kwh'] += energy
+        result[f'solar_direct_{target}_kwh'] += energy
         result['solar_seconds'] += duration
         if values['battery_ac_discharge_w'] is not None:
             battery = min(values['battery_ac_discharge_w'], max(0.0, values['consumption_w'] - direct_solar))
-            result[f'battery_${target}_kwh'] += battery * duration / 3_600_000
+            result[f'battery_{target}_kwh'] += battery * duration / 3_600_000
             result['battery_seconds'] += duration
     solar_kwh = result['solar_direct_hp_kwh'] + result['solar_direct_hc_kwh']
     battery_kwh = result['battery_hp_kwh'] + result['battery_hc_kwh']
@@ -182,6 +182,24 @@ def index_energy(rows, start, end):
                 import_kwh=hc+hp if seconds else None, seconds=seconds,
                 first=first, last=last, complete=bool(seconds and end-start-seconds <= 180))
 
+
+
+def manual_edf_history(config, hp_rate, hc_rate):
+    """Relevé EDF déclaré par l'utilisateur, séparé des relevés Linky locaux."""
+    declared = config.get('historique_edf', {})
+    hp_kwh, hc_kwh = number(declared.get('hp_kwh')), number(declared.get('hc_kwh'))
+    if hp_kwh is None or hc_kwh is None or hp_kwh < 0 or hc_kwh < 0:
+        return None
+    energy_cost = None
+    if hp_rate is not None and hc_rate is not None and hp_rate > 0 and hc_rate > 0:
+        energy_cost = hp_kwh * hp_rate + hc_kwh * hc_rate
+    return dict(
+        start_date=str(declared.get('start_date') or ''),
+        as_of_date=str(declared.get('as_of_date') or ''),
+        hp_kwh=hp_kwh, hc_kwh=hc_kwh, import_kwh=hp_kwh + hc_kwh,
+        energy_cost=energy_cost,
+        source='Relevé EDF déclaré ; séparé des index relevés par le Raspberry.',
+    )
 
 def cumulative_grid_export(rows, config):
     """Integrate only the measured export since the first saved sample."""
@@ -301,6 +319,7 @@ class DashboardData:
         days = (end_dt.date()-start_dt.date()).days + (0 if end_dt.time()==datetime.min.time() else 1)
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
         subscription = None if daily_fee is None else max(0,days)*daily_fee
+        declared_edf = manual_edf_history(cfg, hp_rate, hc_rate)
         totals = self.battery.totals(start,end)
         detail = detailed_energy(points, start, end, hp_rate, hc_rate, tariffs.get('plages_hc'))
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
@@ -313,6 +332,7 @@ class DashboardData:
                     battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
                     detailed_energy=detail,
+                    declared_edf=declared_edf,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
                     source='Index Linky enregistrés ; intervalles à cheval sur la période exclus. Les relevés EDF manuels restent accessibles dans les outils classiques.')
 
