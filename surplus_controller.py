@@ -200,7 +200,13 @@ class SurplusController:
                 target = result.get('hms1000_limit_pct')
                 hold = self.network_gate(result, now)
                 if hold:
-                    if not result.get('write_hold') and not result.get('reason', '').startswith('Liaisons rétablies'):
+                    # Le tableau affiche le temps restant : la lecture est revenue,
+                    # mais aucune consigne n'est envoyée avant la fin de la validation.
+                    remaining = max(0, math.ceil(self.hold_until - now))
+                    if remaining:
+                        result['stability_remaining_seconds'] = remaining
+                        result['stability_total_seconds'] = 120
+                    if not result.get('write_hold') and not result.get('reason', '').startswith('Panneaux connectés'):
                         result['reason'] = 'Panneaux connectés : confirmation des mesures en cours avant reprise automatique (2 min) ; aucune commande envoyée d’ici là.'
                     result['write_hold'] = True
                 suppress_writes = hold or bool(result.get('write_hold'))
