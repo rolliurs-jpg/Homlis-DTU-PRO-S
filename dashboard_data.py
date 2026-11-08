@@ -184,23 +184,37 @@ def index_energy(rows, start, end):
 
 
 
-def manual_edf_history(config, hp_rate, hc_rate):
-    """Relevé EDF déclaré par l'utilisateur, séparé des relevés Linky locaux."""
+def manual_edf_history(config, hp_rate, hc_rate, linky_rows, now):
+    """Base EDF déclarée, prolongée uniquement par les index locaux postérieurs."""
     declared = config.get('historique_edf', {})
-    hp_kwh, hc_kwh = number(declared.get('hp_kwh')), number(declared.get('hc_kwh'))
-    if hp_kwh is None or hc_kwh is None or hp_kwh < 0 or hc_kwh < 0:
+    base_hp, base_hc = number(declared.get('hp_kwh')), number(declared.get('hc_kwh'))
+    start_date, as_of_date = str(declared.get('start_date') or ''), str(declared.get('as_of_date') or '')
+    if base_hp is None or base_hc is None or base_hp < 0 or base_hc < 0:
         return None
+    local_hp = local_hc = 0.0
+    automatic_from = ''
+    try:
+        # Le relevé déclaré inclut toute sa journée ; la collecte locale reprend le lendemain.
+        automatic_start = datetime.strptime(as_of_date, '%Y-%m-%d') + timedelta(days=1)
+        automatic_from = automatic_start.date().isoformat()
+        if now > automatic_start:
+            local = index_energy(linky_rows, automatic_start.timestamp(), now.timestamp())
+            local_hp = local['hp_kwh'] or 0.0
+            local_hc = local['hc_kwh'] or 0.0
+    except ValueError:
+        automatic_from = ''
+    hp_kwh, hc_kwh = base_hp + local_hp, base_hc + local_hc
     energy_cost = None
     if hp_rate is not None and hc_rate is not None and hp_rate > 0 and hc_rate > 0:
         energy_cost = hp_kwh * hp_rate + hc_kwh * hc_rate
     return dict(
-        start_date=str(declared.get('start_date') or ''),
-        as_of_date=str(declared.get('as_of_date') or ''),
+        start_date=start_date, as_of_date=as_of_date, automatic_from=automatic_from,
+        base_hp_kwh=base_hp, base_hc_kwh=base_hc,
+        local_hp_kwh=local_hp, local_hc_kwh=local_hc,
         hp_kwh=hp_kwh, hc_kwh=hc_kwh, import_kwh=hp_kwh + hc_kwh,
         energy_cost=energy_cost,
-        source='Relevé EDF déclaré ; séparé des index relevés par le Raspberry.',
+        source='Base EDF déclarée, prolongée par les index Denky/Linky du Raspberry.',
     )
-
 
 def hoymiles_cloud_history(config):
     """Totaux mensuels exportés par S-Miles, affichés sans les mêler au Raspberry."""
@@ -335,7 +349,8 @@ class DashboardData:
         consumption, consumption_seconds = integrate(points,'consumption_w',start,end)
         exported, grid_seconds = integrate(points,'export_w',start,end)
         exported_total = cumulative_grid_export(rows, cfg)
-        billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
+        linky_rows = dated_rows(self.base/'linky_index_log.csv') if enabled('linky') else []
+        billing = index_energy(linky_rows,start,end)
         tariffs = cfg.get('tarifs_edf',{})
         hp_rate, hc_rate = number(tariffs.get('hp_eur_kwh')),number(tariffs.get('hc_eur_kwh'))
         energy_cost = None
@@ -345,7 +360,7 @@ class DashboardData:
         days = (end_dt.date()-start_dt.date()).days + (0 if end_dt.time()==datetime.min.time() else 1)
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
         subscription = None if daily_fee is None else max(0,days)*daily_fee
-        declared_edf = manual_edf_history(cfg, hp_rate, hc_rate)
+        declared_edf = manual_edf_history(cfg, hp_rate, hc_rate, linky_rows, now)
         cloud_history = hoymiles_cloud_history(cfg)
         totals = self.battery.totals(start,end)
         detail = detailed_energy(points, start, end, hp_rate, hc_rate, tariffs.get('plages_hc'))
