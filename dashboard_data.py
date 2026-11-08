@@ -290,6 +290,7 @@ class DashboardData:
                     production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
                     grid_seconds=grid_seconds, billing=billing, energy_cost=energy_cost,
                     subscription=subscription, total_cost=None if energy_cost is None or subscription is None else energy_cost+subscription,
+                    tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate),
                     battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
                     detailed_energy=detail,
