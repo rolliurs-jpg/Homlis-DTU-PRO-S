@@ -201,6 +201,32 @@ def manual_edf_history(config, hp_rate, hc_rate):
         source='Relevé EDF déclaré ; séparé des index relevés par le Raspberry.',
     )
 
+
+def hoymiles_cloud_history(config):
+    """Totaux mensuels exportés par S-Miles, affichés sans les mêler au Raspberry."""
+    history = config.get('historique_hoymiles', {})
+    months = history.get('months', []) if isinstance(history, dict) else []
+    totals = dict(production_kwh=0.0, export_kwh=0.0, import_kwh=0.0,
+                  consumption_kwh=0.0, months=[])
+    for item in months:
+        if not isinstance(item, dict):
+            continue
+        month = str(item.get('month') or '')
+        values = {key: number(item.get(key)) for key in
+                  ('production_kwh', 'export_kwh', 'import_kwh', 'consumption_kwh')}
+        if not month or any(value is None or value < 0 for value in values.values()):
+            continue
+        totals['months'].append(dict(month=month, **values))
+        for key, value in values.items():
+            totals[key] += value
+    if not totals['months']:
+        return None
+    totals['months'].sort(key=lambda item: item['month'])
+    totals['from_month'] = totals['months'][0]['month']
+    totals['to_month'] = totals['months'][-1]['month']
+    totals['source'] = str(history.get('source') or 'Export S-Miles Cloud')
+    return totals
+
 def cumulative_grid_export(rows, config):
     """Integrate only the measured export since the first saved sample."""
     if not bool(config.get('shelly', {}).get('enabled')):
@@ -320,6 +346,7 @@ class DashboardData:
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
         subscription = None if daily_fee is None else max(0,days)*daily_fee
         declared_edf = manual_edf_history(cfg, hp_rate, hc_rate)
+        cloud_history = hoymiles_cloud_history(cfg)
         totals = self.battery.totals(start,end)
         detail = detailed_energy(points, start, end, hp_rate, hc_rate, tariffs.get('plages_hc'))
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
@@ -333,6 +360,7 @@ class DashboardData:
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
                     detailed_energy=detail,
                     declared_edf=declared_edf,
+                    cloud_history=cloud_history,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
                     source='Index Linky enregistrés ; intervalles à cheval sur la période exclus. Les relevés EDF manuels restent accessibles dans les outils classiques.')
 
