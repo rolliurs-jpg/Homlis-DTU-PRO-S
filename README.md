@@ -9,7 +9,7 @@ Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tablea
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.66](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/download/v7.0.62/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.66](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC**, **2-WINDOWS** ou **3-RASPBERRY**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
@@ -48,6 +48,12 @@ Le choix se fait pendant l’installation Windows. L’installation Mac demande 
 À chaque clic sur le raccourci, choisissez **Nouvelle interface web** ou **Ancien logiciel avec sa fenêtre**. Le changement de mode arrête proprement le service invisible afin d’éviter deux collectes simultanées.
 
 Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou plus récent est requis.
+
+## Budget mensuel et Home Assistant
+
+Le tableau web propose un **Budget mensuel** distinct du bilan énergétique : l’achat EDF (HP, HC et abonnement) est séparé de l’apport solaire et de la batterie. L’injection est affichée pour le mois et en cumul depuis le début de l’historique mesuré ; elle n’est jamais valorisée en euros sans tarif de rachat renseigné.
+
+Une intégration Home Assistant locale et **en lecture seule** est fournie dans [home_assistant/boite_noire_hoymiles.yaml](home_assistant/boite_noire_hoymiles.yaml). Elle expose les mesures sans permettre de commander le DTU, les panneaux ou la batterie.
 
 ## Installation macOS Apple Silicon
 
