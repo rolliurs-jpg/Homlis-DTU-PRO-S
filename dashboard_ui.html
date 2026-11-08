@@ -32,7 +32,7 @@
    <button role="tab" aria-selected="false" data-view="bilans">▥ Bilans</button>
    <button role="tab" aria-selected="false" data-view="budget">€ Budget mensuel</button>
    <button role="tab" aria-selected="false" data-view="battery">▰ Batterie</button>
-   <a href="#panneaux">▦ Panneaux</a>
+   <button type="button" id="panels-nav">▦ Panneaux</button>
    <button role="tab" aria-selected="false" data-view="devices">⚙ Équipements</button>
   </nav>
   <div class="side-note">Boîte noire Hoymiles · v7.0.69<br>Windows · Mac · Android · iOS</div>
@@ -90,7 +90,7 @@ const fmtK=v=>Number.isFinite(v)?`${v.toLocaleString('fr-FR',{minimumFractionDig
 const fmtE=v=>Number.isFinite(v)?`${v.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €`:'—';
 const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function navigate(view){document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===view)));['direct','bilans','budget','battery','devices'].forEach(v=>$('view-'+v).hidden=v!==view);if(view==='bilans')loadReport();if(view==='budget')loadMonthTotal();if(view==='battery'){loadCycles();loadBatteryTotals();}if(view==='devices')loadSettings();}
-document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>navigate(b.dataset.view));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>navigate(b.dataset.go));
+document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>navigate(b.dataset.view));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>navigate(b.dataset.go));$('panels-nav').onclick=()=>{navigate('direct');requestAnimationFrame(()=>$('panneaux').scrollIntoView({behavior:'smooth',block:'start'}))};
 function battery(s){const valid=Number.isFinite(s.battery_soc_pct),net=(s.battery_charge_w||0)-(s.battery_discharge_w||0),color=!valid?'var(--muted)':net>20?'var(--green)':net< -20?'var(--red)':'var(--muted)',label=!valid?'Mesure indisponible':net>20?`En charge · ${Math.round(net)} W`:net< -20?`En décharge · ${Math.round(-net)} W`:s.battery_soc_pct>=100?'Pleine · au repos':'Au repos';document.querySelectorAll('.battery').forEach(el=>{el.style.setProperty('--battery',color);el.querySelector('.battery-fill').style.width=valid?Math.max(0,Math.min(100,s.battery_soc_pct))+'%':'0';el.querySelector('.battery-value').textContent=valid?Math.round(s.battery_soc_pct)+' %':'—'});document.querySelectorAll('.battery-state').forEach(el=>el.textContent=label);$('battery-power').textContent=valid?'Niveau mesuré : '+Math.round(s.battery_soc_pct)+' %':'—';$('battery-power-full').textContent=valid?'Niveau mesuré : '+Math.round(s.battery_soc_pct)+' %':'—';const fresh=valid&&Number.isFinite(s.battery_timestamp)&&Date.now()/1000-s.battery_timestamp<=45;$('battery-charge-now').innerHTML=fmtW(fresh?s.battery_ac_charge_w:null);$('battery-discharge-now').innerHTML=fmtW(fresh?s.battery_ac_discharge_w:null);$('battery-measured-at').textContent=fresh?'Mesure du '+new Date(s.battery_timestamp*1000).toLocaleTimeString('fr-FR'):'Mesure batterie absente ou ancienne';$('battery-summary').hidden=!s.battery_enabled;}
 function draw(history){
  const svg=$('chart'),w=Math.max(300,svg.clientWidth),h=svg.clientHeight||230;
