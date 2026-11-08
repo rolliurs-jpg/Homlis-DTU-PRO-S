@@ -183,6 +183,24 @@ def index_energy(rows, start, end):
                 first=first, last=last, complete=bool(seconds and end-start-seconds <= 180))
 
 
+def cumulative_grid_export(rows, config):
+    """Integrate only the measured export since the first saved sample."""
+    if not bool(config.get('shelly', {}).get('enabled')):
+        return None
+    points = []
+    export_positive = bool(config.get('shelly', {}).get('grid_export_positive'))
+    for row in rows:
+        grid = number(row.get('shelly_b_w'))
+        if grid is None:
+            continue
+        if export_positive:
+            grid = -grid
+        points.append({'stamp': row['stamp'], 'export_w': max(0.0, -grid)})
+    if len(points) < 2:
+        return None
+    return integrate(points, 'export_w', points[0]['stamp'], points[-1]['stamp'])[0]
+
+
 def compress_history(points, count=240):
     if len(points) <= count:
         return points
@@ -272,6 +290,7 @@ class DashboardData:
         production, pv_seconds = integrate(points,'production_w',start,end)
         consumption, consumption_seconds = integrate(points,'consumption_w',start,end)
         exported, grid_seconds = integrate(points,'export_w',start,end)
+        exported_total = cumulative_grid_export(rows, cfg)
         billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
         tariffs = cfg.get('tarifs_edf',{})
         hp_rate, hc_rate = number(tariffs.get('hp_eur_kwh')),number(tariffs.get('hc_eur_kwh'))
@@ -287,7 +306,7 @@ class DashboardData:
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
                     updated_at=now.isoformat(timespec='seconds'), production_kwh=production,
                     consumption_kwh=consumption, consumption_seconds=consumption_seconds,
-                    production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
+                    production_complete=complete, export_kwh=exported, export_total_kwh=exported_total, pv_seconds=pv_seconds,
                     grid_seconds=grid_seconds, billing=billing, energy_cost=energy_cost,
                     subscription=subscription, total_cost=None if energy_cost is None or subscription is None else energy_cost+subscription,
                     tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate),
