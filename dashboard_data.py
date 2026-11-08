@@ -270,6 +270,7 @@ class DashboardData:
                                battery_discharge_w=number(b.get('discharge_w')),
                                battery_ac_discharge_w=number(b.get('ac_discharge_w'))))
         production, pv_seconds = integrate(points,'production_w',start,end)
+        consumption, consumption_seconds = integrate(points,'consumption_w',start,end)
         exported, grid_seconds = integrate(points,'export_w',start,end)
         billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
         tariffs = cfg.get('tarifs_edf',{})
@@ -285,6 +286,7 @@ class DashboardData:
         detail = detailed_energy(points, start, end, hp_rate, hc_rate, tariffs.get('plages_hc'))
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
                     updated_at=now.isoformat(timespec='seconds'), production_kwh=production,
+                    consumption_kwh=consumption, consumption_seconds=consumption_seconds,
                     production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
                     grid_seconds=grid_seconds, billing=billing, energy_cost=energy_cost,
                     subscription=subscription, total_cost=None if energy_cost is None or subscription is None else energy_cost+subscription,
