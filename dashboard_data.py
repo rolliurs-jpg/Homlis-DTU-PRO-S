@@ -113,7 +113,8 @@ def detailed_energy(points, start, end, hp_rate, hc_rate, hc_ranges):
     """Estime les kWh qui couvrent directement la maison, sans double compte."""
     result = dict(solar_direct_hp_kwh=0.0, solar_direct_hc_kwh=0.0,
                   battery_hp_kwh=0.0, battery_hc_kwh=0.0,
-                  solar_seconds=0.0, battery_seconds=0.0)
+                  solar_seconds=0.0, battery_seconds=0.0,
+                  solar_first_stamp=None, solar_last_stamp=None)
     windows = hc_windows(hc_ranges)
     for a, b in zip(points, points[1:]):
         left, right = a['stamp'], b['stamp']
@@ -134,6 +135,8 @@ def detailed_energy(points, start, end, hp_rate, hc_rate, hc_ranges):
         target = 'hc' if is_hc(datetime.fromtimestamp((lo + hi) / 2), windows) else 'hp'
         result[f'solar_direct_{target}_kwh'] += energy
         result['solar_seconds'] += duration
+        result['solar_first_stamp'] = lo if result['solar_first_stamp'] is None else min(result['solar_first_stamp'], lo)
+        result['solar_last_stamp'] = hi if result['solar_last_stamp'] is None else max(result['solar_last_stamp'], hi)
         if values['battery_ac_discharge_w'] is not None:
             battery = min(values['battery_ac_discharge_w'], max(0.0, values['consumption_w'] - direct_solar))
             result[f'battery_{target}_kwh'] += battery * duration / 3_600_000
