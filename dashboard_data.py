@@ -207,12 +207,21 @@ def manual_edf_history(config, hp_rate, hc_rate, linky_rows, now):
     energy_cost = None
     if hp_rate is not None and hc_rate is not None and hp_rate > 0 and hc_rate > 0:
         energy_cost = hp_kwh * hp_rate + hc_kwh * hc_rate
+    subscription = None
+    try:
+        first_day = datetime.strptime(start_date, '%Y-%m-%d').date()
+        daily_fee = number(config.get('tarifs_edf', {}).get('abonnement_journalier_eur'))
+        if daily_fee is not None and daily_fee >= 0 and now.date() >= first_day:
+            subscription = ((now.date() - first_day).days + 1) * daily_fee
+    except ValueError:
+        pass
+    total_cost = None if energy_cost is None or subscription is None else energy_cost + subscription
     return dict(
         start_date=start_date, as_of_date=as_of_date, automatic_from=automatic_from,
         base_hp_kwh=base_hp, base_hc_kwh=base_hc,
         local_hp_kwh=local_hp, local_hc_kwh=local_hc,
         hp_kwh=hp_kwh, hc_kwh=hc_kwh, import_kwh=hp_kwh + hc_kwh,
-        energy_cost=energy_cost,
+        energy_cost=energy_cost, subscription=subscription, total_cost=total_cost,
         source='Base EDF déclarée, prolongée par les index Denky/Linky du Raspberry.',
     )
 
