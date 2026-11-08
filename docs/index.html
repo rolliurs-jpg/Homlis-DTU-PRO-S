@@ -38,7 +38,7 @@
       <p class="lead">Boîte noire Hoymiles rassemble la production, la maison, la batterie et le réseau EDF dans un tableau privé. Choisissez uniquement les équipements que vous possédez : le logiciel s’adapte à votre installation.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz">Télécharger Raspberry Pi</a>
-        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">Télécharger Mac</a>
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/download/v7.0.62/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">Télécharger Mac</a>
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip">Télécharger Windows</a>
         <a class="button secondary" href="#choisir">Voir mon installation</a>
         <a class="button secondary" href="#installation">Guide d’installation</a>
@@ -69,12 +69,12 @@
         <article class="card"><span>03</span><h3>Shelly Pro EM indépendant</h3><p>Deux voies optionnelles pour comparer la production et mesurer l’achat ou l’injection au réseau.</p></article>
         <article class="card"><span>04</span><h3>Preuves d’injection</h3><p>Alerte temporisée, cumul Wh/kWh, journal CSV et résumé texte pour le support Hoymiles.</p></article>
         <article class="card"><span>05</span><h3>Tableau mobile privé</h3><p>Production, consommation, injection et état des appareils depuis le Wi-Fi local ou à distance avec Tailscale.</p></article>
-        <article class="card"><span>06</span><h3>Rapport et batterie</h3><p>Qualité et provenance des mesures, rapport mensuel PDF et historique réel de charge et de décharge de la batterie.</p></article>
+        <article class="card"><span>06</span><h3>Budget mensuel</h3><p>EDF séparé du solaire et de la batterie : HP, HC, abonnement, injection et économies mesurées.</p></article>
       </div>
     </section>
 
     <section id="economies" class="section split-section">
-      <div><p class="eyebrow blue">DE L’ÉNERGIE AUX EUROS</p><h2>Voir ce qui est produit, acheté et injecté — puis l’exprimer en euros.</h2><p>Le tableau affiche d’abord les puissances instantanées pour comprendre ce qui se passe maintenant. Les bilans utilisent ensuite les kWh réellement mesurés afin de suivre l’énergie achetée, injectée et chargée dans la batterie.</p><p>Avec Linky et Denky D4, le coût EDF repose sur les index heures pleines / heures creuses. Sans Linky, le logiciel reste utile : il présente les mesures disponibles sans inventer une économie.</p></div>
+      <div><p class="eyebrow blue">DE L’ÉNERGIE AUX EUROS</p><h2>Comparer séparément EDF, solaire et batterie.</h2><p>Le budget mensuel distingue l’achat EDF — heures pleines, heures creuses et abonnement — de l’énergie apportée localement par le solaire et la batterie. L’injection et son cumul restent séparés : ils ne sont pas présentés comme une économie sans tarif de rachat configuré.</p><p>Les économies affichées reposent sur les kWh mesurés et les tarifs HP / HC renseignés. En cas de trou de mesure ou d’index Linky absent, le logiciel affiche une donnée indisponible plutôt qu’un montant inventé.</p></div>
       <ol class="steps">
         <li><strong>Maintenant</strong><span>Production, consommation, achat ou injection en watts.</span></li>
         <li><strong>Sur la période</strong><span>Énergie en kWh à partir des mesures enregistrées, sans extrapoler les trous de données.</span></li>
@@ -212,7 +212,7 @@
         <article class="card"><span>MESURE</span><h3>Shelly Pro EM</h3><p>Mesure locale indépendante de la production et du flux réseau, même sans Linky.</p></article>
         <article class="card"><span>BAT</span><h3>Zendure SolarFlow</h3><p>Niveau, charge, décharge et historique de cycle lorsque la batterie est connectée.</p></article>
         <article class="card"><span>OPTION</span><h3>ESP32 / panneaux éloignés</h3><p>Extension possible pour une seconde installation, sans imposer ce matériel aux autres utilisateurs.</p></article>
-        <article class="card"><span>PLUS TARD</span><h3>Home Assistant</h3><p>Prévu comme extension en lecture seule : les données utiles pourront être exposées sans confier le pilotage de la maison.</p></article>
+        <article class="card"><span>OPTION</span><h3>Home Assistant</h3><p>Intégration locale en lecture seule disponible : production, maison, EDF, batterie et état du DTU, sans commande sur les équipements.</p></article>
       </div>
       <p class="small muted">Les notes de version et le détail des évolutions sont consultables dans le dépôt GitHub.</p>
     </section>
