@@ -199,7 +199,7 @@ function loadSettings(){return (async()=>{try{
 
  rows.push(groupStart('Installation Maison 2 kW'));
  rows.push(deviceRow('\u2600','Hoymiles \u00b7 DTU-Pro-S',s.dtu_host||'Adresse non renseignee',dtuStatus,dtuHealth));
- links.filter(w=>String(w.interface).toLowerCase()==='wlan1').forEach(addLink);
+ const dtuLink=links.find(w=>String(w.interface).toLowerCase()==='wlan1');if(dtuLink)addLink(dtuLink);
  addConfigured('linky','\u25c9','Linky & Denky D4',live.linky_state);
  addConfigured('shelly','\u25a6','Shelly Pro EM \u2014 reseau et panneaux',live.shelly_state);
  rows.push(groupEnd());
