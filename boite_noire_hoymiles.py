@@ -160,6 +160,8 @@ DEFAULT_CONFIG = {
     # Pont Wi-Fi Ethernet qui relie le DTU à la Livebox. Il est suivi comme
     # équipement réseau afin de distinguer une panne du pont d'une panne DTU.
     "tp_link": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
+    # Relais Tongou : simple suivi réseau. Aucune coupure automatique n’est activée ici.
+    "tongou_relay": {"enabled": False, "host": "", "port": 6668, "timeout_s": 2},
     "hoymiles_proxy": dict(DEFAULT_PROXY),
     "production_complete": False,
     # Commandes opt-in : aucune limitation n'est envoyée tant que
@@ -246,6 +248,10 @@ def load_config():
         if not isinstance(saved_recovery, dict):
             saved_recovery = {}
         cfg["dtu_wifi_recovery"] = {**DEFAULT_CONFIG["dtu_wifi_recovery"], **saved_recovery}
+        saved_tongou = data.get("tongou_relay", {})
+        if not isinstance(saved_tongou, dict):
+            saved_tongou = {}
+        cfg["tongou_relay"] = {**DEFAULT_CONFIG["tongou_relay"], **saved_tongou}
         saved_mobile = data.get("mobile_dashboard", {})
         if not isinstance(saved_mobile, dict):
             saved_mobile = {}
@@ -379,7 +385,7 @@ def dashboard_ui_action(action, _values=None):
         devices = values.get("devices")
         if not isinstance(devices, dict):
             return {"error": "Liste des équipements attendue"}
-        allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "hoymiles_proxy", "esp_router")
+        allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "tongou_relay", "hoymiles_proxy", "esp_router")
         updated = json.loads(json.dumps(CONFIG))
         ip_changed = False
         for name in allowed:
@@ -584,6 +590,22 @@ def mobile_point(index):
     }
 
 
+def network_device_state(config):
+    """État réseau simple, sans envoyer aucune commande à l’équipement."""
+    if not config.get("enabled"):
+        return "disabled"
+    host = str(config.get("host") or "").strip()
+    if not host:
+        return "offline"
+    try:
+        port = int(config.get("port", 80) or 80)
+        timeout = float(config.get("timeout_s", 2) or 2)
+        with socket.create_connection((host, port), timeout=timeout):
+            return "online"
+    except (OSError, ValueError):
+        return "offline"
+
+
 def publish_mobile_snapshot(dtu_state="waiting"):
     """Publie le dernier état au serveur web local en lecture seule."""
     if mobile_dashboard is None or not times:
@@ -609,6 +631,7 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "dtu_state": dtu_state,
             "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
             "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
+            "tongou_state": network_device_state(CONFIG.get("tongou_relay", {})),
         })
         if equipment_enabled("battery") or equipment_enabled("shelly2"):
             current["production_source"] = "Total Shelly" if current["production_w"] is not None else "Production totale incomplète"
