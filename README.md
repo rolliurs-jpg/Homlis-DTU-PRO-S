@@ -43,6 +43,16 @@ définissez l’URL locale du Raspberry dans `secrets.yaml`, puis incluez-le dan
 réseau local ou Tailscale ; ne publiez ni adresse privée, ni mot de passe, ni
 jeton dans GitHub.
 
+### Windows
+
+L’installateur Windows copie le même modèle dans
+`%LOCALAPPDATA%\BoiteNoireHoymiles\home_assistant\boite_noire_hoymiles.yaml`.
+Dans `secrets.yaml` de Home Assistant, indiquez l’URL locale du PC Windows
+qui exécute le tableau, suivie de `/api/home-assistant`, puis ajoutez
+`rest: !include home_assistant/boite_noire_hoymiles.yaml` à
+`configuration.yaml`. Les mesures restent disponibles uniquement tant que le
+logiciel Windows est lancé ; l’intégration reste strictement en lecture seule.
+
 ## Choisir la bonne version réseau
 
 | Système | Configuration proposée | Usage |

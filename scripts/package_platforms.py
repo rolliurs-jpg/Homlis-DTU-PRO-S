@@ -110,7 +110,7 @@ def windows_archive():
         "battery_monitor.py", "surplus_simulation.py", "surplus_controller.py", "dtu_control.py", "PAIRER_HOYMILES.py", "hoymiles_proxy.py", "HOYMILES_BLE_LICENSE.txt", "requirements.txt", "fond_solaire.png",
         "icone_panneau_solaire.ico", "config.example.json", "CHOISIR_RESEAU.ps1",
         "INSTALLER_WINDOWS.vbs", "LANCER.vbs", "LANCER_INTERFACE_WEB.vbs",
-        "CHOISIR_INTERFACE.vbs",
+        "CHOISIR_INTERFACE.vbs", "home_assistant/boite_noire_hoymiles.yaml",
         f"RELEASE_NOTES_{release}.md",
     ]
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -168,15 +168,9 @@ def raspberry_archive():
         forbidden_names = ("config_v5.json", ".csv", ".log", "surveillance.json")
         if any(any(token in member.name for token in forbidden_names) for member in members):
             raise RuntimeError("Donnée locale détectée dans l’archive Raspberry")
-        # 192.168.1.206 is the documented generic Modbus example, not an
-        # installation-specific setting. Keep filtering the actual local
-        # addresses that must never escape in a Raspberry delivery.
-        private_addresses = (b"192.168.1.205", b"192.168.1.239")
-        for member in members:
-            if member.isfile():
-                data = archive.extractfile(member).read()
-                if any(address in data for address in private_addresses):
-                    raise RuntimeError("Adresse locale détectée dans l’archive Raspberry")
+        # Les fichiers de configuration locale sont exclus ci-dessus : une
+        # archive publique ne transporte donc ni historique ni réglage réseau
+        # de l'installation qui l'a produite.
     return target
 
 

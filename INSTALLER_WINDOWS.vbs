@@ -186,6 +186,10 @@ fso.CopyFile folder & "\PAIRER_HOYMILES.py", appData & "\PAIRER_HOYMILES.py", Tr
 fso.CopyFile folder & "\hoymiles_proxy.py", appData & "\hoymiles_proxy.py", True
 fso.CopyFile folder & "\HOYMILES_BLE_LICENSE.txt", appData & "\HOYMILES_BLE_LICENSE.txt", True
 fso.CopyFile folder & "\battery_monitor.py", appData & "\battery_monitor.py", True
+If Not fso.FolderExists(appData & "\home_assistant") Then
+    fso.CreateFolder appData & "\home_assistant"
+End If
+fso.CopyFile folder & "\home_assistant\boite_noire_hoymiles.yaml", appData & "\home_assistant\boite_noire_hoymiles.yaml", True
 fso.CopyFile folder & "\fond_solaire.png", appData & "\fond_solaire.png", True
 fso.CopyFile folder & "\icone_panneau_solaire.ico", appData & "\icone_panneau_solaire.ico", True
 fso.CopyFile folder & "\LANCER.vbs", appData & "\LANCER.vbs", True
