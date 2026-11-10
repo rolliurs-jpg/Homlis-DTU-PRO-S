@@ -12,7 +12,11 @@ USER_NAME="$(id -un)"
 NETWORK_ENV="/etc/solaire-network.env"
 ALFA_PROFILE="solaire-cabanon-alfa"
 ALFA_SSID="Cabanon Solaire"
-ALFA_BSSID="70:4B:CA:16:BC:C9"
+ALFA_BSSID="${ALFA_BSSID:-}"
+ALFA_LOCAL_IP="${ALFA_LOCAL_IP:-}"
+ALFA_ROUTER_HOST="${ALFA_ROUTER_HOST:-}"
+ALFA_PROXY_HOST="${ALFA_PROXY_HOST:-}"
+DTU_HOST="${DTU_HOST:-}"
 DTU_PROFILE="${DTU_WIFI_PROFILE:-dtu-direct-4p}"
 PRIMARY_WIFI_PROFILE="${PRIMARY_WIFI_PROFILE:-netplan-wlan0-livebox-B560}"
 
@@ -71,11 +75,20 @@ sudo install -m 0644 \
 # pourra jamais être choisi à sa place. Les mots de passe déjà enregistrés par
 # NetworkManager ne sont ni affichés ni modifiés.
 if nmcli -t -f NAME connection show | grep -Fxq "$ALFA_PROFILE"; then
-  sudo nmcli connection modify "$ALFA_PROFILE" \
+  ALFA_NETWORK_ARGS=(
     connection.interface-name wlan2 connection.autoconnect yes \
     connection.autoconnect-priority 100 connection.autoconnect-retries 0 \
-    802-11-wireless.ssid "$ALFA_SSID" 802-11-wireless.bssid "$ALFA_BSSID" \
-    802-11-wireless.powersave 2 ipv4.never-default yes
+    802-11-wireless.ssid "$ALFA_SSID" 802-11-wireless.powersave 2
+  )
+  if [ -n "$ALFA_BSSID" ]; then
+    ALFA_NETWORK_ARGS+=(802-11-wireless.bssid "$ALFA_BSSID")
+  fi
+  if [ -n "$ALFA_LOCAL_IP" ]; then
+    ALFA_NETWORK_ARGS+=(ipv4.method manual ipv4.addresses "$ALFA_LOCAL_IP" ipv4.never-default yes ipv6.method ignore)
+  else
+    echo "Adresse locale cabanon non renseignée : le profil Wi-Fi est conservé sans IP statique."
+  fi
+  sudo nmcli connection modify "$ALFA_PROFILE" "${ALFA_NETWORK_ARGS[@]}"
 else
   echo "Profil cabanon absent : $ALFA_PROFILE (aucune modification Wi-Fi effectuée)."
 fi
@@ -96,15 +109,16 @@ if nmcli -t -f NAME connection show | grep -Fxq "$PRIMARY_WIFI_PROFILE"; then
 else
   echo "Profil Wi-Fi principal absent : $PRIMARY_WIFI_PROFILE (aucune modification Wi-Fi effectuée)."
 fi
-sudo tee "$NETWORK_ENV" >/dev/null <<'EOF'
+sudo tee "$NETWORK_ENV" >/dev/null <<EOF
 # Réseaux dédiés à l'installation solaire. Pas de mot de passe dans ce fichier.
 ALFA_DEVICE=wlan2
 ALFA_PROFILE=solaire-cabanon-alfa
-ALFA_ROUTER_HOST=192.168.4.1
-ALFA_PROXY_HOST=192.168.4.2
+ALFA_LOCAL_IP=$ALFA_LOCAL_IP
+ALFA_ROUTER_HOST=$ALFA_ROUTER_HOST
+ALFA_PROXY_HOST=$ALFA_PROXY_HOST
 DTU_DEVICE=wlan1
 DTU_PROFILE=dtu-direct-4p
-DTU_HOST=10.10.100.254
+DTU_HOST=$DTU_HOST
 DTU_USB_RESET_COOLDOWN=1800
 EOF
 sudo chmod 0644 "$NETWORK_ENV"

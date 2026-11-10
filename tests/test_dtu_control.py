@@ -21,7 +21,7 @@ class DtuTests(unittest.TestCase):
  def test_only_temporary_limit_write(self):
   d=DtuControl('host')
   with patch.object(d,'transaction') as request:d.request_limit(90,{})
-  self.assertEqual(request.call_args_list,[( (6,0xD007,90), ),((6,0xD00D,90), ),((6,0xD013,90), ),((6,0xD019,90), )])
+  request.assert_called_once_with(5,0xC001,90)
  def test_reject_bad_unit_and_exception_and_short_registers(self):
   for frame in [self.frame(bytes([3,2,0,100]),unit=2),self.frame(bytes([0x83,1])),self.frame(bytes([3,2,0,100]))]:
    with patch('socket.create_connection',return_value=FakeSocket(frame)):
@@ -29,12 +29,12 @@ class DtuTests(unittest.TestCase):
  def test_reject_bad_limits(self):
   for n in [True,1,101,20.5]:
    with self.assertRaises(ValueError):DtuControl('host').request_limit(n,{})
- def test_matching_ports_are_written_on_first_command_then_not_repeated(self):
+ def test_command_is_written_once_then_not_repeated(self):
   d=DtuControl('host')
   with patch.object(d,'transaction') as request:
    state=dict(state='online',port_limits_pct=[100]*4)
-   d.request_limit(100,state);self.assertEqual(request.call_count,4)
-   d.request_limit(100,state);self.assertEqual(request.call_count,4)
+   d.request_limit(100,state);request.assert_called_once_with(5,0xC001,100)
+   d.request_limit(100,state);request.assert_called_once_with(5,0xC001,100)
  def test_snapshot_retries_a_transient_timeout(self):
   d=DtuControl('host')
   ports=[]

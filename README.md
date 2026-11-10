@@ -1,15 +1,15 @@
 # Boîte noire Hoymiles — DTU Pro-S, Linky & Denky D4 et Shelly Pro EM
 
-**Raspberry Pi : suivi local permanent. Le pilotage de puissance externe est suspendu tant que sa validation matérielle n'est pas achevée.**
+**Raspberry Pi : suivi local permanent de deux installations solaires, sans dépendre du cloud.**
 Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tableau mobile ouvert. Pour une notification même ordinateur éteint, configurer le service extérieur décrit dans ce guide.
 
-> Suivi local du solaire Hoymiles : DTU Pro-S, Linky & Denky D4, Shelly Pro EM et batterie Zendure. Les mesures, historiques et alertes fonctionnent sans cloud. Le pilotage automatique de puissance est actuellement suspendu : il ne doit pas être utilisé avec la gestion des exportations Hoymiles/DDSU.
+> Suivi local du solaire Hoymiles : DTU Pro-S, Linky & Denky D4, Shelly Pro EM, HiFlow et batterie Zendure. Les mesures, historiques, alertes et la vue individuelle des six panneaux fonctionnent sans cloud. Toute régulation de surplus reste locale, optionnelle et ne doit jamais être combinée à la gestion des exportations Hoymiles/DDSU.
 
 [![Version](https://img.shields.io/badge/version-7.0.70-2563eb)](RELEASE_NOTES_7.0.70.md)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-16a34a)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 
-**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/download/v7.0.62/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.66](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
+**[Télécharger l’installateur Raspberry Pi](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz)** · **[Guide Raspberry Pi](raspberry-pi/README.md)** · **[Télécharger pour macOS Apple Silicon](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz)** · **[Télécharger le paquet Windows 7.0.66](https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip)** · [Site du projet](https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/)
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC**, **2-WINDOWS** ou **3-RASPBERRY**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
@@ -27,6 +27,22 @@ Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC**, 
 
 Android et iPhone utilisent la même interface moderne, sans application de magasin. Pour une installation permanente, le Raspberry Pi est recommandé : il collecte et sert les données jour et nuit. Windows ou macOS restent des alternatives de bureau. N'exécutez qu'un seul collecteur à la fois.
 
+## Home Assistant : lecture seule, sans pilotage
+
+Le Raspberry peut aussi transmettre les mesures locales à Home Assistant toutes
+les 30 secondes : production, consommation maison, achat et injection EDF,
+charge/décharge et niveau de batterie, ainsi que l’état du DTU. L’intégration
+est strictement **en lecture seule** : elle ne contient aucun service ni bouton
+capable de limiter les panneaux, modifier la batterie ou changer les réglages
+Hoymiles.
+
+Dans Home Assistant, copiez le fichier
+[`home_assistant/boite_noire_hoymiles.yaml`](home_assistant/boite_noire_hoymiles.yaml),
+définissez l’URL locale du Raspberry dans `secrets.yaml`, puis incluez-le dans
+`configuration.yaml` comme indiqué en tête du fichier. Gardez cette URL sur le
+réseau local ou Tailscale ; ne publiez ni adresse privée, ni mot de passe, ni
+jeton dans GitHub.
+
 ## Choisir la bonne version réseau
 
 | Système | Configuration proposée | Usage |
@@ -34,7 +50,7 @@ Android et iPhone utilisent la même interface moderne, sans application de maga
 | Windows | **Deux connexions Wi-Fi** | Wi-Fi interne vers la box/Denky D4/Shelly et seconde antenne Wi-Fi vers le DTU. |
 | Windows | **Réseau unique nano-routeur/LAN — recommandé** | DTU en Ethernet sur le nano-routeur Client/Pont ; PC, Denky D4 et Shelly sur la box. |
 | macOS Apple Silicon | **Réseau unique nano-routeur/LAN uniquement** | Même réseau pour tous les appareils, sans changement de Wi-Fi sur le Mac. |
-| Raspberry Pi | **Ethernet + deux Wi-Fi USB dédiés** | TP-Link USB 2.0 pour le DTU direct ; Alfa USB 3.0 pour le cabanon solaire ; Ethernet pour le LAN. |
+| Raspberry Pi | **Ethernet + deux Alfa Wi-Fi USB dédiées** | Une Alfa AWUS036NHA pour le Wi-Fi direct du DTU, une Alfa AWUS036NHA pour le cabanon solaire et ses ESP32 ; Ethernet pour le LAN. |
 
 Le choix se fait pendant l’installation Windows. L’installation Mac demande directement l’adresse IP du DTU sur le réseau unique.
 
@@ -48,12 +64,6 @@ Le choix se fait pendant l’installation Windows. L’installation Mac demande 
 À chaque clic sur le raccourci, choisissez **Nouvelle interface web** ou **Ancien logiciel avec sa fenêtre**. Le changement de mode arrête proprement le service invisible afin d’éviter deux collectes simultanées.
 
 Une mise à jour conserve les réglages et historiques existants. Python 3.10 ou plus récent est requis.
-
-## Budget mensuel et Home Assistant
-
-Le tableau web propose un **Budget mensuel** distinct du bilan énergétique : l’achat EDF (HP, HC et abonnement) est séparé de l’apport solaire et de la batterie. L’injection est affichée pour le mois et en cumul depuis le début de l’historique mesuré ; elle n’est jamais valorisée en euros sans tarif de rachat renseigné.
-
-Une intégration Home Assistant locale et **en lecture seule** est fournie dans [home_assistant/boite_noire_hoymiles.yaml](home_assistant/boite_noire_hoymiles.yaml). Elle expose les mesures sans permettre de commander le DTU, les panneaux ou la batterie.
 
 ## Installation macOS Apple Silicon
 
@@ -70,13 +80,13 @@ Le lanceur appelle explicitement Bash et conserve l’identité de l’applicati
 
 ### Autorisation du réseau local sur macOS 15.5 ou plus récent
 
-Si les appareils restent hors ligne avec l’erreur `No route to host` alors qu’ils répondent depuis Terminal, macOS bloque le lanceur communautaire non signé par un compte Apple Developer. La solution officielle Apple consiste à autoriser le sous-réseau Wi-Fi local. Pour une box utilisant des adresses `192.168.1.x`, exécutez dans Terminal :
+Si les appareils restent hors ligne avec l’erreur `No route to host` alors qu’ils répondent depuis Terminal, macOS bloque le lanceur communautaire non signé par un compte Apple Developer. La solution officielle Apple consiste à autoriser le sous-réseau Wi-Fi local :
 
 ```bash
-sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"
+sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "VOTRE_SOUS_RESEAU_LOCAL"
 ```
 
-Le mot de passe ne s’affiche pas pendant la saisie. Redémarrez ensuite complètement le Mac. Cette exception concerne toutes les applications qui accèdent au sous-réseau `192.168.1.x`, pas uniquement Boîte noire Hoymiles. Procédure validée sous macOS 27.0. Voir la [note technique Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
+Le mot de passe ne s’affiche pas pendant la saisie. Redémarrez ensuite complètement le Mac. Cette exception concerne toutes les applications qui accèdent au sous-réseau local, pas uniquement Boîte noire Hoymiles. Procédure validée sous macOS 27.0. Voir la [note technique Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 
 L’installateur place un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Avant chaque mise à jour, il sauvegarde les CSV, JSON et journaux dans `~/Library/Application Support/BoiteNoireHoymiles/Sauvegardes`. Voir le [guide Mac détaillé](macOS-AppleSilicon/README_MAC.md).
 
@@ -98,18 +108,19 @@ Le **[TP-Link TL-WR802N](https://www.tp-link.com/fr/home-networking/wifi-router/
 
 Le DTU peut être joint de deux manières complémentaires :
 
-- **Wi-Fi direct** : une antenne TP-Link dédiée en **USB 2.0** relie le Raspberry directement au Wi-Fi du DTU. Elle reste indépendante du réseau de la maison et fournit une voie de lecture locale.
-- **Modbus TCP sur le LAN** : lorsque le DTU est relié à la box par Ethernet ou par pont Wi-Fi, le Raspberry lit ses données par le port Modbus TCP `502`. Cette voie est utilisée pour le suivi permanent ; les commandes externes de puissance sont suspendues dans cette version.
+- **Wi-Fi direct** : une antenne **Alfa AWUS036NHA** relie le Raspberry au Wi-Fi propre du DTU. Cette voie reste indépendante du réseau de la maison.
+- **Modbus TCP sur le LAN** : le DTU relié à la box par Ethernet et nano-routeur Client/Pont expose ses mesures sur le port `502`. Cette voie locale fournit notamment la puissance des quatre entrées PV du DTU.
 
 > **Important — pas de double régulation.** La gestion Hoymiles **« Gestion des exportations / Limite de puissance d'exportation »** utilise le DDSU/compteur pour réduire les micro-onduleurs. Elle doit rester **désactivée** si des essais de commande Modbus externe sont entrepris. Inversement, si elle est activée, laissez le pilotage externe du logiciel désactivé. Une valeur de limite (même `0,10 kW` ou `1 kW`) n'est pas une simple information : elle active le contrôle Hoymiles.
 
-Le mode **Remote Control / Modbus Protocol** et l’adresse `101` ne doivent être configurés que par une personne qui valide la compatibilité du DTU, des micro-onduleurs et de la mesure réseau. Dans la version courante, le pilotage automatique est volontairement suspendu : le logiciel surveille l'installation mais n'envoie aucune limite de puissance par défaut.
+Le mode **Remote Control / Modbus Protocol** et l’adresse `101` ne doivent être configurés qu’après validation de la compatibilité du DTU, des micro-onduleurs et de la mesure réseau. La régulation locale est optionnelle : elle conserve les dernières consignes et ne les modifie pas lorsque les mesures deviennent absentes, incohérentes ou anciennes.
 
-Sur l’installation Raspberry, l’antenne **Alfa en USB 3.0** est réservée au Wi-Fi solaire du cabanon et à ses ESP32. Elle est donc distincte de la TP-Link USB 2.0 du DTU.
+Sur l’installation Raspberry, les deux Alfa sont affectées séparément : l’une au DTU, l’autre au Wi-Fi solaire du cabanon et à ses ESP32. Le nano-routeur TP-Link est un pont Ethernet/Wi-Fi du DTU, pas une clé USB du Raspberry.
 
 ## Fonctions principales
 
 - production photovoltaïque locale par DTU Pro-S (Wi-Fi direct Windows ou Modbus TCP sur LAN) ;
+- page **Panneaux** : quatre entrées PV Maison lues via Modbus TCP et deux panneaux Cabanon lus localement par proxy Bluetooth ESP32 ;
 - puissance et index HP/HC du Linky par Denky D4 ;
 - deux voies Shelly Pro EM en lecture seule : production et achat/injection réseau ;
 - correction guidée du sens des pinces : production 1, réseau et production 2 peuvent être inversées séparément si une pince a été posée à l’envers ;
@@ -132,6 +143,8 @@ Une pince de courant est directionnelle : elle distingue l’énergie qui entre 
 - alignement réel de la bulle corrigé pour que ce basculement fonctionne effectivement avec Matplotlib ;
 - alerte et cumul de l’injection mesurée par le Shelly.
 - tableau de bord mobile en lecture seule, utilisable sur le Wi-Fi local ou à distance avec Tailscale.
+- capacité réelle de batterie affichée avec le pourcentage (SolarFlow 2400 AC : 5,76 kWh dans l’installation documentée) ;
+- groupes de réglages IP et sens des pinces protégés optionnellement par un mot de passe local, sans politique de complexité imposée ;
 - âge visible de la dernière mesure et état direct, retardé ou ancien sur mobile ;
 - provenance des valeurs : production DTU réelle, secours Shelly, données partielles ou absentes ;
 - analyse mensuelle de la qualité des données et simulation de batteries 2, 5, 7 et 10 kWh ;
@@ -210,7 +223,7 @@ La version 7.0.62 démarre la nouvelle interface web sur le port `8765`. Elle re
 4. Hors de la maison, ouvrez `http://IP_TAILSCALE_DU_RASPBERRY:8765/`. L’adresse privée Tailscale commence généralement par `100.` et reste stable.
 5. Sur Raspberry, obtenez cette adresse avec `tailscale ip -4`. Sur Android, Chrome → menu `⋮` → **Installer l’application** ou **Ajouter à l’écran d’accueil** crée un bouton « Mon solaire ».
 
-Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky & Denky D4, l’état des trois appareils et les dernières heures sous forme de graphique. Il est en lecture seule : le pilotage automatique de puissance est suspendu dans cette version.
+Le tableau affiche la production, la consommation réelle calculée avec le Shelly, le soutirage ou l’injection, la mesure Linky & Denky D4, l’état des appareils et les dernières heures sous forme de graphique. La page **Panneaux** sépare l’installation Maison (quatre entrées PV du DTU) de l’installation Cabanon (deux panneaux HiFlow via ESP32). La régulation de surplus, lorsqu’elle est explicitement activée, reste locale et soumise aux sécurités de fraîcheur des mesures.
 
 L’âge de la mesure est contrôlé indépendamment de la connexion au serveur : vert jusqu’à 90 secondes, orange en cas de retard et rouge lorsque les données sont anciennes. La source de production et la qualité de la mesure sont également indiquées.
 
@@ -297,9 +310,9 @@ Voir [les notes de la version 7.0.54](RELEASE_NOTES_7.0.54.md). Le suivi Zendure
 
 Le suivi batterie propose désormais **Plein à 100 % et surplus après charge** : heure du premier plein observé, injection nette après le plein, fin solaire estimée si toutes les productions sont mesurées, couverture et export quotidien CSV. Voir les notes de version.
 
-## Pilotage de puissance : suspendu en attendant validation
+## Pilotage de puissance : local, optionnel et à valider
 
-Le suivi, les courbes, les bilans et les alertes ne commandent jamais la batterie Zendure, les relais Shelly ou les paramètres Hoymiles. La fonction de limitation automatique des micro-onduleurs est **suspendue** dans cette version : un acquittement Modbus ne constitue pas une preuve que la puissance a réellement changé.
+Le suivi, les courbes, les bilans et les alertes ne commandent jamais la batterie Zendure ni les relais Shelly. Une limitation locale des micro-onduleurs peut être activée seulement après validation de la lecture Modbus et de la mesure réseau. Un acquittement Modbus ne suffit pas à prouver que la puissance a réellement changé : surveillez toujours la limite lue, la production et le flux réseau. N’activez jamais en parallèle la gestion des exportations Hoymiles/DDSU et le contrôleur local.
 
 Avant toute réactivation future, l'installation devra démontrer, sur les mesures indépendantes du Shelly, que chaque consigne est appliquée puis que le retour à 100 % est effectif. Le contrôleur devra aussi se libérer complètement pour la maintenance S-Miles et refuser toute activation lorsque la gestion des exportations Hoymiles/DDSU est active.
 

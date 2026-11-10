@@ -235,38 +235,45 @@ def _clean_number(value):
     return number if math.isfinite(number) else None
 
 
-
 def home_assistant_payload(current):
-    """Return a small, stable, read-only view for Home Assistant."""
+    """Return a small, stable, read-only view for Home Assistant.
+
+    The dashboard status contains operational details that can change with the
+    interface.  Home Assistant instead consumes this deliberately small schema:
+    only measurements and connection states, never a control or credential.
+    """
     current = current if isinstance(current, dict) else {}
-    battery_charge = _clean_number(current.get("battery_ac_charge_w"))
+    battery_charge = _clean_number(current.get('battery_ac_charge_w'))
     if battery_charge is None:
-        battery_charge = _clean_number(current.get("battery_charge_w"))
-    battery_discharge = _clean_number(current.get("battery_ac_discharge_w"))
+        battery_charge = _clean_number(current.get('battery_charge_w'))
+    battery_discharge = _clean_number(current.get('battery_ac_discharge_w'))
     if battery_discharge is None:
-        battery_discharge = _clean_number(current.get("battery_discharge_w"))
-    quality = str(current.get("quality") or "missing")
-    timestamp = current.get("timestamp")
+        battery_discharge = _clean_number(current.get('battery_discharge_w'))
+    quality = str(current.get('quality') or 'missing')
+    timestamp = current.get('timestamp')
     return {
-        "schema_version": 1,
-        "timestamp": timestamp,
-        "available": bool(timestamp and quality != "missing"),
-        "quality": quality,
-        "power": {
-            "solar_w": _clean_number(current.get("production_w")),
-            "home_w": _clean_number(current.get("consumption_w")),
-            "grid_import_w": _clean_number(current.get("import_w")),
-            "grid_export_w": _clean_number(current.get("export_w")),
-            "battery_charge_w": battery_charge,
-            "battery_discharge_w": battery_discharge,
+        'schema_version': 1,
+        'timestamp': timestamp,
+        'available': bool(timestamp and quality != 'missing'),
+        'quality': quality,
+        'power': {
+            'solar_w': _clean_number(current.get('production_w')),
+            'home_w': _clean_number(current.get('consumption_w')),
+            'grid_import_w': _clean_number(current.get('import_w')),
+            'grid_export_w': _clean_number(current.get('export_w')),
+            'battery_charge_w': battery_charge,
+            'battery_discharge_w': battery_discharge,
         },
-        "battery": {"soc_pct": _clean_number(current.get("battery_soc_pct"))},
-        "devices": {
-            "dtu": str(current.get("dtu_state") or "unknown"),
-            "linky": str(current.get("linky_state") or "unknown"),
-            "shelly": str(current.get("shelly_state") or "unknown"),
+        'battery': {
+            'soc_pct': _clean_number(current.get('battery_soc_pct')),
+        },
+        'devices': {
+            'dtu': str(current.get('dtu_state') or 'unknown'),
+            'linky': str(current.get('linky_state') or 'unknown'),
+            'shelly': str(current.get('shelly_state') or 'unknown'),
         },
     }
+
 
 def _is_this_computer(address):
     """True lorsque le navigateur tourne sur le même ordinateur que le suivi."""
@@ -387,11 +394,8 @@ class MobileDashboard:
                     return
                 if path == "/api/home-assistant":
                     payload = dashboard.status_payload()
-                    body = json.dumps(
-                        home_assistant_payload(payload.get("current")),
-                        ensure_ascii=False,
-                        allow_nan=False,
-                    ).encode("utf-8")
+                    body = json.dumps(home_assistant_payload(payload.get('current')),
+                                      ensure_ascii=False, allow_nan=False).encode("utf-8")
                     self._send(body, "application/json; charset=utf-8")
                     return
                 if path == "/manifest.webmanifest":
@@ -426,7 +430,21 @@ class MobileDashboard:
                 if urlparse(self.path).path != '/api/action':
                     self.send_error(404); return
                 if not secrets.compare_digest(self.headers.get('X-Action-Token',''),dashboard.csrf):
-                    self.send_error(403); return
+                    # Le tableau peut rester ouvert pendant un redémarrage du
+                    # service. Dans ce cas son jeton est devenu obsolète :
+                    # répondre en JSON permet à l'interface d'expliquer quoi
+                    # faire au lieu d'essayer d'analyser une page HTML 403.
+                    self.send_response(403)
+                    body = json.dumps({
+                        'error': 'La page a expiré après un redémarrage du Raspberry. Rechargez-la puis réessayez.'
+                    }, ensure_ascii=False).encode('utf-8')
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Cache-Control', 'no-store')
+                    self.send_header('X-Content-Type-Options', 'nosniff')
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 origin = self.headers.get('Origin')
                 if origin and urlparse(origin).netloc != self.headers.get('Host'):
                     self.send_error(403); return

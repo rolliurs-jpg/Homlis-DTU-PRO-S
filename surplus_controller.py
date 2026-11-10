@@ -25,6 +25,9 @@ class SurplusController:
         # Après une perte de liaison, la reprise doit être automatique mais
         # prudente : deux minutes de mesures complètes avant toute commande.
         self._awaiting_measurements = False
+        # Dernier état DTU connu. Il est conservé pour l'affichage lorsque
+        # la régulation est arrêtée, sans maintenir de trafic Modbus.
+        self._last_dtu_snapshot = {}
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._state = {}
@@ -91,7 +94,7 @@ class SurplusController:
             else:
                 self.full_since = None
         result['battery_full_confirmed'] = self.full
-        if self.dtu:
+        if self.dtu and self.enabled:
             d = s.get('dtu', {})
             try:
                 if d['state'] != 'online' or not 0 <= now-d['timestamp'] <= 45:
@@ -121,7 +124,7 @@ class SurplusController:
                 target = p['limit_pct']+(s['grid_w']-30)/self.rated_w*100
             result.update(hms1000_limit_pct=max(1, min(100, round(target))),
                           reason='Batterie pleine ou en finition : régulation des deux panneaux du HMS.')
-        if self.dtu and self.full:
+        if self.dtu and self.enabled and self.full:
             if abs(s['grid_w']-30) <= 15:
                 a, z = p['limit_pct'], d['limit_pct']
             elif s['grid_w'] < 15:
@@ -135,7 +138,8 @@ class SurplusController:
                 a, z = p['limit_pct']+step, d['limit_pct']+step
             result.update(hms1000_limit_pct=max(1,min(100,round(a))), dtu_limit_pct=max(2,min(100,round(z))),
                           reason='Batterie pleine ou en finition : régulation des six panneaux.')
-        result['uncontrolled_surplus_w'] = round(max(0, -s['grid_w']-p['power_w']-(d['power_w'] if self.dtu else 0)), 1)
+        dtu_power = d['power_w'] if self.dtu and self.enabled else 0
+        result['uncontrolled_surplus_w'] = round(max(0, -s['grid_w']-p['power_w']-dtu_power), 1)
         if result['uncontrolled_surplus_w'] > 30:
             result['reason'] += ' Surplus des autres panneaux non pilotés.'
         return result
@@ -162,7 +166,7 @@ class SurplusController:
                                controlled_panels=direct_panels, native_panels=self.native_panels,
                                managed_panels=direct_panels + self.native_panels,
                                hms1000_limit_pct=100, dtu_limit_pct=100 if self.dtu else None,
-                               reason="Confirmation des mesures en cours (2 min) : limites actuelles conservées." if enabled else "Gestion arrêtée : retour à 100 % demandé.")
+                               reason="Validation des mesures pendant 2 min : limites actuelles conservées." if enabled else "Gestion arrêtée : retour à 100 % demandé.")
 
     def network_gate(self, result, now):
         """Réarme automatiquement la régulation après le retour des liaisons."""
@@ -175,7 +179,7 @@ class SurplusController:
         if self._awaiting_measurements:
             self._awaiting_measurements = False
             self.hold_until = now + 120
-            result['reason'] = 'Panneaux connectés : le système est rétabli. La régulation attend 2 min de mesures cohérentes avant de reprendre ; aucune commande envoyée d’ici là.'
+            result['reason'] = 'Liaisons rétablies : validation des mesures pendant 2 min avant reprise automatique.'
             return True
         return now < self.hold_until
 
@@ -190,8 +194,11 @@ class SurplusController:
         while not self._stop.is_set():
             try:
                 sample = self.sample()
-                if self.dtu:
-                    sample['dtu'] = self.dtu.snapshot()
+                if self.dtu and self.enabled:
+                    self._last_dtu_snapshot = self.dtu.snapshot()
+                    sample['dtu'] = self._last_dtu_snapshot
+                elif self.dtu:
+                    sample['dtu'] = dict(self._last_dtu_snapshot)
             except Exception:
                 sample = {}
             with self._lock:
@@ -200,14 +207,8 @@ class SurplusController:
                 target = result.get('hms1000_limit_pct')
                 hold = self.network_gate(result, now)
                 if hold:
-                    # Le tableau affiche le temps restant : la lecture est revenue,
-                    # mais aucune consigne n'est envoyée avant la fin de la validation.
-                    remaining = max(0, math.ceil(self.hold_until - now))
-                    if remaining:
-                        result['stability_remaining_seconds'] = remaining
-                        result['stability_total_seconds'] = 120
-                    if not result.get('write_hold') and not result.get('reason', '').startswith('Panneaux connectés'):
-                        result['reason'] = 'Panneaux connectés : confirmation des mesures en cours avant reprise automatique (2 min) ; aucune commande envoyée d’ici là.'
+                    if not result.get('write_hold') and not result.get('reason', '').startswith('Liaisons rétablies'):
+                        result['reason'] = 'Connexion rétablie : délai de stabilité de 2 min avant reprise, aucune commande envoyée.'
                     result['write_hold'] = True
                 suppress_writes = hold or bool(result.get('write_hold'))
                 if self.enabled and not suppress_writes and target is not None:
@@ -228,7 +229,7 @@ class SurplusController:
                         except Exception as exc:
                             detail = str(exc).strip()
                             result['dtu_command_error'] = type(exc).__name__ + (': ' + detail if detail else '')
-                            result['reason'] += ' Le DTU n’a pas confirmé sa dernière consigne : les deux panneaux HMS restent provisoirement à 100 %, sans réduire la production. Une nouvelle vérification sera faite automatiquement.'
+                            result['reason'] += ' Commande DTU non confirmée ; retour du HMS à 100 % demandé.'
                             self.proxy.request_limit(100)
                             # Un refus du DTU ne signifie pas que la batterie
                             # a cessé d'être pleine. Conserver cet état permet
@@ -236,4 +237,4 @@ class SurplusController:
                             # est à nouveau acceptée, sans attendre un nouveau
                             # cycle complet de charge.
                 self._state = result
-            self._stop.wait(15)
+            self._stop.wait(30)

@@ -12,7 +12,7 @@ from pathlib import Path
 
 def amount(value: str, label: str) -> float:
     try:
-        result = float(value.replace(",", "."))
+        result = float(value.replace(',', '.'))
     except (AttributeError, ValueError) as exc:
         raise SystemExit(f"{label} doit être un nombre.") from exc
     if not 0 <= result <= 100:

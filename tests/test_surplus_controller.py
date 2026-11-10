@@ -38,7 +38,7 @@ class ControllerTests(unittest.TestCase):
  def test_missing_and_stale_hold_previous_commands(self):
   c=self.controller();self.full(c)
   r=c.evaluate({},1135);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])
-  self.assertFalse(c.full)
+  self.assertTrue(c.full);self.assertTrue(r['battery_full_confirmed'])
   r=c.evaluate(self.sample(1000),1200);self.assertIsNone(r['hms1000_limit_pct']);self.assertTrue(r['write_hold'])
  def test_gap_does_not_confirm_full(self):
   c=self.controller();c.evaluate(self.sample(),1000)

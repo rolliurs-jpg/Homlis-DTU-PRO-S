@@ -85,79 +85,6 @@ def integrate(points, key, start, end):
     return (energy if seconds else None), seconds
 
 
-def hc_windows(value):
-    """Lit les plages HC saisies sous la forme 22:00-06:00,13:00-15:00."""
-    windows = []
-    for item in str(value or '').split(','):
-        try:
-            left, right = (part.strip() for part in item.split('-', 1))
-            start_h, start_m = (int(part) for part in left.split(':', 1))
-            end_h, end_m = (int(part) for part in right.split(':', 1))
-            start_minute, end_minute = start_h * 60 + start_m, end_h * 60 + end_m
-            if 0 <= start_minute < 1440 and 0 <= end_minute < 1440:
-                windows.append((start_minute, end_minute))
-        except (TypeError, ValueError):
-            continue
-    return windows
-
-
-def is_hc(when, windows):
-    minute = when.hour * 60 + when.minute
-    return any(
-        start <= minute < end if start < end else minute >= start or minute < end
-        for start, end in windows
-    )
-
-
-def detailed_energy(points, start, end, hp_rate, hc_rate, hc_ranges):
-    """Estime les kWh qui couvrent directement la maison, sans double compte."""
-    result = dict(solar_direct_hp_kwh=0.0, solar_direct_hc_kwh=0.0,
-                  battery_hp_kwh=0.0, battery_hc_kwh=0.0,
-                  solar_seconds=0.0, battery_seconds=0.0,
-                  solar_first_stamp=None, solar_last_stamp=None)
-    windows = hc_windows(hc_ranges)
-    for a, b in zip(points, points[1:]):
-        left, right = a['stamp'], b['stamp']
-        if not 0 < right - left <= 180:
-            continue
-        lo, hi = max(start, left), min(end, right)
-        if hi <= lo:
-            continue
-        values = {}
-        for key in ('production_w', 'consumption_w', 'battery_ac_discharge_w'):
-            first, second = number(a.get(key)), number(b.get(key))
-            values[key] = None if first is None or second is None else max(0.0, (first + second) / 2)
-        if values['production_w'] is None or values['consumption_w'] is None:
-            continue
-        direct_solar = min(values['production_w'], values['consumption_w'])
-        duration = hi - lo
-        energy = direct_solar * duration / 3_600_000
-        target = 'hc' if is_hc(datetime.fromtimestamp((lo + hi) / 2), windows) else 'hp'
-        result[f'solar_direct_{target}_kwh'] += energy
-        result['solar_seconds'] += duration
-        result['solar_first_stamp'] = lo if result['solar_first_stamp'] is None else min(result['solar_first_stamp'], lo)
-        result['solar_last_stamp'] = hi if result['solar_last_stamp'] is None else max(result['solar_last_stamp'], hi)
-        if values['battery_ac_discharge_w'] is not None:
-            battery = min(values['battery_ac_discharge_w'], max(0.0, values['consumption_w'] - direct_solar))
-            result[f'battery_{target}_kwh'] += battery * duration / 3_600_000
-            result['battery_seconds'] += duration
-    solar_kwh = result['solar_direct_hp_kwh'] + result['solar_direct_hc_kwh']
-    battery_kwh = result['battery_hp_kwh'] + result['battery_hc_kwh']
-    result['solar_direct_kwh'] = solar_kwh if result['solar_seconds'] else None
-    result['battery_covered_kwh'] = battery_kwh if result['battery_seconds'] else None
-    if hp_rate is not None and hc_rate is not None and hp_rate > 0 and hc_rate > 0:
-        result['solar_gain_hp_eur'] = result['solar_direct_hp_kwh'] * hp_rate
-        result['solar_gain_hc_eur'] = result['solar_direct_hc_kwh'] * hc_rate
-        result['solar_gain_eur'] = result['solar_gain_hp_eur'] + result['solar_gain_hc_eur']
-        result['battery_gain_hp_eur'] = result['battery_hp_kwh'] * hp_rate
-        result['battery_gain_hc_eur'] = result['battery_hc_kwh'] * hc_rate
-        result['battery_gain_eur'] = result['battery_gain_hp_eur'] + result['battery_gain_hc_eur']
-    else:
-        result.update(solar_gain_hp_eur=None, solar_gain_hc_eur=None, solar_gain_eur=None,
-                      battery_gain_hp_eur=None, battery_gain_hc_eur=None, battery_gain_eur=None)
-    return result
-
-
 def index_energy(rows, start, end):
     """Only intervals entirely within the requested period. Resets are excluded.
 
@@ -184,91 +111,6 @@ def index_energy(rows, start, end):
     return dict(hc_kwh=hc if seconds else None, hp_kwh=hp if seconds else None,
                 import_kwh=hc+hp if seconds else None, seconds=seconds,
                 first=first, last=last, complete=bool(seconds and end-start-seconds <= 180))
-
-
-
-def manual_edf_history(config, hp_rate, hc_rate, linky_rows, now):
-    """Base EDF déclarée, prolongée uniquement par les index locaux postérieurs."""
-    declared = config.get('historique_edf', {})
-    base_hp, base_hc = number(declared.get('hp_kwh')), number(declared.get('hc_kwh'))
-    start_date, as_of_date = str(declared.get('start_date') or ''), str(declared.get('as_of_date') or '')
-    if base_hp is None or base_hc is None or base_hp < 0 or base_hc < 0:
-        return None
-    local_hp = local_hc = 0.0
-    automatic_from = ''
-    try:
-        # Le relevé déclaré inclut toute sa journée ; la collecte locale reprend le lendemain.
-        automatic_start = datetime.strptime(as_of_date, '%Y-%m-%d') + timedelta(days=1)
-        automatic_from = automatic_start.date().isoformat()
-        if now > automatic_start:
-            local = index_energy(linky_rows, automatic_start.timestamp(), now.timestamp())
-            local_hp = local['hp_kwh'] or 0.0
-            local_hc = local['hc_kwh'] or 0.0
-    except ValueError:
-        automatic_from = ''
-    hp_kwh, hc_kwh = base_hp + local_hp, base_hc + local_hc
-    energy_cost = None
-    if hp_rate is not None and hc_rate is not None and hp_rate > 0 and hc_rate > 0:
-        energy_cost = hp_kwh * hp_rate + hc_kwh * hc_rate
-    subscription = None
-    try:
-        first_day = datetime.strptime(start_date, '%Y-%m-%d').date()
-        daily_fee = number(config.get('tarifs_edf', {}).get('abonnement_journalier_eur'))
-        if daily_fee is not None and daily_fee >= 0 and now.date() >= first_day:
-            subscription = ((now.date() - first_day).days + 1) * daily_fee
-    except ValueError:
-        pass
-    total_cost = None if energy_cost is None or subscription is None else energy_cost + subscription
-    return dict(
-        start_date=start_date, as_of_date=as_of_date, automatic_from=automatic_from,
-        base_hp_kwh=base_hp, base_hc_kwh=base_hc,
-        local_hp_kwh=local_hp, local_hc_kwh=local_hc,
-        hp_kwh=hp_kwh, hc_kwh=hc_kwh, import_kwh=hp_kwh + hc_kwh,
-        energy_cost=energy_cost, subscription=subscription, total_cost=total_cost,
-        source='Base EDF déclarée, prolongée par les index Denky/Linky du Raspberry.',
-    )
-
-def hoymiles_cloud_history(config):
-    """Totaux mensuels exportés par S-Miles, affichés sans les mêler au Raspberry."""
-    history = config.get('historique_hoymiles', {})
-    months = history.get('months', []) if isinstance(history, dict) else []
-    totals = dict(production_kwh=0.0, export_kwh=0.0, import_kwh=0.0,
-                  consumption_kwh=0.0, months=[])
-    for item in months:
-        if not isinstance(item, dict):
-            continue
-        month = str(item.get('month') or '')
-        values = {key: number(item.get(key)) for key in
-                  ('production_kwh', 'export_kwh', 'import_kwh', 'consumption_kwh')}
-        if not month or any(value is None or value < 0 for value in values.values()):
-            continue
-        totals['months'].append(dict(month=month, **values))
-        for key, value in values.items():
-            totals[key] += value
-    if not totals['months']:
-        return None
-    totals['months'].sort(key=lambda item: item['month'])
-    totals['from_month'] = totals['months'][0]['month']
-    totals['to_month'] = totals['months'][-1]['month']
-    totals['source'] = str(history.get('source') or 'Export S-Miles Cloud')
-    return totals
-
-def cumulative_grid_export(rows, config):
-    """Integrate only the measured export since the first saved sample."""
-    if not bool(config.get('shelly', {}).get('enabled')):
-        return None
-    points = []
-    export_positive = bool(config.get('shelly', {}).get('grid_export_positive'))
-    for row in rows:
-        grid = number(row.get('shelly_b_w'))
-        if grid is None:
-            continue
-        if export_positive:
-            grid = -grid
-        points.append({'stamp': row['stamp'], 'export_w': max(0.0, -grid)})
-    if len(points) < 2:
-        return None
-    return integrate(points, 'export_w', points[0]['stamp'], points[-1]['stamp'])[0]
 
 
 def compress_history(points, count=240):
@@ -355,39 +197,44 @@ class DashboardData:
                                import_w=None if grid is None else max(0,grid),
                                export_w=None if grid is None else max(0,-grid),
                                battery_charge_w=number(b.get('charge_w')),
-                               battery_discharge_w=number(b.get('discharge_w')),
-                               battery_ac_discharge_w=number(b.get('ac_discharge_w'))))
+                               battery_discharge_w=number(b.get('discharge_w'))))
         production, pv_seconds = integrate(points,'production_w',start,end)
-        consumption, consumption_seconds = integrate(points,'consumption_w',start,end)
+        consumption, consumption_seconds = integrate(points, 'consumption_w', start, end)
         exported, grid_seconds = integrate(points,'export_w',start,end)
-        exported_total = cumulative_grid_export(rows, cfg)
-        linky_rows = dated_rows(self.base/'linky_index_log.csv') if enabled('linky') else []
-        billing = index_energy(linky_rows,start,end)
+        billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
         tariffs = cfg.get('tarifs_edf',{})
         hp_rate, hc_rate = number(tariffs.get('hp_eur_kwh')),number(tariffs.get('hc_eur_kwh'))
         energy_cost = None
         if billing['import_kwh'] is not None and hp_rate is not None and hc_rate is not None and hp_rate>0 and hc_rate>0:
             energy_cost = billing['hp_kwh']*hp_rate+billing['hc_kwh']*hc_rate
+        # Energy not bought from EDF is useful for a monthly budget, but it is
+        # deliberately kept separate from solar production: it can include a
+        # discharge of the battery charged on an earlier day.
+        local_energy = None
+        avoided_cost = None
+        if consumption is not None and billing['import_kwh'] is not None:
+            local_energy = max(0.0, consumption-billing['import_kwh'])
+            if energy_cost is not None and billing['import_kwh'] > 0:
+                avoided_cost = local_energy*energy_cost/billing['import_kwh']
+        solar_after_export = None
+        if production is not None and exported is not None:
+            solar_after_export = max(0.0, production-exported)
         # Calendar days, not DST-dependent 24-hour intervals.
         days = (end_dt.date()-start_dt.date()).days + (0 if end_dt.time()==datetime.min.time() else 1)
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
         subscription = None if daily_fee is None else max(0,days)*daily_fee
-        declared_edf = manual_edf_history(cfg, hp_rate, hc_rate, linky_rows, now)
-        cloud_history = hoymiles_cloud_history(cfg)
         totals = self.battery.totals(start,end)
-        detail = detailed_energy(points, start, end, hp_rate, hc_rate, tariffs.get('plages_hc'))
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
                     updated_at=now.isoformat(timespec='seconds'), production_kwh=production,
-                    consumption_kwh=consumption, consumption_seconds=consumption_seconds,
-                    production_complete=complete, export_kwh=exported, export_total_kwh=exported_total, pv_seconds=pv_seconds,
+                    production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
                     grid_seconds=grid_seconds, billing=billing, energy_cost=energy_cost,
                     subscription=subscription, total_cost=None if energy_cost is None or subscription is None else energy_cost+subscription,
+                    consumption_kwh=consumption, consumption_seconds=consumption_seconds,
+                    local_energy_kwh=local_energy, avoided_cost_eur=avoided_cost,
+                    solar_after_export_kwh=solar_after_export,
                     tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate),
                     battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
-                    detailed_energy=detail,
-                    declared_edf=declared_edf,
-                    cloud_history=cloud_history,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
                     source='Index Linky enregistrés ; intervalles à cheval sur la période exclus. Les relevés EDF manuels restent accessibles dans les outils classiques.')
 
@@ -450,13 +297,13 @@ class DashboardData:
             pass
 
         links = (
-            ('wlan1', 'Alfa AWUS036NHA — Wi-Fi DTU',
+            ('wlan1', 'Alfa AWUS036NHA — Wi-Fi direct DTU',
              'Liaison Wi-Fi directe vers le DTU',
-             ('TP-Link / Livebox : 192.168.1.205', 'DTU local : 10.10.100.254')),
+             ('TP-Link / réseau local', 'DTU local')),
             ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',
              'USB 3.0 obligatoire · liaison Wi-Fi vers le cabanon',
              ('Clé USB : aucune adresse Livebox propre',
-              'Routeur ESP : 192.168.4.1', 'Proxy Hoymiles : 192.168.4.2')),
+              'Routeur ESP', 'Proxy Hoymiles')),
         )
         result = []
         for interface, name, role, references in links:

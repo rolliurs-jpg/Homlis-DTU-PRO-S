@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Suivi solaire Hoymiles local | DTU Pro-S, Linky, Shelly, Zendure</title>
-  <meta name="description" content="Tableau solaire local pour Hoymiles DTU Pro-S : production photovoltaïque, Linky/Denky D4, Shelly Pro EM, batterie Zendure SolarFlow, autoconsommation et injection EDF.">
-  <meta name="keywords" content="suivi solaire Hoymiles, Hoymiles DTU Pro-S, DTU-Pro S, production photovoltaïque locale, autoconsommation, injection EDF, Linky, Denky D4, téléinformation TIC, Shelly Pro EM, Shelly EM Gen3, Zendure SolarFlow 2400 AC, Zendure Smart Meter, Raspberry Pi, Home Assistant, Modbus TCP">
+  <title>Suivi solaire Hoymiles | DTU Pro-S, Zendure, Denky D4</title>
+  <meta name="description" content="Suivi solaire local Hoymiles : DTU Pro-S, Linky &amp; Denky D4, Shelly, HiFlow et Zendure. Six panneaux lus individuellement sans cloud.">
+  <meta name="keywords" content="suivi solaire Hoymiles, DTU Pro-S Modbus TCP, Wi-Fi direct DTU, batterie Zendure, Shelly Pro EM, Linky, Denky D4, téléinformation, autoconsommation photovoltaïque">
   <link rel="canonical" href="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta name="author" content="Communauté Boîte noire Hoymiles">
   <meta name="robots" content="index,follow">
@@ -15,20 +15,6 @@
   <meta property="og:description" content="Suivi local du solaire : DTU Pro-S, Linky &amp; Denky D4, Shelly Pro EM et Zendure.">
   <meta property="og:url" content="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/">
   <meta property="og:image" content="assets/tableau-web-raspberry-20261017.png">
-  <script type="application/ld+json">
-  {
-    "@context":"https://schema.org",
-    "@type":"SoftwareApplication",
-    "name":"Boîte noire Hoymiles",
-    "applicationCategory":"UtilitiesApplication",
-    "operatingSystem":"Raspberry Pi OS, Windows, macOS",
-    "inLanguage":"fr-FR",
-    "url":"https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/",
-    "downloadUrl":"https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases",
-    "description":"Suivi solaire local pour Hoymiles DTU Pro-S, Linky et Denky D4, Shelly Pro EM et batterie Zendure SolarFlow.",
-    "isAccessibleForFree":true
-  }
-  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -38,7 +24,6 @@
       <div class="nav-links">
         <a href="#fonctionnalites">Fonctions</a>
         <a href="#economies">Économies</a>
-        <a href="#compatibilite">Compatibilité</a>
         <a href="#choisir">Mon installation</a>
         <a href="#installation">Installation</a>
         <a href="#alarmes">Alarmes</a>
@@ -53,7 +38,7 @@
       <p class="lead">Boîte noire Hoymiles rassemble la production, la maison, la batterie et le réseau EDF dans un tableau privé. Choisissez uniquement les équipements que vous possédez : le logiciel s’adapte à votre installation.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/3-RASPBERRY-Hoymiles-7.0.66-INSTALLATEUR.tar.gz">Télécharger Raspberry Pi</a>
-        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/download/v7.0.62/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">Télécharger Mac</a>
+        <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/1-MAC-Hoymiles-7.0.62-INSTALLATEUR.tar.gz">Télécharger Mac</a>
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip">Télécharger Windows</a>
         <a class="button secondary" href="#choisir">Voir mon installation</a>
         <a class="button secondary" href="#installation">Guide d’installation</a>
@@ -78,19 +63,18 @@
       <p class="eyebrow blue">UNE VUE FIABLE DE L’INSTALLATION</p>
       <h2>Production PV, consommation réelle et écart DDSU.</h2>
       <p>Le logiciel rend lisibles les données qui comptent : production DTU, indication DDSU666, soutirage Linky &amp; Denky D4 et flux réseau signé mesuré indépendamment par le Shelly.</p>
-      <p><strong>Une hiérarchie claire des mesures :</strong> le Shelly mesure localement les flux instantanés achat/injection et le Denky D4 lit les index Linky HP/HC. Ces sources locales sont prioritaires pour le tableau et le budget. Les exports S‑Miles/Hoymiles peuvent compléter un historique antérieur, mais restent affichés séparément. Si le relevé EDF officiel diffère, il est conservé comme référence de facturation : aucune estimation Hoymiles ne l’écrase.</p>
       <div class="cards">
         <article class="card"><span>01</span><h3>Suivi local DTU Pro-S</h3><p>Lecture en Wi-Fi direct ou Modbus TCP ; contrôle externe possible après activation Remote Control / Modbus.</p></article>
         <article class="card"><span>02</span><h3>Linky &amp; Denky D4</h3><p>Puissance instantanée et index heures pleines / heures creuses par Téléinfo.</p></article>
         <article class="card"><span>03</span><h3>Shelly Pro EM indépendant</h3><p>Deux voies optionnelles pour comparer la production et mesurer l’achat ou l’injection au réseau.</p></article>
         <article class="card"><span>04</span><h3>Preuves d’injection</h3><p>Alerte temporisée, cumul Wh/kWh, journal CSV et résumé texte pour le support Hoymiles.</p></article>
         <article class="card"><span>05</span><h3>Tableau mobile privé</h3><p>Production, consommation, injection et état des appareils depuis le Wi-Fi local ou à distance avec Tailscale.</p></article>
-        <article class="card"><span>06</span><h3>Budget mensuel</h3><p>EDF séparé du solaire et de la batterie : HP, HC, abonnement, injection et économies mesurées.</p></article>
+        <article class="card"><span>06</span><h3>Rapport et batterie</h3><p>Qualité et provenance des mesures, rapport mensuel PDF et historique réel de charge et de décharge de la batterie.</p></article>
       </div>
     </section>
 
     <section id="economies" class="section split-section">
-      <div><p class="eyebrow blue">DE L’ÉNERGIE AUX EUROS</p><h2>Comparer séparément EDF, solaire et batterie.</h2><p>Le budget mensuel distingue l’achat EDF — heures pleines, heures creuses et abonnement — de l’énergie apportée localement par le solaire et la batterie. L’injection et son cumul restent séparés : ils ne sont pas présentés comme une économie sans tarif de rachat configuré.</p><p>Les économies affichées reposent sur les kWh mesurés et les tarifs HP / HC renseignés. En cas de trou de mesure ou d’index Linky absent, le logiciel affiche une donnée indisponible plutôt qu’un montant inventé.</p></div>
+      <div><p class="eyebrow blue">DE L’ÉNERGIE AUX EUROS</p><h2>Voir ce qui est produit, acheté et injecté — puis l’exprimer en euros.</h2><p>Le tableau affiche d’abord les puissances instantanées pour comprendre ce qui se passe maintenant. Les bilans utilisent ensuite les kWh réellement mesurés afin de suivre l’énergie achetée, injectée et chargée dans la batterie.</p><p>Avec Linky et Denky D4, le coût EDF repose sur les index heures pleines / heures creuses. Sans Linky, le logiciel reste utile : il présente les mesures disponibles sans inventer une économie.</p></div>
       <ol class="steps">
         <li><strong>Maintenant</strong><span>Production, consommation, achat ou injection en watts.</span></li>
         <li><strong>Sur la période</strong><span>Énergie en kWh à partir des mesures enregistrées, sans extrapoler les trous de données.</span></li>
@@ -134,38 +118,20 @@
     </section>
 
     <section class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">SUIVI, BILAN ET ÉCONOMIES</p><h2>Comprendre les watts, les kWh et les euros.</h2></div><p>Du direct au bilan complet : production, réseau, coût EDF, abonnement, batterie et économies locales restent lisibles, source par source.</p></div>
+      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky &amp; Denky D4, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
       <div class="screen-gallery" data-screen-gallery>
         <a class="screen-gallery-stage" href="assets/tableau-web-raspberry-20261017.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture Tableau en direct à sa taille réelle">
           <img src="assets/tableau-web-raspberry-20261017.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne">
         </a>
         <div class="screen-gallery-controls" role="tablist" aria-label="Fenêtres du tableau web">
           <button type="button" role="tab" aria-selected="true" data-src="assets/tableau-web-raspberry-20261017.png" data-alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne" data-label="Tableau en direct">Tableau en direct</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-web-exemple.svg" data-alt="Aperçu anonymisé de la page Batterie web : niveau, charge, décharge et énergie quotidienne" data-label="Batterie web">Batterie web</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-cycle-avec-mesures-20261017.png" data-alt="Cycle batterie avec heure de batterie pleine et heure de prise de relais par la batterie" data-label="Cycle batterie">Cycle batterie</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-cycle-avec-mesures-20261017.png" data-alt="Cycle batterie avec heure de batterie pleine et heure de prise de relais par la batterie" data-label="Batterie et cycle">Batterie et cycle</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/equipements-web-public.png" data-alt="Page Équipements : les sources de mesure et leur état de connexion" data-label="Équipements">Équipements</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan de production : solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan production">Bilan production</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/budget-mensuel-exemple.svg" data-alt="Aperçu anonymisé du budget mensuel actuel : EDF, solaire et batterie séparés" data-label="Budget mensuel">Budget mensuel</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/releve-edf-exemple.svg" data-alt="Aperçu anonymisé du relevé EDF officiel actuel avec abonnement et économie solaire locale" data-label="Relevé EDF">Relevé EDF</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan web : production solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan web">Bilan web</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/logiciel-windows-macos-courbes-options-20261018.png" data-alt="Logiciel de bureau Windows et macOS : courbe de bilan, état DTU et Denky D4, périodes et options d’export" data-label="Logiciel Windows/macOS">Logiciel Windows/macOS</button>
         </div>
-        <p class="screen-gallery-note">Les captures « Bilan complet » et « Budget EDF » illustrent la séparation entre l’énergie achetée, le solaire, la batterie et l’abonnement. Les montants affichés sont des exemples anonymisés.</p>
+        <p class="screen-gallery-note">Choisissez une vue Web ou le logiciel de bureau Windows/macOS, puis cliquez sur l’image pour l’ouvrir en grand.</p>
       </div>
-    </section>
-
-    <section class="section intro" id="compatibilite">
-      <p class="eyebrow blue">COMPATIBILITÉ VÉRIFIÉE SUR L’INSTALLATION DU PROJET</p>
-      <h2>Les appareils réellement utilisés et documentés.</h2>
-      <p>Boîte noire Hoymiles est pensée pour une installation modulaire : activez uniquement les équipements présents chez vous. Les termes ci-dessous décrivent les appareils testés ou utilisés dans le projet ; ils ne constituent pas une promesse de compatibilité pour un modèle voisin.</p>
-      <div class="cards">
-        <article class="card"><span>PV</span><h3>Hoymiles DTU Pro-S</h3><p>Lecture locale par Wi-Fi direct ou Modbus TCP, avec les micro-onduleurs Hoymiles de l’installation suivie.</p></article>
-        <article class="card"><span>RÉSEAU</span><h3>Linky · Denky D4 · TIC</h3><p>Index HP/HC et puissance réseau locale par téléinformation, utilisés comme référence du bilan EDF.</p></article>
-        <article class="card"><span>MESURE</span><h3>Shelly Pro EM · Shelly EM Gen3</h3><p>Mesure indépendante de la production, de l’achat et de l’injection. Les données locales restent prioritaires.</p></article>
-        <article class="card"><span>BAT</span><h3>Zendure SolarFlow 2400 AC</h3><p>Suivi de charge et de décharge avec Smart Meter Zendure, sans commande automatique de la batterie.</p></article>
-        <article class="card"><span>PASSERELLE</span><h3>Raspberry Pi · ESP32 · TP-Link</h3><p>Collecte permanente sur Raspberry Pi, extension ESP32 pour panneaux éloignés et pont réseau TP-Link TL-WR802N.</p></article>
-        <article class="card"><span>DOMOTIQUE</span><h3>Home Assistant</h3><p>Intégration locale en lecture seule : production, maison, EDF, batterie et état DTU, sans action sur les appareils.</p></article>
-      </div>
-      <p class="small muted">S-Miles/Hoymiles Cloud peut servir d’historique complémentaire, mais le tableau privilégie les mesures locales Shelly, Denky et Linky pour les flux et le budget.</p>
     </section>
 
     <section class="section split-section" id="esp32">
@@ -189,7 +155,7 @@
         <li><strong>6. Mac Apple Silicon</strong><span>Transférez l’archive TAR.GZ intacte sur le Mac et décompressez-la sur le Mac. Ce format conserve les autorisations d’exécution. Le dossier contient seulement <code>1 - INSTALLER BOITE NOIRE HOYMILES.app</code> et <code>2 - LIRE-MOI-MAC.txt</code>. Faites un clic droit sur l’installateur puis choisissez Ouvrir.<br><strong>Version non testée sur Mac Intel.</strong></span></li>
         <li><strong>7. Démarrage automatique Raspberry</strong><span>Le tableau web indique « Automatique » : le collecteur Raspberry démarre déjà automatiquement, sans réglage Oui/Non.</span></li>
       </ol>
-      <aside class="mac-network-note"><strong>macOS 15.5 ou plus récent — erreur « No route to host »</strong><p>Si les appareils répondent depuis Terminal mais restent hors ligne dans l’application, autorisez le réseau Wi-Fi local puis redémarrez le Mac :</p><code>sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"</code><p>Cette exception système concerne toutes les applications utilisant le réseau <code>192.168.1.x</code>. Procédure validée sous macOS 27.0. <a href="https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy">Explication officielle Apple</a>.</p></aside>
+      <aside class="mac-network-note"><strong>macOS 15.5 ou plus récent — erreur « No route to host »</strong><p>Si les appareils répondent depuis Terminal mais restent hors ligne dans l’application, autorisez votre sous-réseau Wi-Fi local puis redémarrez le Mac :</p><code>sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "VOTRE_SOUS_RESEAU_LOCAL"</code><p>Cette exception système concerne toutes les applications utilisant le réseau local. Procédure validée sous macOS 27.0. <a href="https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy">Explication officielle Apple</a>.</p></aside>
     </section>
 
     <section class="section split-section" id="mobile">
@@ -201,6 +167,16 @@
         <li><strong>4. Consultez à distance</strong><span>Ouvrez <code>http://IP_TAILSCALE_DU_RASPBERRY:8765/</code>, puis ajoutez la page à l’écran d’accueil Android ou iPhone. Sur Raspberry, obtenez l’adresse avec <code>tailscale ip -4</code>. Aucun port de la box ni service public Funnel n’est nécessaire.</span></li>
       </ol>
       <p>Le tableau indique l’âge et la provenance de chaque mesure. N’ouvrez aucun port sur la box, n’utilisez pas Tailscale Funnel, activez la double authentification du compte Tailscale et protégez les ESP32 en WPA2/WPA3. Sur téléphone, Windscribe peut remplacer temporairement Tailscale : coupez Windscribe puis réactivez Tailscale si l’accès privé ne revient pas automatiquement.</p>
+    </section>
+
+    <section class="section split-section" id="home-assistant">
+      <div><p class="eyebrow blue">HOME ASSISTANT — DISPONIBLE</p><h2>Vos mesures solaires dans Home Assistant, sans lui donner les commandes.</h2><p>L’intégration locale transmet la production, la consommation de la maison, l’achat et l’injection EDF, ainsi que l’état de la batterie et du DTU. Elle consulte le tableau Raspberry toutes les 30 secondes.</p><p>Elle est volontairement <strong>en lecture seule</strong> : aucun bouton Home Assistant ne peut limiter les panneaux, modifier la batterie Zendure ou changer un réglage Hoymiles.</p></div>
+      <ol class="steps">
+        <li><strong>1. Conserver le Raspberry</strong><span>Le collecteur solaire continue à tourner sur le réseau local.</span></li>
+        <li><strong>2. Ajouter le fichier YAML</strong><span>Copiez le modèle Home Assistant fourni dans le dépôt.</span></li>
+        <li><strong>3. Indiquer l’URL locale</strong><span>Placez l’adresse du Raspberry dans le fichier <code>secrets.yaml</code> de Home Assistant, jamais dans GitHub.</span></li>
+        <li><strong>4. Redémarrer Home Assistant</strong><span>Les capteurs apparaissent sans créer de commande vers l’installation solaire.</span></li>
+      </ol>
     </section>
 
     <section id="soutenir" class="section">
@@ -246,7 +222,7 @@
         <article class="card"><span>MESURE</span><h3>Shelly Pro EM</h3><p>Mesure locale indépendante de la production et du flux réseau, même sans Linky.</p></article>
         <article class="card"><span>BAT</span><h3>Zendure SolarFlow</h3><p>Niveau, charge, décharge et historique de cycle lorsque la batterie est connectée.</p></article>
         <article class="card"><span>OPTION</span><h3>ESP32 / panneaux éloignés</h3><p>Extension possible pour une seconde installation, sans imposer ce matériel aux autres utilisateurs.</p></article>
-        <article class="card"><span>OPTION</span><h3>Home Assistant</h3><p>Intégration locale en lecture seule disponible : production, maison, EDF, batterie et état du DTU, sans commande sur les équipements.</p></article>
+        <article class="card"><span>OPTION</span><h3>Home Assistant</h3><p>Intégration disponible en lecture seule : les mesures solaires rejoignent votre maison connectée, sans commande des équipements.</p></article>
       </div>
       <p class="small muted">Les notes de version et le détail des évolutions sont consultables dans le dépôt GitHub.</p>
     </section>

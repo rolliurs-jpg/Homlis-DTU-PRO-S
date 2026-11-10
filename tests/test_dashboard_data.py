@@ -30,7 +30,7 @@ class DashboardDataTests(unittest.TestCase):
         self.assertTrue(all(link['connected'] for link in links))
         self.assertIn('Liaison Wi-Fi directe', links[0]['role'])
         self.assertIn('USB 3.0 obligatoire', links[1]['role'])
-        self.assertIn('192.168.1.205', links[0]['references'][0])
+        self.assertIn('TP-Link', links[0]['references'][0])
         self.assertIn('aucune adresse Livebox propre', links[1]['references'][0])
 
     def test_wireless_interfaces_accepts_uppercase_driver_name(self):
@@ -47,7 +47,7 @@ class DashboardDataTests(unittest.TestCase):
         config = {
             "hoymiles_proxy": {"enabled": False},
             "tp_link": {"enabled": False},
-            "esp_router": {"enabled": True, "ap_host": "192.168.4.1"},
+            "esp_router": {"enabled": True, "ap_host": "esp-router.local"},
         }
         completed = type("Completed", (), {"returncode": 0})()
         with tempfile.TemporaryDirectory() as folder:
@@ -55,8 +55,8 @@ class DashboardDataTests(unittest.TestCase):
                 devices = DashboardData(Path(folder), config, FakeBattery()).esp_devices()
         router = next(device for device in devices if device["id"] == "router")
         self.assertTrue(router["connected"])
-        self.assertEqual(router["reachable_hosts"], ["192.168.4.1"])
-        self.assertIn("192.168.4.1", run.call_args.args[0])
+        self.assertEqual(router["reachable_hosts"], ["esp-router.local"])
+        self.assertIn("esp-router.local", run.call_args.args[0])
 
     def test_period_boundaries(self):
         now = datetime(2026, 9, 23, 12, 30)
@@ -114,6 +114,36 @@ class DashboardDataTests(unittest.TestCase):
             self.assertEqual(report["history"][0]["production_w"], 1000)
             self.assertIsNone(report["history"][0]["consumption_w"])
             self.assertGreater(report["production_kwh"], 0)
+
+    def test_monthly_budget_keeps_edf_tariffs_and_local_energy_separate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            root.joinpath("hoymiles_log.csv").write_text(
+                "date_heure,production_ac_w,shelly_a_w,shelly_b_w\n"
+                "2026-09-23 12:00:00,1000,1000,200\n"
+                "2026-09-23 12:01:00,1000,1000,200\n",
+                encoding="utf-8",
+            )
+            root.joinpath("linky_index_log.csv").write_text(
+                "date_heure,hc_kwh,hp_kwh\n"
+                "2026-09-23 12:00:00,10,20\n"
+                "2026-09-23 12:01:00,10,20.003333333\n",
+                encoding="utf-8",
+            )
+            config = {
+                "shelly": {"enabled": True, "grid_export_positive": False},
+                "linky": {"enabled": True}, "battery": {"enabled": False},
+                "shelly2": {"enabled": False}, "production_complete": True,
+                "tarifs_edf": {"hp_eur_kwh": 0.2142, "hc_eur_kwh": 0.1589,
+                                "abonnement_journalier_eur": 0.653589},
+            }
+            report = DashboardData(root, config, FakeBattery())._report(
+                "today", datetime(2026, 9, 23, 12, 2))
+            self.assertAlmostEqual(report["consumption_kwh"], 0.02, places=5)
+            self.assertAlmostEqual(report["billing"]["hp_kwh"], 0.003333333, places=5)
+            self.assertGreater(report["local_energy_kwh"], 0)
+            self.assertGreater(report["avoided_cost_eur"], 0)
+            self.assertEqual(report["tariffs"]["hc_eur_kwh"], 0.1589)
 
     def test_settings_remains_available_without_desktop_autostart(self):
         config = {
