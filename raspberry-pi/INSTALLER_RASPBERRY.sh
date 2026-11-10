@@ -11,14 +11,14 @@ RECOVERY_TIMER="solaire-network-recovery.timer"
 USER_NAME="$(id -un)"
 NETWORK_ENV="/etc/solaire-network.env"
 ALFA_PROFILE="solaire-cabanon-alfa"
-ALFA_SSID="Cabanon Solaire"
+ALFA_SSID="${ALFA_SSID:-}"
 ALFA_BSSID="${ALFA_BSSID:-}"
 ALFA_LOCAL_IP="${ALFA_LOCAL_IP:-}"
 ALFA_ROUTER_HOST="${ALFA_ROUTER_HOST:-}"
 ALFA_PROXY_HOST="${ALFA_PROXY_HOST:-}"
 DTU_HOST="${DTU_HOST:-}"
 DTU_PROFILE="${DTU_WIFI_PROFILE:-dtu-direct-4p}"
-PRIMARY_WIFI_PROFILE="${PRIMARY_WIFI_PROFILE:-netplan-wlan0-livebox-B560}"
+PRIMARY_WIFI_PROFILE="${PRIMARY_WIFI_PROFILE:-}"
 
 if [ "$(id -u)" -eq 0 ]; then
   echo "Lancez cet installateur depuis votre compte Raspberry habituel, sans sudo."
@@ -29,7 +29,7 @@ echo "Installation de Boîte noire Hoymiles dans : $INSTALL_DIR"
 sudo apt update
 sudo apt install -y python3-venv
 
-mkdir -p "$INSTALL_DIR/raspberry-pi"
+mkdir -p "$INSTALL_DIR/raspberry-pi" "$INSTALL_DIR/home_assistant"
 FILES=(
   boite_noire_hoymiles.py mobile_dashboard.py dashboard_data.py dashboard_ui.html
   autostart.py monitoring.py energy_analysis.py battery_monitor.py
@@ -45,6 +45,8 @@ install -m 0644 "$SOURCE_DIR/raspberry-pi/boite-noire-hoymiles.service.example" 
 install -m 0755 "$SOURCE_DIR/raspberry-pi/solaire-network-recovery.sh" "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.sh"
 install -m 0644 "$SOURCE_DIR/raspberry-pi/solaire-network-recovery.service.example" "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.service.example"
 install -m 0644 "$SOURCE_DIR/raspberry-pi/solaire-network-recovery.timer.example" "$INSTALL_DIR/raspberry-pi/solaire-network-recovery.timer.example"
+install -m 0644 "$SOURCE_DIR/raspberry-pi/VENTILATION.md" "$INSTALL_DIR/raspberry-pi/VENTILATION.md"
+install -m 0644 "$SOURCE_DIR/home_assistant/boite_noire_hoymiles.yaml" "$INSTALL_DIR/home_assistant/boite_noire_hoymiles.yaml"
 
 if [ ! -f "$HOME/AppData/Local/BoiteNoireHoymiles/config_v5.json" ]; then
   mkdir -p "$HOME/AppData/Local/BoiteNoireHoymiles"
@@ -71,15 +73,18 @@ sudo install -m 0644 \
   "/etc/systemd/system/$RECOVERY_TIMER"
 
 # Verrouille les profils sur leurs interfaces dédiées. Le profil cabanon est
-# aussi fixé sur le BSSID du routeur ESP : une Livebox ou un SSID similaire ne
+# aussi fixé sur le BSSID du routeur ESP : un autre point d'accès ou un SSID similaire ne
 # pourra jamais être choisi à sa place. Les mots de passe déjà enregistrés par
 # NetworkManager ne sont ni affichés ni modifiés.
 if nmcli -t -f NAME connection show | grep -Fxq "$ALFA_PROFILE"; then
   ALFA_NETWORK_ARGS=(
     connection.interface-name wlan2 connection.autoconnect yes \
     connection.autoconnect-priority 100 connection.autoconnect-retries 0 \
-    802-11-wireless.ssid "$ALFA_SSID" 802-11-wireless.powersave 2
+    802-11-wireless.powersave 2
   )
+  if [ -n "$ALFA_SSID" ]; then
+    ALFA_NETWORK_ARGS+=(802-11-wireless.ssid "$ALFA_SSID")
+  fi
   if [ -n "$ALFA_BSSID" ]; then
     ALFA_NETWORK_ARGS+=(802-11-wireless.bssid "$ALFA_BSSID")
   fi
@@ -100,14 +105,16 @@ if nmcli -t -f NAME connection show | grep -Fxq "$DTU_PROFILE"; then
 else
   echo "Profil DTU absent : $DTU_PROFILE (aucune modification Wi-Fi effectuée)."
 fi
-# Le profil principal de la Livebox appartenait à wlan0 mais, sans cette
+# Le profil principal du réseau domestique appartient à wlan0 mais, sans cette
 # contrainte, NetworkManager pouvait l'associer à wlan2 après une coupure.
-if nmcli -t -f NAME connection show | grep -Fxq "$PRIMARY_WIFI_PROFILE"; then
+if [ -n "$PRIMARY_WIFI_PROFILE" ] && nmcli -t -f NAME connection show | grep -Fxq "$PRIMARY_WIFI_PROFILE"; then
   sudo nmcli connection modify "$PRIMARY_WIFI_PROFILE" \
     connection.interface-name wlan0 connection.autoconnect yes \
     connection.autoconnect-priority 200
-else
+elif [ -n "$PRIMARY_WIFI_PROFILE" ]; then
   echo "Profil Wi-Fi principal absent : $PRIMARY_WIFI_PROFILE (aucune modification Wi-Fi effectuée)."
+else
+  echo "Profil Wi-Fi principal non renseigné : aucune modification du réseau domestique."
 fi
 sudo tee "$NETWORK_ENV" >/dev/null <<EOF
 # Réseaux dédiés à l'installation solaire. Pas de mot de passe dans ce fichier.

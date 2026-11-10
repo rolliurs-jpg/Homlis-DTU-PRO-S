@@ -13,6 +13,13 @@ Le bouton Alarmes surveille l’absence de mesures sur PC, Mac et dans le tablea
 
 Sur la page GitHub, choisissez uniquement le fichier commençant par **1-MAC**, **2-WINDOWS** ou **3-RASPBERRY**. Les liens « Source code » ajoutés automatiquement par GitHub ne sont pas les installateurs.
 
+Le dépôt contient tout ce qui est nécessaire pour reconstruire les
+installateurs publics ; les réglages, historiques et mots de passe de chaque
+installation restent privés. Voir [DISTRIBUTION.md](DISTRIBUTION.md).
+
+Pour un Raspberry Pi 4 utilisé en continu, le guide de ventilation automatique
+est fourni dans [raspberry-pi/VENTILATION.md](raspberry-pi/VENTILATION.md).
+
 ![Tableau web Raspberry Pi : production, consommation, injection et batterie](docs/assets/tableau-web-raspberry.png)
 
 ## Disponible sur toutes vos plateformes
