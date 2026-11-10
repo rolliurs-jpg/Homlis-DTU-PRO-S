@@ -3,6 +3,7 @@ from battery_monitor import BatteryMonitor, household
 from hoymiles_proxy import ProxyReader, DEFAULT_PROXY
 from surplus_controller import SurplusController
 from dtu_control import DtuControl
+from tuya_relay import DtuPowerRecovery, TuyaRelay
 surplus_controller = None
 from surplus_simulation import SurplusSimulation
 surplus_simulation = SurplusSimulation()
@@ -76,6 +77,7 @@ DEFAULT_DTU_HOST = "10.10.100.254"
 # est exposé sur l'Ethernet derrière le nano-routeur. Les deux chemins ne
 # doivent donc pas être confondus.
 DEFAULT_DTU_MODBUS_HOST = "192.168.1.206"
+DTU_WIFI_FALLBACK_INTERVAL_S = 300
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
 DIRECT_WINDOW_HOURS = 4
@@ -104,6 +106,7 @@ CSV_FILE = BASE / "hoymiles_log.csv"
 LINKY_INDEX_FILE = BASE / "linky_index_log.csv"
 SHELLY_INJECTION_FILE = BASE / "shelly_injection_log.csv"
 DTU_WIFI_RECOVERY_LOG = BASE / "dtu_wifi_recovery.log"
+DTU_POWER_RECOVERY_LOG = BASE / "dtu_power_recovery.log"
 CONFIG_FILE = BASE / "config_v5.json"
 IMPORT_DIR = BASE / "Historiques_importes"
 IMPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -160,6 +163,10 @@ DEFAULT_CONFIG = {
     # Pont Wi-Fi Ethernet qui relie le DTU à la Livebox. Il est suivi comme
     # équipement réseau afin de distinguer une panne du pont d'une panne DTU.
     "tp_link": {"enabled": False, "host": "", "port": 80, "timeout_s": 2},
+    # Relais DIN Tongou sur l'alimentation du seul adaptateur du DTU. Son
+    # port Tuya local 6668 permet de vérifier sa présence, mais aucune
+    # coupure n'est envoyée sans une configuration explicite ultérieure.
+    "tongou_relay": {"enabled": False, "host": "", "port": 6668, "timeout_s": 2},
     "hoymiles_proxy": dict(DEFAULT_PROXY),
     "production_complete": False,
     # Commandes opt-in : aucune limitation n'est envoyée tant que
@@ -189,6 +196,17 @@ DEFAULT_CONFIG = {
         "interface": "",
         "profile": "",
         "after_minutes": 30,
+    },
+    # Garde-fous préparés pour la future relance électrique du DTU. Cette
+    # fonction reste désactivée tant que les identifiants locaux Tuya ne sont
+    # pas configurés et qu'un essai manuel n'a pas été validé.
+    "dtu_power_recovery": {
+        "enabled": False,
+        "after_minutes": 10,
+        "off_seconds": 30,
+        "boot_seconds": 240,
+        "cooldown_minutes": 60,
+        "max_attempts": 2,
     },
     # Tableau de bord HTTP en lecture seule. L'écoute sur toutes les interfaces
     # permet l'accès depuis le Wi-Fi local et l'adresse privée Tailscale.
@@ -246,6 +264,14 @@ def load_config():
         if not isinstance(saved_recovery, dict):
             saved_recovery = {}
         cfg["dtu_wifi_recovery"] = {**DEFAULT_CONFIG["dtu_wifi_recovery"], **saved_recovery}
+        saved_tongou = data.get("tongou_relay", {})
+        if not isinstance(saved_tongou, dict):
+            saved_tongou = {}
+        cfg["tongou_relay"] = {**DEFAULT_CONFIG["tongou_relay"], **saved_tongou}
+        saved_power_recovery = data.get("dtu_power_recovery", {})
+        if not isinstance(saved_power_recovery, dict):
+            saved_power_recovery = {}
+        cfg["dtu_power_recovery"] = {**DEFAULT_CONFIG["dtu_power_recovery"], **saved_power_recovery}
         saved_mobile = data.get("mobile_dashboard", {})
         if not isinstance(saved_mobile, dict):
             saved_mobile = {}
@@ -270,6 +296,8 @@ monitor.start()
 atexit.register(monitor.stop)
 
 CONFIG = load_config()
+tuya_relay = TuyaRelay()
+dtu_power_recovery = DtuPowerRecovery(lambda: CONFIG, tuya_relay, DTU_POWER_RECOVERY_LOG)
 proxy_cfg = dict(CONFIG.get("hoymiles_proxy", {}))
 proxy_cfg["commands_enabled"] = bool(CONFIG.get("surplus_control", {}).get("enabled", False))
 proxy_reader = ProxyReader(proxy_cfg)
@@ -379,7 +407,7 @@ def dashboard_ui_action(action, _values=None):
         devices = values.get("devices")
         if not isinstance(devices, dict):
             return {"error": "Liste des équipements attendue"}
-        allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "hoymiles_proxy", "esp_router")
+        allowed = ("linky", "shelly", "battery", "shelly2", "tp_link", "tongou_relay", "hoymiles_proxy", "esp_router")
         updated = json.loads(json.dumps(CONFIG))
         ip_changed = False
         for name in allowed:
@@ -488,6 +516,7 @@ last_success = None
 dtu_failures = 0
 dtu_failure_since = None
 last_dtu_wifi_recovery = None
+last_dtu_wifi_fallback_attempt = 0.0
 dtu_maintenance_paused = False
 last_injection_sample_time = None
 last_injection_power_w = 0.0
@@ -610,6 +639,8 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "linky_state": "online" if finite_mobile_value(linky_power[-1]) is not None else "offline",
             "shelly_state": "online" if finite_mobile_value(shelly_a_power[-1]) is not None else "offline",
             "tp_link_state": network_device_state(CONFIG.get("tp_link", {})),
+            "tongou_state": network_device_state(CONFIG.get("tongou_relay", {})),
+            "dtu_power_recovery": dtu_power_recovery.snapshot(),
         })
         if equipment_enabled("battery") or equipment_enabled("shelly2"):
             current["production_source"] = "Total Shelly" if current["production_w"] is not None else "Production totale incomplète"
@@ -1193,8 +1224,14 @@ def read_ddsu_modbus(host):
 
 
 def read_dtu():
-    """Lecture DTU robuste : essaie l'adresse configurée puis les adresses connues."""
-    global HOST
+    """Lecture DTU : Modbus LAN prioritaire, Wi-Fi direct uniquement en secours.
+
+    Le DTU est déjà joint en Modbus par le nano-routeur. Le solliciter aussi
+    chaque minute sur son point d'accès Wi-Fi direct n'apporte aucune mesure
+    supplémentaire et fragilise sa pile réseau. En cas de panne Modbus, le
+    secours Wi-Fi est limité à une tentative toutes les cinq minutes.
+    """
+    global HOST, last_dtu_wifi_fallback_attempt
     startupinfo = None
     creationflags = 0
     if hasattr(subprocess, "STARTUPINFO"):
@@ -1203,15 +1240,16 @@ def read_dtu():
         startupinfo.wShowWindow = subprocess.SW_HIDE
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
-    # Un DTU sur le LAN ne présente pas le service Wi-Fi direct (port 10081) :
-    # il expose à la place Modbus-TCP sur le port 502. L'interroger d'abord
-    # évite trois délais de 12 secondes inutiles à chaque cycle de lecture.
-    if not str(HOST).startswith("10.10.100.") and HoymilesModbusTCP is not None:
+    # Le nano-routeur rend le Modbus du DTU accessible depuis le LAN. Cette
+    # voie est la référence pour les quatre panneaux maison ; elle évite toute
+    # interrogation Wi-Fi directe pendant le fonctionnement normal.
+    modbus_host = str(CONFIG.get("dtu_modbus_host", DEFAULT_DTU_MODBUS_HOST)).strip()
+    if modbus_host and HoymilesModbusTCP is not None:
         with dtu_modbus_lock:
             try:
-                plant = HoymilesModbusTCP(HOST, port=502, unit_id=1).plant_data
+                plant = HoymilesModbusTCP(modbus_host, port=502, unit_id=1).plant_data
                 global ddsu_modbus_status
-                ddsu = read_ddsu_modbus(HOST)
+                ddsu = read_ddsu_modbus(modbus_host)
                 ddsu_modbus_status = ddsu["status"]
                 return {
                     "_source": "modbus_tcp",
@@ -1221,9 +1259,19 @@ def read_dtu():
                     "_ddsu_modbus": ddsu,
                 }
             except Exception as exc:
-                modbus_error = f"Modbus TCP {HOST}: {exc}"
+                modbus_error = f"Modbus TCP {modbus_host}: {exc}"
     else:
         modbus_error = ""
+
+    # En secours seulement : ne pas relancer le point d'accès du DTU chaque
+    # minute lorsqu'il est déjà indisponible. Une nouvelle tentative après
+    # cinq minutes suffit à constater un retour, comme S-Cloud.
+    now = monotonic()
+    remaining = DTU_WIFI_FALLBACK_INTERVAL_S - (now - last_dtu_wifi_fallback_attempt)
+    if last_dtu_wifi_fallback_attempt and remaining > 0:
+        detail = f"secours Wi-Fi DTU différé {int(remaining)} s"
+        raise RuntimeError(f"{modbus_error} | {detail}" if modbus_error else detail)
+    last_dtu_wifi_fallback_attempt = now
 
     hosts = []
     for host in (HOST, "10.10.100.162", "10.10.100.254"):
@@ -1240,6 +1288,10 @@ def read_dtu():
     project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
     cli_candidates = (
         project_venv_dir / "hoymiles-wifi",
+        # L'application macOS installe son environnement sous ``venv`` (sans
+        # point), tandis que les installations Raspberry utilisent ``.venv``.
+        # Chercher les deux évite de tomber sur le PATH minimal de launchd.
+        Path(__file__).resolve().parent / "venv" / "bin" / "hoymiles-wifi",
         executable_dir / "hoymiles-wifi",
         executable_dir / "hoymiles-wifi.exe",
     )
@@ -3793,6 +3845,7 @@ def update(_):
         now = datetime.now()
         last_success = now
         dtu_failure_since = None
+        dtu_power_recovery.note_dtu_online()
         dtu_delay = monotonic() - dtu_started
         set_connection_badge(
             connection_badges[0], "delayed" if dtu_delay > 3 else "online",
@@ -3901,6 +3954,7 @@ def update(_):
         except (TypeError, ValueError):
             delay_minutes = 30
         failure_seconds = (failed_at - dtu_failure_since).total_seconds()
+        power_recovery_note = dtu_power_recovery.maybe_start(failure_seconds)
         if failure_seconds < 180:
             set_connection_badge(connection_badges[0], "delayed", "● DTU réponse intermittente")
         else:
@@ -3961,6 +4015,7 @@ def update(_):
             f"{equipment_status(linky_status, dinky_index_status, shelly_status)} — erreur DTU : {str(e)[:110]}"
             + (f" — {injection_alert_message}" if injection_alert_message else "")
             + (f" — {recovery_note}" if recovery_note else "")
+            + (f" — {power_recovery_note}" if power_recovery_note else "")
         )
         publish_mobile_snapshot("waiting" if failure_seconds < 180 else "offline")
 

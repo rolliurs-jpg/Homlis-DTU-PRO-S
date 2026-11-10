@@ -115,6 +115,36 @@ class DashboardDataTests(unittest.TestCase):
             self.assertIsNone(report["history"][0]["consumption_w"])
             self.assertGreater(report["production_kwh"], 0)
 
+    def test_monthly_budget_keeps_edf_tariffs_and_local_energy_separate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            root.joinpath("hoymiles_log.csv").write_text(
+                "date_heure,production_ac_w,shelly_a_w,shelly_b_w\n"
+                "2026-09-23 12:00:00,1000,1000,200\n"
+                "2026-09-23 12:01:00,1000,1000,200\n",
+                encoding="utf-8",
+            )
+            root.joinpath("linky_index_log.csv").write_text(
+                "date_heure,hc_kwh,hp_kwh\n"
+                "2026-09-23 12:00:00,10,20\n"
+                "2026-09-23 12:01:00,10,20.003333333\n",
+                encoding="utf-8",
+            )
+            config = {
+                "shelly": {"enabled": True, "grid_export_positive": False},
+                "linky": {"enabled": True}, "battery": {"enabled": False},
+                "shelly2": {"enabled": False}, "production_complete": True,
+                "tarifs_edf": {"hp_eur_kwh": 0.2142, "hc_eur_kwh": 0.1589,
+                                "abonnement_journalier_eur": 0.653589},
+            }
+            report = DashboardData(root, config, FakeBattery())._report(
+                "today", datetime(2026, 9, 23, 12, 2))
+            self.assertAlmostEqual(report["consumption_kwh"], 0.02, places=5)
+            self.assertAlmostEqual(report["billing"]["hp_kwh"], 0.003333333, places=5)
+            self.assertGreater(report["local_energy_kwh"], 0)
+            self.assertGreater(report["avoided_cost_eur"], 0)
+            self.assertEqual(report["tariffs"]["hc_eur_kwh"], 0.1589)
+
     def test_settings_remains_available_without_desktop_autostart(self):
         config = {
             "linky": {"enabled": False}, "shelly": {"enabled": False},

@@ -69,6 +69,12 @@ cabanon**, le Raspberry réutilise automatiquement son profil Wi-Fi enregistré.
 Le service du tableau est relancé sans limite après une interruption ; aucune
 intervention manuelle n’est nécessaire après le retour du courant.
 
+Le routeur ESP32 du cabanon ne distribue pas d’adresse DHCP : l’installateur
+configure donc automatiquement l’antenne cabanon avec l’adresse locale fixe
+`192.168.4.3/24`. Les adresses `192.168.4.1` (routeur) et `192.168.4.2`
+(proxy Bluetooth Hoymiles) restent ainsi joignables sans modifier la route
+Internet principale du Raspberry.
+
 Pour appliquer cette protection sur une installation déjà en place, relancez
 l’installateur depuis le dossier du projet :
 

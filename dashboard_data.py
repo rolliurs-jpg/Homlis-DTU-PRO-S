@@ -199,6 +199,7 @@ class DashboardData:
                                battery_charge_w=number(b.get('charge_w')),
                                battery_discharge_w=number(b.get('discharge_w'))))
         production, pv_seconds = integrate(points,'production_w',start,end)
+        consumption, consumption_seconds = integrate(points, 'consumption_w', start, end)
         exported, grid_seconds = integrate(points,'export_w',start,end)
         billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
         tariffs = cfg.get('tarifs_edf',{})
@@ -206,6 +207,18 @@ class DashboardData:
         energy_cost = None
         if billing['import_kwh'] is not None and hp_rate is not None and hc_rate is not None and hp_rate>0 and hc_rate>0:
             energy_cost = billing['hp_kwh']*hp_rate+billing['hc_kwh']*hc_rate
+        # Energy not bought from EDF is useful for a monthly budget, but it is
+        # deliberately kept separate from solar production: it can include a
+        # discharge of the battery charged on an earlier day.
+        local_energy = None
+        avoided_cost = None
+        if consumption is not None and billing['import_kwh'] is not None:
+            local_energy = max(0.0, consumption-billing['import_kwh'])
+            if energy_cost is not None and billing['import_kwh'] > 0:
+                avoided_cost = local_energy*energy_cost/billing['import_kwh']
+        solar_after_export = None
+        if production is not None and exported is not None:
+            solar_after_export = max(0.0, production-exported)
         # Calendar days, not DST-dependent 24-hour intervals.
         days = (end_dt.date()-start_dt.date()).days + (0 if end_dt.time()==datetime.min.time() else 1)
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
@@ -216,6 +229,10 @@ class DashboardData:
                     production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
                     grid_seconds=grid_seconds, billing=billing, energy_cost=energy_cost,
                     subscription=subscription, total_cost=None if energy_cost is None or subscription is None else energy_cost+subscription,
+                    consumption_kwh=consumption, consumption_seconds=consumption_seconds,
+                    local_energy_kwh=local_energy, avoided_cost_eur=avoided_cost,
+                    solar_after_export_kwh=solar_after_export,
+                    tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate),
                     battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
@@ -306,7 +323,7 @@ class DashboardData:
                   'production_complete':bool(self.config.get('production_complete')),
                   'tarifs_edf':{k:self.config.get('tarifs_edf',{}).get(k) for k in
                                 ('hp_eur_kwh','hc_eur_kwh','abonnement_journalier_eur','plages_hc')}}
-        for name in ('linky','shelly','battery','shelly2','tp_link','hoymiles_proxy','esp_router'):
+        for name in ('linky','shelly','battery','shelly2','tp_link','tongou_relay','hoymiles_proxy','esp_router'):
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
         result['esp_devices'] = self.esp_devices()

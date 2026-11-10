@@ -75,7 +75,9 @@ if nmcli -t -f NAME connection show | grep -Fxq "$ALFA_PROFILE"; then
     connection.interface-name wlan2 connection.autoconnect yes \
     connection.autoconnect-priority 100 connection.autoconnect-retries 0 \
     802-11-wireless.ssid "$ALFA_SSID" 802-11-wireless.bssid "$ALFA_BSSID" \
-    802-11-wireless.powersave 2 ipv4.never-default yes
+    802-11-wireless.powersave 2 \
+    ipv4.method manual ipv4.addresses 192.168.4.3/24 ipv4.never-default yes \
+    ipv6.method ignore
 else
   echo "Profil cabanon absent : $ALFA_PROFILE (aucune modification Wi-Fi effectuée)."
 fi
@@ -100,6 +102,7 @@ sudo tee "$NETWORK_ENV" >/dev/null <<'EOF'
 # Réseaux dédiés à l'installation solaire. Pas de mot de passe dans ce fichier.
 ALFA_DEVICE=wlan2
 ALFA_PROFILE=solaire-cabanon-alfa
+ALFA_LOCAL_IP=192.168.4.3
 ALFA_ROUTER_HOST=192.168.4.1
 ALFA_PROXY_HOST=192.168.4.2
 DTU_DEVICE=wlan1
