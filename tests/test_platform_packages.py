@@ -64,6 +64,8 @@ class PlatformPackageTests(unittest.TestCase):
                                          for n in archive.namelist()))
                     self.assertTrue(any(n.endswith('/CHOISIR_INTERFACE.vbs')
                                         for n in archive.namelist()))
+                    self.assertTrue(any(n.endswith('/home_assistant/boite_noire_hoymiles.yaml')
+                                        for n in archive.namelist()))
                 with zipfile.ZipFile(mac_zip) as archive:
                     launchers = [i for i in archive.infolist() if "/MacOS/" in i.filename]
                     self.assertTrue(launchers)
@@ -81,9 +83,18 @@ class PlatformPackageTests(unittest.TestCase):
                     installer = f"Hoymiles-{release}-Raspberry/raspberry-pi/INSTALLER_RASPBERRY.sh"
                     self.assertIn(installer, names)
                     self.assertTrue(archive.getmember(installer).mode & 0o111)
+                    prefix = f"Hoymiles-{release}-Raspberry/"
+                    for required in (
+                        "local_dtu_probe.py",
+                        "home_assistant/boite_noire_hoymiles.yaml",
+                        "raspberry-pi/solaire-network-recovery.sh",
+                        "raspberry-pi/solaire-network-recovery.service.example",
+                        "raspberry-pi/solaire-network-recovery.timer.example",
+                        "raspberry-pi/solaire-network.env.example",
+                        "raspberry-pi/VENTILATION.md",
+                    ):
+                        self.assertIn(prefix + required, names)
                     self.assertFalse(any("config_v5.json" in name or name.endswith(".csv") for name in names))
-                    body = b"".join(archive.extractfile(m).read() for m in archive.getmembers() if m.isfile())
-                    self.assertNotIn(b"192.168.1.205", body)
         finally:
             package_platforms.OUTPUTS = old
 

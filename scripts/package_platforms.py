@@ -141,11 +141,17 @@ def raspberry_archive():
         "dashboard_ui.html", "autostart.py", "monitoring.py", "energy_analysis.py",
         "battery_monitor.py", "surplus_simulation.py", "surplus_controller.py",
         "dtu_control.py", "PAIRER_HOYMILES.py", "hoymiles_proxy.py",
-        "HOYMILES_BLE_LICENSE.txt", "requirements.txt", "fond_solaire.png",
+        "local_dtu_probe.py", "HOYMILES_BLE_LICENSE.txt", "requirements.txt", "fond_solaire.png",
         "icone_panneau_solaire.ico", "config.example.json", "README.md",
         f"RELEASE_NOTES_{release}.md", "raspberry-pi/README.md",
         "raspberry-pi/boite-noire-hoymiles.service.example",
+        "raspberry-pi/solaire-network-recovery.sh",
+        "raspberry-pi/solaire-network-recovery.service.example",
+        "raspberry-pi/solaire-network-recovery.timer.example",
+        "raspberry-pi/solaire-network.env.example",
+        "raspberry-pi/VENTILATION.md",
         "raspberry-pi/INSTALLER_RASPBERRY.sh",
+        "home_assistant/boite_noire_hoymiles.yaml",
     ]
     OUTPUTS.mkdir(exist_ok=True)
     with tarfile.open(target, "w:gz", format=tarfile.PAX_FORMAT) as archive:

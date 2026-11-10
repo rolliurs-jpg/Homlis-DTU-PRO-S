@@ -3,8 +3,8 @@
 # pilote USB resté bloqué. Ne touche jamais à l'Ethernet ni au Wi-Fi principal.
 #
 # Important : ce script n'utilise jamais « nmcli device connect ». Cette
-# commande peut associer une clé à un autre réseau connu (par exemple la
-# Livebox) après une coupure. Seuls les profils explicitement indiqués ici
+# commande peut associer une clé à un autre réseau connu après une coupure.
+# Seuls les profils explicitement indiqués ici
 # peuvent être activés.
 set -euo pipefail
 
@@ -17,10 +17,10 @@ fi
 
 ALFA_DEVICE="${ALFA_DEVICE:-wlan2}"
 ALFA_PROFILE="${ALFA_PROFILE:-solaire-cabanon-alfa}"
-ALFA_ROUTER_HOST="${ALFA_ROUTER_HOST:-192.168.4.1}"
-ALFA_PROXY_HOST="${ALFA_PROXY_HOST:-192.168.4.2}"
+ALFA_ROUTER_HOST="${ALFA_ROUTER_HOST:-}"
+ALFA_PROXY_HOST="${ALFA_PROXY_HOST:-}"
 DTU_DEVICE="${DTU_DEVICE:-wlan1}"
-DTU_HOST="${DTU_HOST:-10.10.100.254}"
+DTU_HOST="${DTU_HOST:-}"
 # Nom créé lors de l'installation de la liaison Wi-Fi directe DTU.
 DTU_PROFILE="${DTU_PROFILE:-dtu-direct-4p}"
 # Une réinitialisation USB équivaut à débrancher/rebrancher la clé. Elle est
@@ -96,19 +96,23 @@ reset_usb_wifi_if_allowed() {
 # les deux évite qu'une Alfa encore associée au routeur reste incapable de
 # joindre le proxy Bluetooth. Au démarrage du proxy, ce contrôle ne s'exécute
 # que toutes les deux minutes, ce qui lui laisse largement le temps de démarrer.
-disable_power_save "$ALFA_DEVICE"
-if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_ROUTER_HOST" >/dev/null 2>&1; then
-  activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
-  sleep 3
-fi
-if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_ROUTER_HOST" >/dev/null 2>&1; then
-  cycle_device "$ALFA_DEVICE"
-  activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
-fi
-if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_PROXY_HOST" >/dev/null 2>&1; then
-  logger -t solaire-network-recovery "Proxy solaire injoignable : reconnexion de $ALFA_DEVICE"
-  cycle_device "$ALFA_DEVICE"
-  activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
+if [[ -n "$ALFA_ROUTER_HOST" && -n "$ALFA_PROXY_HOST" ]]; then
+  disable_power_save "$ALFA_DEVICE"
+  if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_ROUTER_HOST" >/dev/null 2>&1; then
+    activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
+    sleep 3
+  fi
+  if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_ROUTER_HOST" >/dev/null 2>&1; then
+    cycle_device "$ALFA_DEVICE"
+    activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
+  fi
+  if ! /bin/ping -I "$ALFA_DEVICE" -c 1 -W 2 "$ALFA_PROXY_HOST" >/dev/null 2>&1; then
+    logger -t solaire-network-recovery "Proxy solaire injoignable : reconnexion de $ALFA_DEVICE"
+    cycle_device "$ALFA_DEVICE"
+    activate_profile "$ALFA_PROFILE" "$ALFA_DEVICE"
+  fi
+else
+  logger -t solaire-network-recovery "Cabanon non configuré : récupération Wi-Fi cabanon ignorée"
 fi
 
 # Certaines clés Wi-Fi USB TP-Link restent visibles dans Linux mais cessent de
@@ -118,6 +122,10 @@ disable_power_save "$DTU_DEVICE"
 
 # Ne réinitialise wlan1 que lorsque le DTU séparément alimenté n'est plus
 # joignable. Cela évite d'interrompre les autres réseaux du Raspberry.
+if [[ -z "$DTU_HOST" ]]; then
+  logger -t solaire-network-recovery "DTU non configuré : récupération Wi-Fi DTU ignorée"
+  exit 0
+fi
 if /bin/ping -I "$DTU_DEVICE" -c 1 -W 2 "$DTU_HOST" >/dev/null 2>&1; then
   exit 0
 fi
