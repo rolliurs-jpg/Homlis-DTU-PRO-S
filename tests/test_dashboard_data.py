@@ -30,7 +30,7 @@ class DashboardDataTests(unittest.TestCase):
         self.assertTrue(all(link['connected'] for link in links))
         self.assertIn('Liaison Wi-Fi directe', links[0]['role'])
         self.assertIn('USB 3.0 obligatoire', links[1]['role'])
-        self.assertIn('192.168.1.205', links[0]['references'][0])
+        self.assertIn('TP-Link', links[0]['references'][0])
         self.assertIn('aucune adresse Livebox propre', links[1]['references'][0])
 
     def test_wireless_interfaces_accepts_uppercase_driver_name(self):
@@ -47,7 +47,7 @@ class DashboardDataTests(unittest.TestCase):
         config = {
             "hoymiles_proxy": {"enabled": False},
             "tp_link": {"enabled": False},
-            "esp_router": {"enabled": True, "ap_host": "192.168.4.1"},
+            "esp_router": {"enabled": True, "ap_host": "esp-router.local"},
         }
         completed = type("Completed", (), {"returncode": 0})()
         with tempfile.TemporaryDirectory() as folder:
@@ -55,8 +55,8 @@ class DashboardDataTests(unittest.TestCase):
                 devices = DashboardData(Path(folder), config, FakeBattery()).esp_devices()
         router = next(device for device in devices if device["id"] == "router")
         self.assertTrue(router["connected"])
-        self.assertEqual(router["reachable_hosts"], ["192.168.4.1"])
-        self.assertIn("192.168.4.1", run.call_args.args[0])
+        self.assertEqual(router["reachable_hosts"], ["esp-router.local"])
+        self.assertIn("esp-router.local", run.call_args.args[0])
 
     def test_period_boundaries(self):
         now = datetime(2026, 9, 23, 12, 30)

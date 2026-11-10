@@ -80,13 +80,13 @@ Le lanceur appelle explicitement Bash et conserve l’identité de l’applicati
 
 ### Autorisation du réseau local sur macOS 15.5 ou plus récent
 
-Si les appareils restent hors ligne avec l’erreur `No route to host` alors qu’ils répondent depuis Terminal, macOS bloque le lanceur communautaire non signé par un compte Apple Developer. La solution officielle Apple consiste à autoriser le sous-réseau Wi-Fi local. Pour une box utilisant des adresses `192.168.1.x`, exécutez dans Terminal :
+Si les appareils restent hors ligne avec l’erreur `No route to host` alors qu’ils répondent depuis Terminal, macOS bloque le lanceur communautaire non signé par un compte Apple Developer. La solution officielle Apple consiste à autoriser le sous-réseau Wi-Fi local :
 
 ```bash
-sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "192.168.1.0/24"
+sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "VOTRE_SOUS_RESEAU_LOCAL"
 ```
 
-Le mot de passe ne s’affiche pas pendant la saisie. Redémarrez ensuite complètement le Mac. Cette exception concerne toutes les applications qui accèdent au sous-réseau `192.168.1.x`, pas uniquement Boîte noire Hoymiles. Procédure validée sous macOS 27.0. Voir la [note technique Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
+Le mot de passe ne s’affiche pas pendant la saisie. Redémarrez ensuite complètement le Mac. Cette exception concerne toutes les applications qui accèdent au sous-réseau local, pas uniquement Boîte noire Hoymiles. Procédure validée sous macOS 27.0. Voir la [note technique Apple TN3179](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 
 L’installateur place un seul lanceur dans `/Applications` et un raccourci sur le Bureau. Avant chaque mise à jour, il sauvegarde les CSV, JSON et journaux dans `~/Library/Application Support/BoiteNoireHoymiles/Sauvegardes`. Voir le [guide Mac détaillé](macOS-AppleSilicon/README_MAC.md).
 

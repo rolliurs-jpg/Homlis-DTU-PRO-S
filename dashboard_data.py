@@ -299,11 +299,11 @@ class DashboardData:
         links = (
             ('wlan1', 'Alfa AWUS036NHA — Wi-Fi direct DTU',
              'Liaison Wi-Fi directe vers le DTU',
-             ('TP-Link / Livebox : 192.168.1.205', 'DTU local : 10.10.100.254')),
+             ('TP-Link / réseau local', 'DTU local')),
             ('wlan2', 'Alfa · antenne Wi-Fi solaire cabanon',
              'USB 3.0 obligatoire · liaison Wi-Fi vers le cabanon',
              ('Clé USB : aucune adresse Livebox propre',
-              'Routeur ESP : 192.168.4.1', 'Proxy Hoymiles : 192.168.4.2')),
+              'Routeur ESP', 'Proxy Hoymiles')),
         )
         result = []
         for interface, name, role, references in links:

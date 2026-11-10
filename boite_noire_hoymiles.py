@@ -72,11 +72,11 @@ except ImportError:
 
 # Version stable destinée à la publication communautaire.
 VERSION = "7.0.69"
-DEFAULT_DTU_HOST = "10.10.100.254"
+DEFAULT_DTU_HOST = "dtu.local"
 # Le DTU répond aux relevés sur son Wi-Fi direct, tandis que son Modbus TCP
 # est exposé sur l'Ethernet derrière le nano-routeur. Les deux chemins ne
 # doivent donc pas être confondus.
-DEFAULT_DTU_MODBUS_HOST = "192.168.1.206"
+DEFAULT_DTU_MODBUS_HOST = "dtu-modbus.local"
 DTU_WIFI_FALLBACK_INTERVAL_S = 300
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
@@ -87,7 +87,7 @@ SAV_CONFIRMATION_REQUEST = (
     "DEMANDE AU SAV HOYMILES — Merci de confirmer la réception de ce fichier, "
     "d'indiquer le résultat de votre analyse des mesures DTU / DDSU / Linky, "
     "et de préciser toute correction, action ou réglage appliqué. "
-    "Réponse demandée à : rolli.urs@free.fr"
+    "Réponse demandée au contact de votre installation."
 )
 SENSITIVE_DTU_FIELD = re.compile(
     r"(?:pass(?:word|phrase)?|pwd|psk|wifi[_-]?(?:key|password|passphrase)|"
@@ -282,11 +282,6 @@ def load_config():
         # du firmware DTU comme si c'était un pourcentage de limite.
         cfg["dtu_wifi_limit_pct"] = safe_dtu_limit_pct(cfg.get("dtu_wifi_limit_pct"))
         cfg["dtu_lan_limit_pct"] = safe_dtu_limit_pct(cfg.get("dtu_lan_limit_pct"))
-        # Première édition macOS : elle utilisait par erreur l'ancienne IP .162.
-        # La migration ne touche qu'à ce réglage obsolète et garde les tarifs,
-        # historiques et autres paramètres saisis sur le Mac.
-        if sys.platform == "darwin" and str(cfg.get("dtu_host", "")).strip() == "10.10.100.162":
-            cfg["dtu_host"] = DEFAULT_DTU_HOST
         return cfg
     except Exception:
         return DEFAULT_CONFIG.copy()
@@ -1274,7 +1269,7 @@ def read_dtu():
     last_dtu_wifi_fallback_attempt = now
 
     hosts = []
-    for host in (HOST, "10.10.100.162", "10.10.100.254"):
+    for host in (HOST,):
         if host and host not in hosts:
             hosts.append(host)
 
@@ -2054,7 +2049,7 @@ def collect_dtu_diagnostic():
         "",
     ]
     lines.extend(summarize_local_observations())
-    if not str(HOST).startswith("10.10.100."):
+    if str(HOST) != DEFAULT_DTU_HOST:
         lines.extend(("", "DDSU MODBUS TCP — FC04, lecture seule",
                       json.dumps(read_ddsu_modbus(HOST), ensure_ascii=False, indent=2),
                       "Les valeurs brutes ne sont pas des mesures valides si le compteur est hors ligne.",

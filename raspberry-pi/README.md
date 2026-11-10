@@ -69,11 +69,11 @@ cabanon**, le Raspberry réutilise automatiquement son profil Wi-Fi enregistré.
 Le service du tableau est relancé sans limite après une interruption ; aucune
 intervention manuelle n’est nécessaire après le retour du courant.
 
-Le routeur ESP32 du cabanon ne distribue pas d’adresse DHCP : l’installateur
-configure donc automatiquement l’antenne cabanon avec l’adresse locale fixe
-`192.168.4.3/24`. Les adresses `192.168.4.1` (routeur) et `192.168.4.2`
-(proxy Bluetooth Hoymiles) restent ainsi joignables sans modifier la route
-Internet principale du Raspberry.
+Le routeur ESP32 du cabanon ne distribue pas d’adresse DHCP : renseignez une
+adresse locale fixe, ainsi que les hôtes du routeur et du proxy Bluetooth,
+avant de lancer l’installateur. Ces réglages restent locaux et ne doivent pas
+être ajoutés à GitHub. L’antenne cabanon reste joignable sans modifier la
+route Internet principale du Raspberry.
 
 Pour appliquer cette protection sur une installation déjà en place, relancez
 l’installateur depuis le dossier du projet :
@@ -115,7 +115,7 @@ configuration locale.
 
 ```bash
 cd ~/solaire
-./.venv/bin/python local_dtu_probe.py --host 192.168.1.206
+./.venv/bin/python local_dtu_probe.py --host ADRESSE_DU_DTU
 ```
 
 Le résultat attendu est `"state": "online"` avec les micro-onduleurs et leur
