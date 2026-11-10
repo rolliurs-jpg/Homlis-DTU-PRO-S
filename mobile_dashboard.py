@@ -268,7 +268,7 @@ def home_assistant_payload(current):
         },
     }
 
-_is_this_computer(address):
+def _is_this_computer(address):
     """True lorsque le navigateur tourne sur le même ordinateur que le suivi."""
     local = {'127.0.0.1', '::1'}
     try:
