@@ -24,6 +24,7 @@
       <div class="nav-links">
         <a href="#fonctionnalites">Fonctions</a>
         <a href="#guides">Guides</a>
+        <a href="#pages-programme">Pages du programme</a>
         <a href="#gestion">Gestion</a>
         <a href="#economies">Économies</a>
         <a href="#choisir">Mon installation</a>
@@ -44,6 +45,7 @@
         <a class="button primary" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/releases/latest/download/2-WINDOWS-Hoymiles-7.0.66-COMPLET.zip">Télécharger Windows</a>
         <a class="button secondary" href="#choisir">Voir mon installation</a>
         <a class="button secondary" href="#installation">Guide d’installation</a>
+        <a class="button pages-button" href="#pages-programme">▣ Visiter les pages du programme</a>
       </div>
       <ul class="trust-list" aria-label="Points essentiels">
         <li>✓ Collecte permanente sur Raspberry Pi</li>
@@ -97,7 +99,11 @@
 
     <section class="section screenshot-section">
       <div class="section-heading"><div><p class="eyebrow blue">BILAN ANNUEL · COULEURS ACTUELLES</p><h2>Les euros EDF et les apports solaires se lisent d’un seul regard.</h2></div><p>La carte EDF dorée et la carte solaire verte mettent en valeur les chiffres annuels sans mélanger les sources.</p></div>
-      <figure class="app-shot annual-shot"><img src="assets/bilan-annuel-couleurs-20261115.png" alt="Bilan annuel coloré du tableau web : achats EDF, production solaire, injection vers EDF et économie batterie"><figcaption>Capture actuelle du bilan annuel : l’orange distingue les achats EDF et le vert les apports solaires, batterie comprise.</figcaption></figure>
+      <div class="annual-preview" aria-label="Aperçu complet du bilan annuel avec achats EDF, production solaire, injection, batterie et économie réelle">
+        <section class="annual-preview-card annual-preview-edf"><h3>EDF · achats et coût</h3><p>Achat réseau et coût réel sur la période.</p><div><span>Achat EDF réel · HP + HC</span><strong>1 684,54 kWh</strong></div><div><span>Heures pleines</span><strong>1 148,54 kWh</strong></div><div><span>Heures creuses</span><strong>536,00 kWh</strong></div></section>
+        <section class="annual-preview-card annual-preview-solar"><h3>Solaire · production, batterie et économies</h3><p>Production locale, stockage et gain apporté par l’installation.</p><div><span>Production solaire réelle Hoymiles</span><strong>2 120,00 kWh</strong></div><div><span>Total injecté vers EDF</span><strong>223,21 kWh</strong></div><div><span>Énergie batterie restituée</span><strong>109,79 kWh</strong></div><div class="annual-preview-saving"><span>Économie réelle solaire + batterie</span><strong>253,42 €</strong></div></section>
+      </div>
+      <p class="annual-preview-note">Aperçu du bilan annuel : les chiffres sont issus des relevés présentés dans le tableau. Les périodes et tarifs restent visibles dans l’application locale.</p>
     </section>
 
     <section class="section split-section" id="gestion">
@@ -134,18 +140,18 @@
       </ol>
     </section>
 
-    <section class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">SUIVI DE PRODUCTION</p><h2>Une seule courbe, toutes les sources.</h2></div><p>Production PV, réseau DDSU, Linky &amp; Denky D4, deux voies Shelly et limite DTU possèdent leurs propres couleurs.</p></div>
+    <section id="pages-programme" class="section screenshot-section">
+      <div class="section-heading"><div><p class="eyebrow blue">LES PAGES DU PROGRAMME</p><h2>Direct, batterie, équipements et bilans au même endroit.</h2></div><p>Choisissez une page, puis ouvrez-la en grand. Cette visite regroupe les écrans utiles sans devoir les chercher dans toute la page.</p></div>
       <div class="screen-gallery" data-screen-gallery>
         <a class="screen-gallery-stage" href="assets/tableau-web-raspberry-20261017.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture Tableau en direct à sa taille réelle">
           <img src="assets/tableau-web-raspberry-20261017.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne">
         </a>
         <div class="screen-gallery-controls" role="tablist" aria-label="Fenêtres du tableau web">
           <button type="button" role="tab" aria-selected="true" data-src="assets/tableau-web-raspberry-20261017.png" data-alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne" data-label="Tableau en direct">Tableau en direct</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-cycle-avec-mesures-20261017.png" data-alt="Cycle batterie avec heure de batterie pleine et heure de prise de relais par la batterie" data-label="Batterie et cycle">Batterie et cycle</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-web-raspberry-20261004.png" data-alt="Page batterie du tableau web Raspberry Pi : niveau, charge, décharge et historique de cycle" data-label="Batterie et cycle">Batterie et cycle</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/equipements-web-public.png" data-alt="Page Équipements : les sources de mesure et leur état de connexion" data-label="Équipements">Équipements</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan web : production solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan web">Bilan web</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-annuel-couleurs-20261115.png" data-alt="Bilan annuel coloré : achats EDF, production solaire, injection vers EDF et économie batterie" data-label="Bilan annuel">Bilan annuel</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-edf-public.png" data-alt="Bilan EDF : consommation, index heures pleines et heures creuses, coût et abonnement" data-label="Bilan EDF">Bilan EDF</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/logiciel-windows-macos-courbes-options-20261018.png" data-alt="Logiciel de bureau Windows et macOS : courbe de bilan, état DTU et Denky D4, périodes et options d’export" data-label="Logiciel Windows/macOS">Logiciel Windows/macOS</button>
         </div>
         <p class="screen-gallery-note">Choisissez une vue Web ou le logiciel de bureau Windows/macOS, puis cliquez sur l’image pour l’ouvrir en grand.</p>
@@ -215,11 +221,6 @@
         <article><h3>Passerelle économique conseillée</h3><p>Le <a href="https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr802n/">TP-Link TL-WR802N</a> suffit largement pour le faible débit du DTU : mode Client/Pont, un port Ethernet et alimentation USB. Son prix se situe généralement autour de 25 à 35 €. Choisissez <strong>Client</strong> puis <strong>Smart IP (DHCP)</strong> afin de laisser la box attribuer les adresses.</p><div class="diagram topology">DTU Ethernet → TL-WR802N en mode Client → Wi-Fi 2,4 GHz de la box</div></article>
         <article><h3>Alternative bi-bande</h3><p>Le <a href="https://www.tp-link.com/fr/home-networking/wifi-router/tl-wr902ac/">TP-Link TL-WR902AC</a> ajoute le Wi-Fi 5 GHz, mais il est plus cher et n’apporte aucun gain nécessaire au DTU. Il peut être choisi si le réseau 2,4 GHz est très encombré.</p><p>Ces modèles sont des suggestions techniques indépendantes : le projet n’est pas affilié à TP-Link et ne reçoit aucune commission.</p></article>
       </div>
-    </section>
-
-    <section class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">BILAN EDF</p><h2>Le Linky pour les kWh et les euros.</h2></div><p>Le calcul HP, HC et abonnement s’appuie sur les index Linky &amp; Denky D4, et non sur le DDSU.</p></div>
-      <figure class="app-shot"><img src="assets/batterie-cycle-avec-mesures-20261017.png" alt="Cycle batterie avec heures observées dans le tableau web Raspberry Pi"><figcaption>Cycle réel : batterie pleine à 14:18, puis relais de la batterie à 17:44.</figcaption></figure>
     </section>
 
     <section class="section faq">
