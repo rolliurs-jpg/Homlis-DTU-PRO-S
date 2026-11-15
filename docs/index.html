@@ -23,6 +23,7 @@
       <a class="brand" href="#accueil">☀ Boîte noire Hoymiles</a>
       <div class="nav-links">
         <a href="#fonctionnalites">Fonctions</a>
+        <a href="#gestion">Gestion</a>
         <a href="#economies">Économies</a>
         <a href="#choisir">Mon installation</a>
         <a href="#installation">Installation</a>
@@ -74,22 +75,27 @@
     </section>
 
     <section id="economies" class="section split-section">
-      <div><p class="eyebrow blue">DE L’ÉNERGIE AUX EUROS</p><h2>Voir ce qui est produit, acheté et injecté — puis l’exprimer en euros.</h2><p>Le tableau affiche d’abord les puissances instantanées pour comprendre ce qui se passe maintenant. Les bilans utilisent ensuite les kWh réellement mesurés afin de suivre l’énergie achetée, injectée et chargée dans la batterie.</p><p>Avec Linky et Denky D4, le coût EDF repose sur les index heures pleines / heures creuses. Sans Linky, le logiciel reste utile : il présente les mesures disponibles sans inventer une économie.</p></div>
+      <div><p class="eyebrow blue">DE L’ÉNERGIE AUX EUROS</p><h2>Un bilan annuel lisible, fondé sur vos relevés réels.</h2><p>Le tableau sépare l’achat EDF HP/HC, l’abonnement, la production Hoymiles et le surplus réellement injecté. Il ne mélange jamais une mesure disponible avec une estimation.</p><p>L’économie annuelle compare la période solaire avec la référence EDF saisie. L’énergie restituée par la batterie est détaillée à part puis ajoutée au total selon le tarif moyen choisi — 0,20 €/kWh dans l’exemple. Sans Linky ou relevé de référence, le logiciel laisse l’économie vide plutôt que d’inventer un montant.</p></div>
       <ol class="steps">
         <li><strong>Maintenant</strong><span>Production, consommation, achat ou injection en watts.</span></li>
         <li><strong>Sur la période</strong><span>Énergie en kWh à partir des mesures enregistrées, sans extrapoler les trous de données.</span></li>
-        <li><strong>En euros</strong><span>Estimation fondée sur les tarifs configurés et les index Linky lorsqu’ils sont disponibles.</span></li>
-        <li><strong>Transparence</strong><span>Les sources et la qualité des mesures restent visibles pour éviter les chiffres trompeurs.</span></li>
+        <li><strong>En euros</strong><span>Coût EDF réel par index HP/HC, abonnement et référence annuelle saisie.</span></li>
+        <li><strong>Batterie</strong><span>Charge et énergie restituée sont visibles ; sa contribution à l’économie est explicitement chiffrée.</span></li>
       </ol>
     </section>
 
-    <section class="section split-section" id="gestion-batterie">
-      <div><p class="eyebrow blue">PILOTAGE DU SURPLUS : LOCAL ET OPTIONNEL</p><h2>Mesurer d’abord, réguler seulement lorsque les mesures sont fiables.</h2><p>Le tableau mesure indépendamment la production, l’achat et l’injection. La régulation locale est facultative et garde les dernières consignes dès qu’une mesure devient absente ou ancienne.</p><p>Une limite Hoymiles/DDSU active est une commande réelle, même réglée à <strong>0,10 kW</strong> ou <strong>1 kW</strong>. Ne la combinez jamais avec un contrôleur externe.</p></div>
+    <section class="section screenshot-section">
+      <div class="section-heading"><div><p class="eyebrow blue">BILAN, INJECTION ET BATTERIE</p><h2>Une capture qui garde les flux et les euros dans le même contexte.</h2></div><p>Le bilan présente séparément l’énergie solaire, le surplus envoyé à EDF, l’achat réseau et les flux AC de la batterie.</p></div>
+      <figure class="app-shot"><img src="assets/bilan-web-20261017.png" alt="Page Bilans du tableau web : production solaire, énergie injectée et achetée à EDF, coût et énergie de batterie"><figcaption>Les mesures de production, injection, achat EDF et batterie restent séparées pour que le calcul d’économie soit vérifiable.</figcaption></figure>
+    </section>
+
+    <section class="section split-section" id="gestion">
+      <div><p class="eyebrow blue">GESTION DU SURPLUS : LOCALE, OPTIONNELLE ET PROTÉGÉE</p><h2>Mesurer d’abord, réguler seulement lorsque les mesures sont fiables.</h2><p>Le tableau mesure indépendamment la production, l’achat et l’injection. La régulation locale est facultative : dès qu’une mesure devient absente, ancienne ou incohérente, le logiciel suspend les commandes.</p><p>Le Tongou peut relancer l’alimentation du DTU après une coupure prolongée, uniquement lorsqu’il a été configuré explicitement. Chaque coupure et remise sous tension est inscrite dans un journal local.</p><p>Une limite Hoymiles/DDSU active est une commande réelle, même réglée à <strong>0,10 kW</strong> ou <strong>1 kW</strong>. Ne la combinez jamais avec un contrôleur externe.</p></div>
       <ol class="steps">
         <li><strong>Suivi indépendant</strong><span>Le Shelly et le Linky mesurent l’achat et l’injection sans envoyer de consigne aux panneaux.</span></li>
         <li><strong>Hoymiles/DDSU</strong><span>Si « Gestion des exportations » est active dans Hoymiles, elle est le seul contrôle autorisé.</span></li>
         <li><strong>Contrôle externe</strong><span>Il est optionnel et doit être validé sur matériel réel, avec lecture de la limite et flux réseau cohérents.</span></li>
-        <li><strong>Protection</strong><span>Le logiciel ne modifie ni la batterie Zendure, ni les relais Shelly, ni le réglage interne de zéro-injection Hoymiles.</span></li>
+        <li><strong>Protection</strong><span>La batterie Zendure et les relais Shelly ne sont jamais pilotés. Le Tongou ne coupe que l’alimentation du DTU après le délai configuré.</span></li>
       </ol>
     </section>
 
@@ -128,6 +134,7 @@
           <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-cycle-avec-mesures-20261017.png" data-alt="Cycle batterie avec heure de batterie pleine et heure de prise de relais par la batterie" data-label="Batterie et cycle">Batterie et cycle</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/equipements-web-public.png" data-alt="Page Équipements : les sources de mesure et leur état de connexion" data-label="Équipements">Équipements</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan web : production solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan web">Bilan web</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Page Économies : production, injection EDF, achat réseau, coût et énergie de la batterie" data-label="Économies">Économies</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/logiciel-windows-macos-courbes-options-20261018.png" data-alt="Logiciel de bureau Windows et macOS : courbe de bilan, état DTU et Denky D4, périodes et options d’export" data-label="Logiciel Windows/macOS">Logiciel Windows/macOS</button>
         </div>
         <p class="screen-gallery-note">Choisissez une vue Web ou le logiciel de bureau Windows/macOS, puis cliquez sur l’image pour l’ouvrir en grand.</p>

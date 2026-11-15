@@ -203,6 +203,12 @@ class DashboardData:
         exported, grid_seconds = integrate(points,'export_w',start,end)
         billing = index_energy(dated_rows(self.base/'linky_index_log.csv'),start,end) if enabled('linky') else index_energy([],start,end)
         tariffs = cfg.get('tarifs_edf',{})
+        annual_readings = cfg.get('annual_real_readings', {})
+        if not isinstance(annual_readings, dict):
+            annual_readings = {}
+        annual_reference = annual_readings.get('reference_2025', {})
+        if not isinstance(annual_reference, dict):
+            annual_reference = {}
         hp_rate, hc_rate = number(tariffs.get('hp_eur_kwh')),number(tariffs.get('hc_eur_kwh'))
         energy_cost = None
         if billing['import_kwh'] is not None and hp_rate is not None and hc_rate is not None and hp_rate>0 and hc_rate>0:
@@ -232,7 +238,35 @@ class DashboardData:
                     consumption_kwh=consumption, consumption_seconds=consumption_seconds,
                     local_energy_kwh=local_energy, avoided_cost_eur=avoided_cost,
                     solar_after_export_kwh=solar_after_export,
-                    tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate),
+                    tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate,
+                                 abonnement_journalier_eur=daily_fee,
+                                 abonnement_mensuel_eur=number(tariffs.get('abonnement_mensuel_eur'))),
+                    # Optional manual readings are intentionally configuration data:
+                    # they are site-specific and must never be inferred from a
+                    # partial history or published with the software.
+                    annual_real_readings=dict(
+                        start=annual_readings.get('start'),
+                        as_of=annual_readings.get('as_of'),
+                        hp_kwh=number(annual_readings.get('hp_kwh')),
+                        hc_kwh=number(annual_readings.get('hc_kwh')),
+                        production_kwh=number(annual_readings.get('production_kwh')),
+                        export_kwh=number(annual_readings.get('export_kwh')),
+                        battery_charge_kwh=number(annual_readings.get('battery_charge_kwh')),
+                        battery_discharge_kwh=number(annual_readings.get('battery_discharge_kwh')),
+                        battery_start=annual_readings.get('battery_start'),
+                        battery_end=annual_readings.get('battery_end'),
+                        savings_eur=number(annual_readings.get('savings_eur')),
+                        reference_2025=dict(
+                            consumption_start=annual_reference.get('consumption_start'),
+                            end=annual_reference.get('end'),
+                            subscription_start=annual_reference.get('subscription_start'),
+                            hp_kwh=number(annual_reference.get('hp_kwh')),
+                            hc_kwh=number(annual_reference.get('hc_kwh')),
+                            hp_eur_kwh=number(annual_reference.get('hp_eur_kwh')),
+                            hc_eur_kwh=number(annual_reference.get('hc_eur_kwh')),
+                            subscription_monthly_eur=number(annual_reference.get('subscription_monthly_eur')),
+                        ),
+                    ),
                     battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
                     battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),

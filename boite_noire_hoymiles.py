@@ -189,6 +189,35 @@ DEFAULT_CONFIG = {
         "plages_hc": "",
         "ddsu_import_positif": True
     },
+    # Relevés annuels saisis manuellement lorsqu'ils viennent d'EDF ou de
+    # l'application Hoymiles. Ils restent vides par défaut : aucune donnée
+    # personnelle n'est distribuée avec le logiciel.
+    "annual_real_readings": {
+        "start": "",
+        "as_of": "",
+        "hp_kwh": None,
+        "hc_kwh": None,
+        "production_kwh": None,
+        "export_kwh": None,
+        "battery_charge_kwh": None,
+        "battery_discharge_kwh": None,
+        "battery_start": "",
+        "battery_end": "",
+        "savings_eur": None,
+        # Référence de comparaison, par exemple les relevés EDF et Hoymiles
+        # d'une année antérieure. Les tarifs de cette référence restent
+        # séparés des tarifs courants afin que l'économie soit traçable.
+        "reference_2025": {
+            "consumption_start": "",
+            "end": "",
+            "subscription_start": "",
+            "hp_kwh": None,
+            "hc_kwh": None,
+            "hp_eur_kwh": None,
+            "hc_eur_kwh": None,
+            "subscription_monthly_eur": None,
+        },
+    },
     # Désactivé par défaut : l'utilisateur peut l'activer après avoir renseigné
     # son interface et son profil Wi-Fi dédiés au DTU.
     "dtu_wifi_recovery": {
@@ -512,6 +541,11 @@ dtu_failures = 0
 dtu_failure_since = None
 last_dtu_wifi_recovery = None
 last_dtu_wifi_fallback_attempt = 0.0
+# Les quatre entrées PV sont publiées par le DTU sur sa liaison Wi-Fi locale.
+# Elles servent uniquement à l'affichage des cartes de panneaux : aucune
+# consigne n'est déduite de ces valeurs.
+last_dtu_wifi_panels = {"state": "waiting", "panels": []}
+last_dtu_wifi_panel_attempt = 0.0
 dtu_maintenance_paused = False
 last_injection_sample_time = None
 last_injection_power_w = 0.0
@@ -644,7 +678,18 @@ def publish_mobile_snapshot(dtu_state="waiting"):
         start = max(0, len(times) - 360)
         history = [mobile_point(index) for index in range(start, len(times))]
         current["hoymiles_proxy"] = proxy_reader.snapshot()
-        current["surplus_simulation"] = surplus_controller.snapshot() if surplus_controller is not None else surplus_simulation.evaluate(current, datetime.now().timestamp())
+        simulation = surplus_controller.snapshot() if surplus_controller is not None else surplus_simulation.evaluate(current, datetime.now().timestamp())
+        # Quand le DDSU Hoymiles pilote nativement les quatre panneaux maison,
+        # il n'y a volontairement pas de contrôleur Modbus externe. Conserver
+        # les entrées PV lues par Wi-Fi dans l'état web évite de les afficher
+        # vides, sans modifier cette régulation native.
+        panel_state = dict(last_dtu_wifi_panels)
+        if panel_state.get("state") == "online" and panel_state.get("panels"):
+            dtu = dict(simulation.get("dtu") or {})
+            if not dtu.get("panels"):
+                dtu.update(panel_state)
+                simulation["dtu"] = dtu
+        current["surplus_simulation"] = simulation
         mobile_dashboard.update(current, history)
     except Exception:
         # Le tableau mobile ne doit jamais interrompre la collecte principale.
@@ -665,8 +710,17 @@ def network_device_state(config):
         timeout = float(config.get("timeout_s", 2) or 2)
         if not host:
             return "offline"
-        with socket.create_connection((host, port), timeout=timeout):
-            return "online"
+        # Certains équipements, notamment le relais Tongou, ne laissent pas
+        # toujours leur port de commande local ouvert. Leur interface HTTP
+        # reste toutefois disponible : ce second test évite de les afficher
+        # à tort en rouge alors qu'ils sont bien joignables.
+        for candidate in dict.fromkeys((port, 80)):
+            try:
+                with socket.create_connection((host, candidate), timeout=timeout):
+                    return "online"
+            except OSError:
+                continue
+        return "offline"
     except (OSError, ValueError):
         return "offline"
 
@@ -1218,6 +1272,94 @@ def read_ddsu_modbus(host):
     return result
 
 
+def _hoymiles_wifi_command(host):
+    """Construit une lecture locale du DTU en gardant la bonne interface source."""
+    startupinfo = None
+    creationflags = 0
+    if hasattr(subprocess, "STARTUPINFO"):
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    executable_dir = Path(sys.executable).resolve().parent
+    project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
+    cli_candidates = (
+        project_venv_dir / "hoymiles-wifi",
+        Path(__file__).resolve().parent / "venv" / "bin" / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi",
+        executable_dir / "hoymiles-wifi.exe",
+    )
+    hoymiles_cli = next((str(candidate) for candidate in cli_candidates if candidate.exists()), "hoymiles-wifi")
+    local_addr = str(CONFIG.get("dtu_wifi_local_addr", "")).strip()
+    if not local_addr:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                probe.connect((host, 9))
+                local_addr = str(probe.getsockname()[0])
+        except OSError:
+            local_addr = ""
+    command = [hoymiles_cli, "--host", host]
+    if local_addr:
+        command.extend(["--local_addr", local_addr])
+    command.extend(["--timeout", "8", "--as-json", "--disable-interactive", "get-real-data-new"])
+    return command, startupinfo, creationflags
+
+
+def _panel_rows_from_dtu_payload(payload):
+    """Convertit la télémétrie PV documentée par le DTU en cartes lisibles."""
+    rows = []
+    for entry in payload.get("pvData") or []:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            port = int(entry.get("portNumber"))
+            voltage = float(entry.get("voltage")) / 10.0
+            current = float(entry.get("current")) / 10.0
+            power = float(entry.get("power"))
+        except (TypeError, ValueError):
+            continue
+        if 1 <= port <= 4 and voltage >= 0 and current >= 0 and power >= 0:
+            rows.append({"port": port, "voltage_v": round(voltage, 1),
+                         "current_a": round(current, 2), "power_w": round(power, 1)})
+    rows.sort(key=lambda row: row["port"])
+    return rows
+
+
+def refresh_dtu_wifi_panels(force=False):
+    """Lit les quatre entrées PV pour le tableau web, sans écrire au DTU."""
+    global last_dtu_wifi_panels, last_dtu_wifi_panel_attempt
+    now = monotonic()
+    # Une collecte normale a lieu chaque minute : ne pas multiplier les
+    # connexions Wi-Fi si le rendu web est rafraîchi plus souvent.
+    if not force and now - last_dtu_wifi_panel_attempt < 45:
+        return dict(last_dtu_wifi_panels)
+    last_dtu_wifi_panel_attempt = now
+    host = str(HOST or "").strip()
+    if not host:
+        return dict(last_dtu_wifi_panels)
+    try:
+        command, startupinfo, creationflags = _hoymiles_wifi_command(host)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=20,
+                                startupinfo=startupinfo, creationflags=creationflags)
+        payload = json.loads(result.stdout.strip())
+        if not isinstance(payload, dict) or payload.get("error"):
+            raise RuntimeError("réponse Wi-Fi DTU invalide")
+        panels = _panel_rows_from_dtu_payload(payload)
+        if len(panels) != 4:
+            raise RuntimeError("entrées PV DTU incomplètes")
+        last_dtu_wifi_panels = {"state": "online", "timestamp": datetime.now().timestamp(),
+                                "panels": panels, "power_w": round(sum(row["power_w"] for row in panels), 1),
+                                "source": "wifi_direct"}
+    except Exception as exc:
+        # Les dernières mesures restent visibles jusqu'à leur expiration ;
+        # une indisponibilité ponctuelle ne rend pas les cartes trompeusement
+        # nulles et n'influence jamais le pilotage.
+        previous = dict(last_dtu_wifi_panels)
+        previous["last_error"] = type(exc).__name__
+        last_dtu_wifi_panels = previous
+    return dict(last_dtu_wifi_panels)
+
+
 def read_dtu():
     """Lecture DTU : Modbus LAN prioritaire, Wi-Fi direct uniquement en secours.
 
@@ -1227,14 +1369,6 @@ def read_dtu():
     secours Wi-Fi est limité à une tentative toutes les cinq minutes.
     """
     global HOST, last_dtu_wifi_fallback_attempt
-    startupinfo = None
-    creationflags = 0
-    if hasattr(subprocess, "STARTUPINFO"):
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-        startupinfo.wShowWindow = subprocess.SW_HIDE
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-
     # Le nano-routeur rend le Modbus du DTU accessible depuis le LAN. Cette
     # voie est la référence pour les quatre panneaux maison ; elle évite toute
     # interrogation Wi-Fi directe pendant le fonctionnement normal.
@@ -1273,43 +1407,12 @@ def read_dtu():
         if host and host not in hosts:
             hosts.append(host)
 
-    # Sous macOS l'application est lancée depuis un environnement Python privé.
-    # Le programme hoymiles-wifi est donc dans le même dossier que Python, et
-    # n'est pas forcément visible dans le PATH général du Mac.
-    executable_dir = Path(sys.executable).resolve().parent
-    # Sous systemd, sys.executable peut être résolu vers Python système même
-    # lorsque l'application utilise le venv du projet. Le client installé à
-    # côté de ce projet doit donc être recherché en premier.
-    project_venv_dir = Path(__file__).resolve().parent / ".venv" / "bin"
-    cli_candidates = (
-        project_venv_dir / "hoymiles-wifi",
-        # L'application macOS installe son environnement sous ``venv`` (sans
-        # point), tandis que les installations Raspberry utilisent ``.venv``.
-        # Chercher les deux évite de tomber sur le PATH minimal de launchd.
-        Path(__file__).resolve().parent / "venv" / "bin" / "hoymiles-wifi",
-        executable_dir / "hoymiles-wifi",
-        executable_dir / "hoymiles-wifi.exe",
-    )
-    hoymiles_cli = next((str(candidate) for candidate in cli_candidates if candidate.exists()), "hoymiles-wifi")
-
     errors = []
     for host in hosts:
         # hoymiles-wifi doit envoyer ses paquets depuis l'interface qui atteint
         # le DTU. C'est indispensable quand le Raspberry a simultanément le
         # LAN Livebox et le Wi-Fi direct du DTU.
-        local_addr = str(CONFIG.get("dtu_wifi_local_addr", "")).strip()
-        if not local_addr:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-                    probe.connect((host, 9))
-                    local_addr = str(probe.getsockname()[0])
-            except OSError:
-                local_addr = ""
-
-        cmd = [hoymiles_cli, "--host", host]
-        if local_addr:
-            cmd.extend(["--local_addr", local_addr])
-        cmd.extend(["--timeout", "8", "--as-json", "--disable-interactive", "get-real-data-new"])
+        cmd, startupinfo, creationflags = _hoymiles_wifi_command(host)
         try:
             # Le DTU peut demander quelques secondes pour réveiller la session
             # radio. Le client interne attend déjà 8 s : 20 s évite que Python
@@ -3850,6 +3953,17 @@ def update(_):
         set_connection_badge(connection_badges[0], "online", "● DTU connecté")
 
         source = data.get("_source", "wifi_direct")
+        # La production globale passe de préférence par le pont Ethernet.
+        # Les puissances par entrée ne sont pas publiées par tous les firmwares
+        # Modbus : une lecture Wi-Fi locale, strictement en lecture seule,
+        # complète alors les quatre cartes du tableau de bord.
+        if source == "modbus_tcp":
+            refresh_dtu_wifi_panels()
+        else:
+            panels = _panel_rows_from_dtu_payload(data)
+            if len(panels) == 4:
+                last_dtu_wifi_panels.update(state="online", timestamp=datetime.now().timestamp(), panels=panels,
+                                            power_w=round(sum(row["power_w"] for row in panels), 1), source="wifi_direct")
         sgs = data["sgsData"][0]
         # Le DTU peut fournir la production sans fournir de mesure DDSU dans
         # la même réponse.  Le Shelly Pro EM est la référence réseau locale ;

@@ -210,6 +210,7 @@ class SurplusController:
                     if not result.get('write_hold') and not result.get('reason', '').startswith('Liaisons rétablies'):
                         result['reason'] = 'Connexion rétablie : délai de stabilité de 2 min avant reprise, aucune commande envoyée.'
                     result['write_hold'] = True
+                    result['hold_remaining_s'] = max(0, int(math.ceil(self.hold_until - now)))
                 suppress_writes = hold or bool(result.get('write_hold'))
                 if self.enabled and not suppress_writes and target is not None:
                     self.proxy.request_limit(target)

@@ -19,6 +19,9 @@ save_item() {
 # L'application se réinstalle depuis Git ; seuls ses réglages spécifiques et
 # les éléments système nécessaires après une coupure sont sauvegardés ici.
 save_item "$HOME/AppData/Local/BoiteNoireHoymiles/config_v5.json"
+# Les identifiants Tuya du relais Tongou sont privés, mais indispensables à la
+# relance automatique du DTU. Ils restent uniquement dans l'archive locale.
+save_item "$HOME/.config/tuya-relay.env"
 save_item "$HOME/solaire/raspberry-pi"
 save_item "$HOME/solaire-source/raspberry-pi"
 save_item /etc/solaire-network.env
@@ -32,10 +35,10 @@ save_item /etc/NetworkManager/system-connections
 cat > "$stage/README-RESTAURATION.txt" <<'EOF'
 Sauvegarde de configuration solaire Raspberry Pi.
 
-Contenu : configuration de l'application, profils Wi-Fi, unités systemd et
-scripts de reprise réseau. Les sources du logiciel restent disponibles dans
-le dépôt Git ; ne partagez jamais cette archive car elle peut contenir des
-clés Wi-Fi et les identifiants de liaison Hoymiles.
+Contenu : configuration de l'application, identifiants privés du relais
+Tongou/Tuya, profils Wi-Fi, unités systemd et scripts de reprise réseau. Les
+sources du logiciel restent disponibles dans le dépôt Git ; ne partagez jamais
+cette archive car elle peut contenir des clés Wi-Fi et des identifiants locaux.
 EOF
 
 sudo tar -C "$stage" -czf "$ARCHIVE" .

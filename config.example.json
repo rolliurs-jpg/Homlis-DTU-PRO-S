@@ -30,6 +30,29 @@
     "plages_hc": "",
     "ddsu_import_positif": true
   },
+  "annual_real_readings": {
+    "start": "",
+    "as_of": "",
+    "hp_kwh": null,
+    "hc_kwh": null,
+    "production_kwh": null,
+    "export_kwh": null,
+    "battery_charge_kwh": null,
+    "battery_discharge_kwh": null,
+    "battery_start": "",
+    "battery_end": "",
+    "savings_eur": null,
+    "reference_2025": {
+      "consumption_start": "",
+      "end": "",
+      "subscription_start": "",
+      "hp_kwh": null,
+      "hc_kwh": null,
+      "hp_eur_kwh": null,
+      "hc_eur_kwh": null,
+      "subscription_monthly_eur": null
+    }
+  },
   "battery": {
     "enabled": false,
     "host": "",
