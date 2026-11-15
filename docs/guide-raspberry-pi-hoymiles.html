@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Installer un suivi solaire Hoymiles sur Raspberry Pi | Guide DTU Pro-S</title>
+  <meta name="description" content="Guide pour installer un suivi solaire Hoymiles sur Raspberry Pi : collecteur permanent, DTU Pro-S, tableau web local, Linky, Shelly et accès privé.">
+  <link rel="canonical" href="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/guide-raspberry-pi-hoymiles.html">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Installer un suivi solaire Hoymiles sur Raspberry Pi">
+  <meta property="og:description" content="Un collecteur local permanent pour DTU Pro-S, Linky et Shelly.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero guide-hero">
+    <nav class="nav" aria-label="Navigation principale"><a class="brand" href="index.html">☀ Boîte noire Hoymiles</a><a class="github-link" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Voir sur GitHub</a></nav>
+    <div class="hero-content">
+      <p class="breadcrumb"><a href="index.html">Accueil</a> / Guide Raspberry Pi</p>
+      <p class="eyebrow">GUIDE PRATIQUE · COLLECTEUR LOCAL PERMANENT</p>
+      <h1>Installer un suivi solaire Hoymiles sur <span>Raspberry Pi.</span></h1>
+      <p class="lead">Le Raspberry Pi collecte les mesures en continu et met le tableau à disposition sur votre réseau privé. Les téléphones et ordinateurs consultent ensuite la même interface, sans créer de seconde lecture sur les appareils solaires.</p>
+    </div>
+  </header>
+  <main class="section guide-main">
+    <div class="guide-card solar"><strong>Le rôle du Raspberry Pi</strong><p>Il remplace un ordinateur laissé allumé : il conserve l’historique, démarre automatiquement après une coupure et héberge le tableau web local. Il ne publie pas les mesures sur Internet.</p></div>
+    <h2>Ce qu’il faut préparer</h2>
+    <ul>
+      <li>Un Raspberry Pi relié au réseau domestique, avec Raspberry Pi OS et un compte utilisateur.</li>
+      <li>Une connexion réseau vers les appareils réellement utilisés : DTU Pro-S, Linky/Denky D4, Shelly et batterie sont optionnels.</li>
+      <li>Les adresses locales des appareils, idéalement réservées dans la box Internet.</li>
+      <li>Un seul collecteur actif : si le Raspberry assure le suivi, le logiciel Mac ou Windows doit seulement ouvrir son tableau web.</li>
+    </ul>
+    <h2>Installer le collecteur</h2>
+    <ol>
+      <li>Téléchargez l’archive Raspberry Pi depuis la page GitHub du projet, puis décompressez-la dans le dossier de votre choix.</li>
+      <li>Ouvrez un terminal sur le Raspberry et lancez l’installateur fourni : <code>bash raspberry-pi/INSTALLER_RASPBERRY.sh</code>.</li>
+      <li>Renseignez uniquement les équipements présents dans la configuration locale. Les mots de passe, adresses IP et historiques ne doivent jamais être publiés dans GitHub.</li>
+      <li>Vérifiez que le service démarre avec <code>systemctl is-active boite-noire-hoymiles</code>. Le résultat attendu est <code>active</code>.</li>
+    </ol>
+    <div class="callout"><p><strong>Important :</strong> le service Raspberry fonctionne normalement sans fenêtre graphique. C’est volontaire : le suivi reste actif même si aucun écran n’est branché.</p></div>
+    <h2>Ouvrir le tableau depuis le réseau local</h2>
+    <p>Depuis un Mac, un PC ou un téléphone connecté au même Wi-Fi, ouvrez l’adresse suivante en remplaçant l’adresse par celle du Raspberry :</p>
+    <p><code>http://ADRESSE_IP_DU_RASPBERRY:8765</code></p>
+    <p>Si vous utilisez le bureau distant du Raspberry, ouvrez Chromium puis utilisez <code>http://localhost:8765</code>. Cette page est le tableau du collecteur, pas une application de bureau distincte.</p>
+    <h2>Vérifier le bon fonctionnement</h2>
+    <table>
+      <thead><tr><th>À vérifier</th><th>Ce que cela signifie</th></tr></thead>
+      <tbody>
+        <tr><td>Service actif</td><td>Le collecteur enregistre et répond après un redémarrage du Raspberry.</td></tr>
+        <tr><td>Dernière mesure récente</td><td>Le tableau reçoit des données ; la nuit, une production à 0 W reste normale.</td></tr>
+        <tr><td>Équipements visibles</td><td>Le tableau précise si le DTU, le Shelly, le Linky ou la batterie sont joignables.</td></tr>
+        <tr><td>Historique CSV</td><td>Les bilans sont calculés à partir des mesures réellement conservées, sans combler les trous.</td></tr>
+      </tbody>
+    </table>
+    <h2>Accès hors de la maison</h2>
+    <p>Pour consulter le tableau à distance, utilisez un réseau privé Tailscale entre vos appareils et le Raspberry. N’ouvrez pas le port 8765 de la box Internet et n’utilisez pas un lien public pour un tableau contenant les données de votre maison.</p>
+    <p><a class="text-link back-link" href="index.html">← Retour au site du projet</a></p>
+  </main>
+  <footer><div><strong>Boîte noire Hoymiles</strong><p>Projet communautaire indépendant.</p></div><div class="footer-links"><a href="index.html">Accueil</a><a href="guide-dtu-pro-s-shelly-linky.html">Guide des mesures</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues">Support GitHub</a></div></footer>
+</body>
+</html>

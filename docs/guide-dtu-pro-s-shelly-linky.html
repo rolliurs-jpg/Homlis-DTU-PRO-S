@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DTU Pro-S, Shelly Pro EM et Linky : comprendre les mesures solaires</title>
+  <meta name="description" content="Comprendre les rôles du DTU Pro-S Hoymiles, du Shelly Pro EM et du Linky/Denky D4 pour suivre production, achat EDF et injection solaire.">
+  <link rel="canonical" href="https://rolliurs-jpg.github.io/Homlis-DTU-PRO-S/guide-dtu-pro-s-shelly-linky.html">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="DTU Pro-S, Shelly Pro EM et Linky : comprendre les mesures solaires">
+  <meta property="og:description" content="Production Hoymiles, achat EDF et injection : quelle source utiliser ?">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero guide-hero">
+    <nav class="nav" aria-label="Navigation principale"><a class="brand" href="index.html">☀ Boîte noire Hoymiles</a><a class="github-link" href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Voir sur GitHub</a></nav>
+    <div class="hero-content">
+      <p class="breadcrumb"><a href="index.html">Accueil</a> / Guide des mesures</p>
+      <p class="eyebrow">GUIDE PRATIQUE · PRODUCTION, EDF ET INJECTION</p>
+      <h1>DTU Pro-S, Shelly et Linky : <span>une mesure, un rôle.</span></h1>
+      <p class="lead">Un bon bilan solaire ne mélange pas les capteurs. Le DTU mesure la production Hoymiles, le Linky suit les index EDF et le Shelly peut mesurer le flux instantané vers ou depuis le réseau.</p>
+    </div>
+  </header>
+  <main class="section guide-main">
+    <div class="guide-card solar"><strong>Principe essentiel</strong><p>Une puissance instantanée et un index de compteur ne sont pas la même information. Le tableau les affiche ensemble, mais les garde séparés pour éviter de transformer une estimation en facture EDF.</p></div>
+    <h2>Quel appareil mesure quoi ?</h2>
+    <table>
+      <thead><tr><th>Équipement</th><th>Mesure utile</th><th>Usage dans le tableau</th></tr></thead>
+      <tbody>
+        <tr><td>Hoymiles DTU Pro-S</td><td>Production des micro-onduleurs</td><td>Production photovoltaïque, puissance et, lorsque disponible, lecture des entrées PV.</td></tr>
+        <tr><td>Linky + Denky D4</td><td>Index heures pleines et heures creuses</td><td>Bilan d’achat EDF et coût calculé avec les tarifs configurés.</td></tr>
+        <tr><td>Shelly Pro EM</td><td>Puissance du départ solaire et flux réseau signé</td><td>Production locale indépendante et achat ou injection instantanés.</td></tr>
+        <tr><td>DDSU Hoymiles</td><td>Mesure utilisée par le système Hoymiles</td><td>Indication de réseau et régulation native si elle est configurée dans Hoymiles.</td></tr>
+      </tbody>
+    </table>
+    <h2>Production solaire : le DTU en référence</h2>
+    <p>Le DTU Pro-S est la source habituelle de production. Il peut être joint en Wi-Fi direct ou, lorsqu’un nano-routeur relie son Ethernet au réseau local, par Modbus TCP. Le tableau indique clairement si la lecture DTU est absente et si une mesure Shelly de secours est utilisée.</p>
+    <h2>Achat EDF : les index Linky font foi</h2>
+    <p>Les index du Linky, lus par un Denky D4, permettent de distinguer les kWh heures pleines et heures creuses. Ils servent au coût EDF mensuel ou annuel. Une puissance instantanée à zéro ne permet pas de déduire un index ou une facture.</p>
+    <h2>Injection vers EDF : le Shelly donne le flux instantané</h2>
+    <p>Le Shelly Pro EM peut mesurer le sens du flux réseau : achat depuis EDF ou surplus envoyé vers EDF. Son cumul d’injection est issu d’intervalles de puissance réellement enregistrés. Les interruptions ne sont pas inventées ; elles peuvent donc rendre un cumul partiel si la collecte s’est arrêtée.</p>
+    <div class="callout"><p><strong>Ne doublez pas les contrôles :</strong> une gestion d’exportation native Hoymiles/DDSU est une commande réelle. Ne l’associez pas simultanément à un contrôleur externe sans validation explicite de votre installation.</p></div>
+    <h2>Pourquoi les valeurs peuvent différer</h2>
+    <ul>
+      <li>Les appareils ne mesurent pas toujours au même endroit dans l’installation électrique.</li>
+      <li>Les relevés ne sont pas synchronisés à la seconde et une coupure réseau peut créer un trou de mesures.</li>
+      <li>Le Shelly donne un flux instantané ; le Linky fournit des index cumulés selon sa propre cadence.</li>
+      <li>Une pince de courant inversée change le signe achat/injection : il faut corriger le sens dans les réglages, pas déplacer une pince sous tension.</li>
+    </ul>
+    <h2>Lire le tableau sans se tromper</h2>
+    <ol>
+      <li>Regardez d’abord la fraîcheur de la dernière mesure et l’état des équipements.</li>
+      <li>Pour la production, privilégiez le DTU ; pour le coût EDF, privilégiez les index Linky.</li>
+      <li>Utilisez l’injection Shelly comme preuve de flux réseau local, en tenant compte de la période réellement enregistrée.</li>
+      <li>Gardez la batterie séparée : l’énergie restituée peut provenir d’une charge antérieure et ne doit pas être comptée deux fois.</li>
+    </ol>
+    <p><a class="text-link back-link" href="index.html">← Retour au site du projet</a></p>
+  </main>
+  <footer><div><strong>Boîte noire Hoymiles</strong><p>Projet communautaire indépendant.</p></div><div class="footer-links"><a href="index.html">Accueil</a><a href="guide-raspberry-pi-hoymiles.html">Guide Raspberry Pi</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues">Support GitHub</a></div></footer>
+</body>
+</html>
