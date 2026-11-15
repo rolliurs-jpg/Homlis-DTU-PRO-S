@@ -22,10 +22,9 @@
     <nav class="nav" aria-label="Navigation principale">
       <a class="brand" href="#accueil">☀ Boîte noire Hoymiles</a>
       <div class="nav-links">
+        <a href="demo.html">Démo interactive</a>
         <a href="#fonctionnalites">Fonctions</a>
         <a href="#guides">Guides</a>
-        <a href="demo.html">Démo interactive</a>
-        <a href="#pages-programme">Pages du programme</a>
         <a href="#gestion">Gestion</a>
         <a href="#economies">Économies</a>
         <a href="#choisir">Mon installation</a>
@@ -47,7 +46,6 @@
         <a class="button demo-button" href="demo.html">▶ Essayer la démo interactive</a>
         <a class="button secondary" href="#choisir">Voir mon installation</a>
         <a class="button secondary" href="#installation">Guide d’installation</a>
-        <a class="button pages-button" href="#pages-programme">▣ Visiter les pages du programme</a>
       </div>
       <ul class="trust-list" aria-label="Points essentiels">
         <li>✓ Collecte permanente sur Raspberry Pi</li>
@@ -152,32 +150,6 @@
       </ol>
     </section>
 
-    <section id="pages-programme" class="section screenshot-section">
-      <div class="section-heading"><div><p class="eyebrow blue">LES PAGES DU PROGRAMME</p><h2>Direct, batterie, équipements et bilans au même endroit.</h2></div><p>Choisissez une page, puis ouvrez-la en grand. Cette visite regroupe les écrans utiles sans devoir les chercher dans toute la page.</p></div>
-      <div class="screen-gallery" data-screen-gallery>
-        <a class="screen-gallery-stage" href="assets/tableau-web-raspberry-20261017.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture Tableau en direct à sa taille réelle">
-          <img src="assets/tableau-web-raspberry-20261017.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne">
-        </a>
-        <div class="annual-gallery-page" data-annual-view hidden>
-          <p class="annual-gallery-kicker">BILAN ANNUEL · RELEVÉS RÉELS</p>
-          <div class="annual-preview">
-            <section class="annual-preview-card annual-preview-edf"><h3>EDF · achats et coût</h3><p>Achat réseau et coût réel sur la période.</p><div><span>Achat EDF réel · HP + HC</span><strong>1 684,54 kWh</strong></div><div><span>Heures pleines</span><strong>1 148,54 kWh</strong></div><div><span>Heures creuses</span><strong>536,00 kWh</strong></div></section>
-            <section class="annual-preview-card annual-preview-solar"><h3>Solaire · production, batterie et économies</h3><p>Production locale, stockage et gain apporté par l’installation.</p><div><span>Production solaire réelle Hoymiles</span><strong>2 120,00 kWh</strong></div><div><span>Total injecté vers EDF</span><strong>223,21 kWh</strong></div><div><span>Énergie batterie restituée</span><strong>109,79 kWh</strong></div><div class="annual-preview-saving"><span>Économie réelle solaire + batterie</span><strong>253,42 €</strong></div></section>
-          </div>
-          <p class="annual-preview-note">Les montants sont visibles dans le tableau local avec les périodes et tarifs associés.</p>
-        </div>
-        <div class="screen-gallery-controls" role="tablist" aria-label="Fenêtres du tableau web">
-          <button type="button" role="tab" aria-selected="true" data-src="assets/tableau-web-raspberry-20261017.png" data-alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne" data-label="Tableau en direct">Tableau en direct</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-web-raspberry-20261004.png" data-alt="Page batterie du tableau web Raspberry Pi : niveau, charge, décharge et historique de cycle" data-label="Batterie et cycle">Batterie et cycle</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/equipements-web-public.png" data-alt="Page Équipements : les sources de mesure et leur état de connexion" data-label="Équipements">Équipements</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan du mois : production solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan du mois">Bilan du mois</button>
-          <button type="button" role="tab" aria-selected="false" data-annual-view="true" data-label="Bilan annuel">Bilan annuel</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/logiciel-windows-macos-courbes-options-20261018.png" data-alt="Logiciel de bureau Windows et macOS : courbe de bilan, état DTU et Denky D4, périodes et options d’export" data-label="Logiciel Windows/macOS">Logiciel Windows/macOS</button>
-        </div>
-        <p class="screen-gallery-note">Choisissez une page Web ou le logiciel de bureau Windows/macOS. Les captures peuvent être ouvertes en grand ; le bilan annuel est présenté dans sa mise en page complète.</p>
-      </div>
-    </section>
-
     <section class="section split-section" id="esp32">
       <div><p class="eyebrow blue">SECOND ENSEMBLE SOLAIRE · ESP32</p><h2>Relier des panneaux éloignés, sans modifier le DTU Pro-S.</h2><p>Un second ensemble de panneaux, indépendant du DTU Pro-S principal, peut être suivi grâce à une liaison complémentaire ESP32. Le Raspberry rassemble ses données dans le même tableau privé.</p><p>Le routeur ESP32 apporte le Wi-Fi jusqu’au local technique. Le proxy ESP32 placé près des micro-onduleurs assure leur liaison Bluetooth. Le tableau indique séparément l’état des deux liaisons.</p></div>
       <div class="diagram topology">Second ensemble de panneaux<br>↕ Bluetooth<br>ESP32 proxy Hoymiles<br>↕ Wi-Fi longue distance<br>ESP32 routeur solaire<br>↕ réseau privé<br>Raspberry Pi · tableau web</div>
@@ -272,28 +244,6 @@
     <div class="footer-links"><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S">Dépôt GitHub</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/issues">Signaler un problème</a><a href="https://paypal.me/RolliursHoymiles">Soutenir le projet</a><a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/blob/main/LICENSE">Licence MIT</a></div>
   </footer>
   <script>
-    document.querySelectorAll('[data-screen-gallery]').forEach(gallery => {
-      const image = gallery.querySelector('img');
-      const link = gallery.querySelector('.screen-gallery-stage');
-      const annual = gallery.querySelector('[data-annual-view]');
-      gallery.querySelectorAll('button[role="tab"]').forEach(button => {
-        button.addEventListener('click', () => {
-          const annualSelected = button.dataset.annualView === 'true';
-          link.hidden = annualSelected;
-          annual.hidden = !annualSelected;
-          if (annualSelected) {
-            gallery.querySelectorAll('button[role="tab"]').forEach(item => item.setAttribute('aria-selected', String(item === button)));
-            return;
-          }
-          image.src = button.dataset.src;
-          image.alt = button.dataset.alt;
-          link.href = button.dataset.src;
-          link.setAttribute('aria-label', `Ouvrir la capture ${button.dataset.label} à sa taille réelle`);
-          gallery.querySelectorAll('button[role="tab"]').forEach(item => item.setAttribute('aria-selected', String(item === button)));
-        });
-      });
-    });
-
     fetch('https://api.github.com/repos/rolliurs-jpg/Homlis-DTU-PRO-S')
       .then(response => response.ok ? response.json() : Promise.reject())
       .then(repo => {
