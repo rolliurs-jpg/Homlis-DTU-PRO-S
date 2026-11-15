@@ -146,15 +146,23 @@
         <a class="screen-gallery-stage" href="assets/tableau-web-raspberry-20261017.png" target="_blank" rel="noopener" aria-label="Ouvrir la capture Tableau en direct à sa taille réelle">
           <img src="assets/tableau-web-raspberry-20261017.png" alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne">
         </a>
+        <div class="annual-gallery-page" data-annual-view hidden>
+          <p class="annual-gallery-kicker">BILAN ANNUEL · RELEVÉS RÉELS</p>
+          <div class="annual-preview">
+            <section class="annual-preview-card annual-preview-edf"><h3>EDF · achats et coût</h3><p>Achat réseau et coût réel sur la période.</p><div><span>Achat EDF réel · HP + HC</span><strong>1 684,54 kWh</strong></div><div><span>Heures pleines</span><strong>1 148,54 kWh</strong></div><div><span>Heures creuses</span><strong>536,00 kWh</strong></div></section>
+            <section class="annual-preview-card annual-preview-solar"><h3>Solaire · production, batterie et économies</h3><p>Production locale, stockage et gain apporté par l’installation.</p><div><span>Production solaire réelle Hoymiles</span><strong>2 120,00 kWh</strong></div><div><span>Total injecté vers EDF</span><strong>223,21 kWh</strong></div><div><span>Énergie batterie restituée</span><strong>109,79 kWh</strong></div><div class="annual-preview-saving"><span>Économie réelle solaire + batterie</span><strong>253,42 €</strong></div></section>
+          </div>
+          <p class="annual-preview-note">Les montants sont visibles dans le tableau local avec les périodes et tarifs associés.</p>
+        </div>
         <div class="screen-gallery-controls" role="tablist" aria-label="Fenêtres du tableau web">
           <button type="button" role="tab" aria-selected="true" data-src="assets/tableau-web-raspberry-20261017.png" data-alt="Tableau web Raspberry Pi : production solaire, consommation maison, injection, batterie et courbe quotidienne" data-label="Tableau en direct">Tableau en direct</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/batterie-web-raspberry-20261004.png" data-alt="Page batterie du tableau web Raspberry Pi : niveau, charge, décharge et historique de cycle" data-label="Batterie et cycle">Batterie et cycle</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/equipements-web-public.png" data-alt="Page Équipements : les sources de mesure et leur état de connexion" data-label="Équipements">Équipements</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan web : production solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan web">Bilan web</button>
-          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-edf-public.png" data-alt="Bilan EDF : consommation, index heures pleines et heures creuses, coût et abonnement" data-label="Bilan EDF">Bilan EDF</button>
+          <button type="button" role="tab" aria-selected="false" data-src="assets/bilan-web-20261017.png" data-alt="Bilan du mois : production solaire, énergie envoyée et achetée à EDF, coût et énergie de la batterie" data-label="Bilan du mois">Bilan du mois</button>
+          <button type="button" role="tab" aria-selected="false" data-annual-view="true" data-label="Bilan annuel">Bilan annuel</button>
           <button type="button" role="tab" aria-selected="false" data-src="assets/logiciel-windows-macos-courbes-options-20261018.png" data-alt="Logiciel de bureau Windows et macOS : courbe de bilan, état DTU et Denky D4, périodes et options d’export" data-label="Logiciel Windows/macOS">Logiciel Windows/macOS</button>
         </div>
-        <p class="screen-gallery-note">Choisissez une vue Web ou le logiciel de bureau Windows/macOS, puis cliquez sur l’image pour l’ouvrir en grand.</p>
+        <p class="screen-gallery-note">Choisissez une page Web ou le logiciel de bureau Windows/macOS. Les captures peuvent être ouvertes en grand ; le bilan annuel est présenté dans sa mise en page complète.</p>
       </div>
     </section>
 
@@ -255,8 +263,16 @@
     document.querySelectorAll('[data-screen-gallery]').forEach(gallery => {
       const image = gallery.querySelector('img');
       const link = gallery.querySelector('.screen-gallery-stage');
+      const annual = gallery.querySelector('[data-annual-view]');
       gallery.querySelectorAll('button[role="tab"]').forEach(button => {
         button.addEventListener('click', () => {
+          const annualSelected = button.dataset.annualView === 'true';
+          link.hidden = annualSelected;
+          annual.hidden = !annualSelected;
+          if (annualSelected) {
+            gallery.querySelectorAll('button[role="tab"]').forEach(item => item.setAttribute('aria-selected', String(item === button)));
+            return;
+          }
           image.src = button.dataset.src;
           image.alt = button.dataset.alt;
           link.href = button.dataset.src;
