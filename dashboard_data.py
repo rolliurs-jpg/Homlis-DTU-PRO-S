@@ -12,6 +12,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from battery_monitor import number, household
+
+
+BATTERY_USABLE_CAPACITY_KWH = 5.76
 from autostart import status as autostart_status, set_enabled as set_autostart_enabled
 
 
@@ -222,6 +225,27 @@ class DashboardData:
         # energy available to the house after conversion losses.
         battery_charge = totals['ac_charge_kwh'] if totals['battery_seconds'] else None
         battery_discharge = totals['ac_discharge_kwh'] if totals['battery_seconds'] else None
+        # The state of charge is the only trustworthy way to say what is
+        # available in the battery now.  Do not mistake an accumulated flow
+        # for stored energy.
+        start_soc_row = next((r for r in battery_rows
+                              if start <= r.get('timestamp', 0) <= start + 6 * 3600
+                              and number(r.get('soc_pct')) is not None), None)
+        end_soc_row = next((r for r in reversed(battery_rows)
+                            if end - 300 <= r.get('timestamp', 0) <= end
+                            and number(r.get('soc_pct')) is not None), None)
+        start_soc = number(start_soc_row.get('soc_pct')) if start_soc_row else None
+        end_soc = number(end_soc_row.get('soc_pct')) if end_soc_row else None
+        battery_available = None if end_soc is None else BATTERY_USABLE_CAPACITY_KWH * end_soc / 100
+        battery_storage_change = None
+        battery_loss = None
+        if start_soc is not None and end_soc is not None:
+            battery_storage_change = BATTERY_USABLE_CAPACITY_KWH * (end_soc-start_soc) / 100
+            if battery_charge is not None and battery_discharge is not None:
+                # AC energy that neither came back to the house nor remains
+                # stored.  It is an estimate: conversion losses and any short
+                # missing measurement intervals are grouped transparently.
+                battery_loss = max(0.0, battery_charge-battery_discharge-battery_storage_change)
         # A DTU interruption must not turn solar energy into an artificial
         # loss.  The grid meter remains the reference for export; the solar
         # energy retained locally is then split between the house and the
@@ -250,6 +274,10 @@ class DashboardData:
                     local_energy_kwh=local_energy, avoided_cost_eur=avoided_cost,
                     solar_after_export_kwh=solar_after_export,
                     battery_retained_or_loss_kwh=battery_retained_or_loss,
+                    battery_soc_pct=end_soc,
+                    battery_available_kwh=battery_available,
+                    battery_storage_change_kwh=battery_storage_change,
+                    battery_loss_kwh=battery_loss,
                     tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate,
                                  abonnement_journalier_eur=daily_fee,
                                  abonnement_mensuel_eur=number(tariffs.get('abonnement_mensuel_eur'))),
