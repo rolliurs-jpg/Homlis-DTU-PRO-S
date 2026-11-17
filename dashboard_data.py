@@ -227,24 +227,45 @@ class DashboardData:
         automatic_baseline = annual_readings.get('automatic_baseline', {})
         if not isinstance(automatic_baseline, dict):
             automatic_baseline = {}
-        automatic_from = configured_timestamp(automatic_baseline.get('at'))
+        source_baselines = automatic_baseline.get('sources', {})
+        if not isinstance(source_baselines, dict):
+            source_baselines = {}
+        def annual_source(name):
+            source = source_baselines.get(name)
+            if isinstance(source, dict):
+                return number(source.get('value')), configured_timestamp(source.get('at')), source.get('at')
+            return number(automatic_baseline.get(name)), configured_timestamp(automatic_baseline.get('at')), automatic_baseline.get('at')
+        source_dates = [annual_source(name)[1] for name in ('hp_kwh', 'hc_kwh', 'production_kwh', 'export_kwh', 'battery_charge_kwh', 'battery_discharge_kwh')]
+        source_dates = [stamp for stamp in source_dates if stamp is not None]
+        automatic_from = min(source_dates) if source_dates else None
         if period == 'year' and automatic_from is not None and start <= automatic_from <= end:
-            auto_production, _ = integrate(points, 'production_w', automatic_from, end)
-            auto_export, _ = integrate(points, 'export_w', automatic_from, end)
-            auto_billing = index_energy(dated_rows(self.base/'linky_index_log.csv'), automatic_from, end) if enabled('linky') else index_energy([], automatic_from, end)
-            auto_battery = self.battery.totals(automatic_from, end)
-            def annual_plus(name, added):
-                base = number(automatic_baseline.get(name))
-                return None if base is None else base + (added or 0.0)
+            def annual_plus(name, key=None, battery_key=None):
+                base, source_at, _ = annual_source(name)
+                if base is None or source_at is None:
+                    return None
+                if key:
+                    added, _ = integrate(points, key, source_at, end)
+                elif battery_key:
+                    added = self.battery.totals(source_at, end)[battery_key]
+                else:
+                    added = None
+                return base + (added or 0.0)
+            def annual_index(name, index_key):
+                base, source_at, _ = annual_source(name)
+                if base is None or source_at is None:
+                    return None
+                added = index_energy(dated_rows(self.base/'linky_index_log.csv'), source_at, end)[index_key] if enabled('linky') else None
+                return base + (added or 0.0)
+            automatic_label = min((annual_source(name)[2] for name in ('hp_kwh', 'hc_kwh', 'production_kwh', 'export_kwh', 'battery_charge_kwh', 'battery_discharge_kwh') if annual_source(name)[2]), default=None)
             annual_display.update(
                 as_of=now.date().isoformat(),
-                hp_kwh=annual_plus('hp_kwh', auto_billing['hp_kwh']),
-                hc_kwh=annual_plus('hc_kwh', auto_billing['hc_kwh']),
-                production_kwh=annual_plus('production_kwh', auto_production),
-                export_kwh=annual_plus('export_kwh', auto_export),
-                battery_charge_kwh=annual_plus('battery_charge_kwh', auto_battery['ac_charge_kwh'] if auto_battery['battery_seconds'] else None),
-                battery_discharge_kwh=annual_plus('battery_discharge_kwh', auto_battery['ac_discharge_kwh'] if auto_battery['battery_seconds'] else None),
-                automatic_from=automatic_baseline.get('at'),
+                hp_kwh=annual_index('hp_kwh', 'hp_kwh'),
+                hc_kwh=annual_index('hc_kwh', 'hc_kwh'),
+                production_kwh=annual_plus('production_kwh', key='production_w'),
+                export_kwh=annual_plus('export_kwh', key='export_w'),
+                battery_charge_kwh=annual_plus('battery_charge_kwh', battery_key='ac_charge_kwh'),
+                battery_discharge_kwh=annual_plus('battery_discharge_kwh', battery_key='ac_discharge_kwh'),
+                automatic_from=automatic_label,
             )
         hp_rate, hc_rate = number(tariffs.get('hp_eur_kwh')),number(tariffs.get('hc_eur_kwh'))
         energy_cost = None

@@ -49,7 +49,15 @@
       "production_kwh": null,
       "export_kwh": null,
       "battery_charge_kwh": null,
-      "battery_discharge_kwh": null
+      "battery_discharge_kwh": null,
+      "sources": {
+        "hp_kwh": {"at": "", "value": null},
+        "hc_kwh": {"at": "", "value": null},
+        "production_kwh": {"at": "", "value": null},
+        "export_kwh": {"at": "", "value": null},
+        "battery_charge_kwh": {"at": "", "value": null},
+        "battery_discharge_kwh": {"at": "", "value": null}
+      }
     },
     "reference_2025": {
       "consumption_start": "",
