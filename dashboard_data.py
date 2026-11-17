@@ -18,6 +18,13 @@ BATTERY_USABLE_CAPACITY_KWH = 5.76
 from autostart import status as autostart_status, set_enabled as set_autostart_enabled
 
 
+def configured_timestamp(value):
+    try:
+        return datetime.fromisoformat(str(value)).timestamp()
+    except (TypeError, ValueError):
+        return None
+
+
 def icmp_reachable(host):
     """Probe an access point which intentionally exposes no TCP service."""
     if not host:
@@ -212,6 +219,33 @@ class DashboardData:
         annual_reference = annual_readings.get('reference_2025', {})
         if not isinstance(annual_reference, dict):
             annual_reference = {}
+        # A manually entered annual total is the reference history.  Once an
+        # automatic baseline is set, only measurements after that precise
+        # moment are appended.  This makes the annual page progress every day
+        # without ever counting the old history twice.
+        annual_display = dict(annual_readings)
+        automatic_baseline = annual_readings.get('automatic_baseline', {})
+        if not isinstance(automatic_baseline, dict):
+            automatic_baseline = {}
+        automatic_from = configured_timestamp(automatic_baseline.get('at'))
+        if period == 'year' and automatic_from is not None and start <= automatic_from <= end:
+            auto_production, _ = integrate(points, 'production_w', automatic_from, end)
+            auto_export, _ = integrate(points, 'export_w', automatic_from, end)
+            auto_billing = index_energy(dated_rows(self.base/'linky_index_log.csv'), automatic_from, end) if enabled('linky') else index_energy([], automatic_from, end)
+            auto_battery = self.battery.totals(automatic_from, end)
+            def annual_plus(name, added):
+                base = number(automatic_baseline.get(name))
+                return None if base is None else base + (added or 0.0)
+            annual_display.update(
+                as_of=now.date().isoformat(),
+                hp_kwh=annual_plus('hp_kwh', auto_billing['hp_kwh']),
+                hc_kwh=annual_plus('hc_kwh', auto_billing['hc_kwh']),
+                production_kwh=annual_plus('production_kwh', auto_production),
+                export_kwh=annual_plus('export_kwh', auto_export),
+                battery_charge_kwh=annual_plus('battery_charge_kwh', auto_battery['ac_charge_kwh'] if auto_battery['battery_seconds'] else None),
+                battery_discharge_kwh=annual_plus('battery_discharge_kwh', auto_battery['ac_discharge_kwh'] if auto_battery['battery_seconds'] else None),
+                automatic_from=automatic_baseline.get('at'),
+            )
         hp_rate, hc_rate = number(tariffs.get('hp_eur_kwh')),number(tariffs.get('hc_eur_kwh'))
         energy_cost = None
         if billing['import_kwh'] is not None and hp_rate is not None and hc_rate is not None and hp_rate>0 and hc_rate>0:
@@ -285,17 +319,18 @@ class DashboardData:
                     # they are site-specific and must never be inferred from a
                     # partial history or published with the software.
                     annual_real_readings=dict(
-                        start=annual_readings.get('start'),
-                        as_of=annual_readings.get('as_of'),
-                        hp_kwh=number(annual_readings.get('hp_kwh')),
-                        hc_kwh=number(annual_readings.get('hc_kwh')),
-                        production_kwh=number(annual_readings.get('production_kwh')),
-                        export_kwh=number(annual_readings.get('export_kwh')),
-                        battery_charge_kwh=number(annual_readings.get('battery_charge_kwh')),
-                        battery_discharge_kwh=number(annual_readings.get('battery_discharge_kwh')),
-                        battery_start=annual_readings.get('battery_start'),
-                        battery_end=annual_readings.get('battery_end'),
-                        savings_eur=number(annual_readings.get('savings_eur')),
+                        start=annual_display.get('start'),
+                        as_of=annual_display.get('as_of'),
+                        automatic_from=annual_display.get('automatic_from'),
+                        hp_kwh=number(annual_display.get('hp_kwh')),
+                        hc_kwh=number(annual_display.get('hc_kwh')),
+                        production_kwh=number(annual_display.get('production_kwh')),
+                        export_kwh=number(annual_display.get('export_kwh')),
+                        battery_charge_kwh=number(annual_display.get('battery_charge_kwh')),
+                        battery_discharge_kwh=number(annual_display.get('battery_discharge_kwh')),
+                        battery_start=annual_display.get('battery_start'),
+                        battery_end=annual_display.get('battery_end'),
+                        savings_eur=number(annual_display.get('savings_eur')),
                         reference_2025=dict(
                             consumption_start=annual_reference.get('consumption_start'),
                             end=annual_reference.get('end'),

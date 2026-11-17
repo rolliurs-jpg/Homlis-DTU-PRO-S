@@ -42,6 +42,15 @@
     "battery_start": "",
     "battery_end": "",
     "savings_eur": null,
+    "automatic_baseline": {
+      "at": "",
+      "hp_kwh": null,
+      "hc_kwh": null,
+      "production_kwh": null,
+      "export_kwh": null,
+      "battery_charge_kwh": null,
+      "battery_discharge_kwh": null
+    },
     "reference_2025": {
       "consumption_start": "",
       "end": "",
