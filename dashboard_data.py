@@ -213,23 +213,34 @@ class DashboardData:
         energy_cost = None
         if billing['import_kwh'] is not None and hp_rate is not None and hc_rate is not None and hp_rate>0 and hc_rate>0:
             energy_cost = billing['hp_kwh']*hp_rate+billing['hc_kwh']*hc_rate
-        # Energy not bought from EDF is useful for a monthly budget, but it is
-        # deliberately kept separate from solar production: it can include a
-        # discharge of the battery charged on an earlier day.
-        local_energy = None
-        avoided_cost = None
-        if consumption is not None and billing['import_kwh'] is not None:
-            local_energy = max(0.0, consumption-billing['import_kwh'])
-            if energy_cost is not None and billing['import_kwh'] > 0:
-                avoided_cost = local_energy*energy_cost/billing['import_kwh']
         solar_after_export = None
         if production is not None and exported is not None:
             solar_after_export = max(0.0, production-exported)
+        totals = self.battery.totals(start,end)
+        # Use the AC flows for the financial balance.  The pack-side values
+        # are useful to monitor the battery itself, but do not describe the
+        # energy available to the house after conversion losses.
+        battery_charge = totals['ac_charge_kwh'] if totals['battery_seconds'] else None
+        battery_discharge = totals['ac_discharge_kwh'] if totals['battery_seconds'] else None
+        # A DTU interruption must not turn solar energy into an artificial
+        # loss.  The grid meter remains the reference for export; the solar
+        # energy retained locally is then split between the house and the
+        # battery.  What remains in the battery (and conversion losses) is
+        # deliberately excluded from the avoided-cost calculation.
+        local_energy = None
+        battery_retained_or_loss = None
+        avoided_cost = None
+        if solar_after_export is not None and battery_charge is not None and battery_discharge is not None:
+            battery_retained_or_loss = battery_charge-battery_discharge
+            # A negative balance means that the house also used energy stored
+            # before the start of the selected period.
+            local_energy = max(0.0, solar_after_export-battery_retained_or_loss)
+            if energy_cost is not None and billing['import_kwh'] > 0:
+                avoided_cost = local_energy*energy_cost/billing['import_kwh']
         # Calendar days, not DST-dependent 24-hour intervals.
         days = (end_dt.date()-start_dt.date()).days + (0 if end_dt.time()==datetime.min.time() else 1)
         daily_fee = number(tariffs.get('abonnement_journalier_eur'))
         subscription = None if daily_fee is None else max(0,days)*daily_fee
-        totals = self.battery.totals(start,end)
         return dict(period=period, from_time=start_dt.isoformat(), to_time=end_dt.isoformat(),
                     updated_at=now.isoformat(timespec='seconds'), production_kwh=production,
                     production_complete=complete, export_kwh=exported, pv_seconds=pv_seconds,
@@ -238,6 +249,7 @@ class DashboardData:
                     consumption_kwh=consumption, consumption_seconds=consumption_seconds,
                     local_energy_kwh=local_energy, avoided_cost_eur=avoided_cost,
                     solar_after_export_kwh=solar_after_export,
+                    battery_retained_or_loss_kwh=battery_retained_or_loss,
                     tariffs=dict(hp_eur_kwh=hp_rate, hc_eur_kwh=hc_rate,
                                  abonnement_journalier_eur=daily_fee,
                                  abonnement_mensuel_eur=number(tariffs.get('abonnement_mensuel_eur'))),
@@ -267,8 +279,8 @@ class DashboardData:
                             subscription_monthly_eur=number(annual_reference.get('subscription_monthly_eur')),
                         ),
                     ),
-                    battery_charge_kwh=totals['charge_kwh'] if totals['battery_seconds'] else None,
-                    battery_discharge_kwh=totals['discharge_kwh'] if totals['battery_seconds'] else None,
+                    battery_charge_kwh=battery_charge,
+                    battery_discharge_kwh=battery_discharge,
                     history=compress_history([p for p in points if start<=p['stamp']<=end]),
                     source='Index Linky enregistrés ; intervalles à cheval sur la période exclus. Les relevés EDF manuels restent accessibles dans les outils classiques.')
 
