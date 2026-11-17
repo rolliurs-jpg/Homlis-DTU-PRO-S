@@ -78,6 +78,9 @@ DEFAULT_DTU_HOST = "dtu.local"
 # doivent donc pas être confondus.
 DEFAULT_DTU_MODBUS_HOST = "dtu-modbus.local"
 DTU_WIFI_FALLBACK_INTERVAL_S = 300
+# La télémétrie détaillée (puissance par panneau) suit la cadence native du
+# DTU. Elle ne doit jamais être demandée à chaque rafraîchissement du site.
+DTU_PANEL_REFRESH_INTERVAL_S = 300
 INTERVAL_MS = 60000
 MAX_VISIBLE_POINTS = 300
 DIRECT_WINDOW_HOURS = 4
@@ -1314,8 +1317,11 @@ def _panel_rows_from_dtu_payload(payload):
         try:
             port = int(entry.get("portNumber"))
             voltage = float(entry.get("voltage")) / 10.0
-            current = float(entry.get("current")) / 10.0
-            power = float(entry.get("power"))
+            # Le DTU fournit ici les unités brutes : tension en 0,1 V,
+            # courant en 0,01 A et puissance en 0,1 W. La puissance totale
+            # (``dtuPower``) est déjà traitée avec le même facteur plus bas.
+            current = float(entry.get("current")) / 100.0
+            power = float(entry.get("power")) / 10.0
         except (TypeError, ValueError):
             continue
         if 1 <= port <= 4 and voltage >= 0 and current >= 0 and power >= 0:
@@ -1329,9 +1335,10 @@ def refresh_dtu_wifi_panels(force=False):
     """Lit les quatre entrées PV pour le tableau web, sans écrire au DTU."""
     global last_dtu_wifi_panels, last_dtu_wifi_panel_attempt
     now = monotonic()
-    # Une collecte normale a lieu chaque minute : ne pas multiplier les
-    # connexions Wi-Fi si le rendu web est rafraîchi plus souvent.
-    if not force and now - last_dtu_wifi_panel_attempt < 45:
+    # Le DTU actualise ses propres données lentement. Une lecture détaillée
+    # toutes les cinq minutes suffit et évite les sollicitations concurrentes
+    # lorsque plusieurs personnes ouvrent le tableau web.
+    if not force and now - last_dtu_wifi_panel_attempt < DTU_PANEL_REFRESH_INTERVAL_S:
         return dict(last_dtu_wifi_panels)
     last_dtu_wifi_panel_attempt = now
     host = str(HOST or "").strip()
@@ -1339,8 +1346,11 @@ def refresh_dtu_wifi_panels(force=False):
         return dict(last_dtu_wifi_panels)
     try:
         command, startupinfo, creationflags = _hoymiles_wifi_command(host)
-        result = subprocess.run(command, capture_output=True, text=True, timeout=20,
-                                startupinfo=startupinfo, creationflags=creationflags)
+        # Une seule transaction DTU à la fois : les lectures Modbus, le
+        # secours Wi-Fi et les cartes de panneaux ne doivent pas se chevaucher.
+        with dtu_modbus_lock:
+            result = subprocess.run(command, capture_output=True, text=True, timeout=20,
+                                    startupinfo=startupinfo, creationflags=creationflags)
         payload = json.loads(result.stdout.strip())
         if not isinstance(payload, dict) or payload.get("error"):
             raise RuntimeError("réponse Wi-Fi DTU invalide")
@@ -1417,10 +1427,13 @@ def read_dtu():
             # Le DTU peut demander quelques secondes pour réveiller la session
             # radio. Le client interne attend déjà 8 s : 20 s évite que Python
             # coupe une lecture qui allait aboutir.
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=20,
-                startupinfo=startupinfo, creationflags=creationflags
-            )
+            # Ne jamais démarrer une lecture Wi-Fi pendant une transaction
+            # Modbus ou une lecture détaillée demandée par le tableau web.
+            with dtu_modbus_lock:
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, timeout=20,
+                    startupinfo=startupinfo, creationflags=creationflags
+                )
             text = result.stdout.strip()
             if not text:
                 raise RuntimeError(result.stderr.strip() or "Aucune réponse")

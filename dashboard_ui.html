@@ -337,7 +337,9 @@ addEventListener('resize',()=>state.chartHistory&&draw(state.chartHistory));refr
   try{
    const response=await fetch('/api/status',{cache:'no-store'});if(!response.ok)throw Error('api');
    const current=(await response.json()).current||{},dtu=((current.surplus_simulation||{}).dtu||{}),proxy=current.hoymiles_proxy||{},now=Date.now()/1000;
-   const houseFresh=dtu.state==='online'&&Number(dtu.timestamp)>0&&now-Number(dtu.timestamp)<70;
+   // Les mesures détaillées du DTU suivent volontairement sa cadence de cinq
+   // minutes ; elles restent visibles jusqu'au prochain relevé validé.
+   const houseFresh=dtu.state==='online'&&Number(dtu.timestamp)>0&&now-Number(dtu.timestamp)<345;
    const cabanonFresh=proxy.state==='online'&&Number(proxy.timestamp)>0&&now-Number(proxy.timestamp)<70;
    const houseReady=draw('panel-house',houseFresh?dtu.panels:[],4,'Panneau maison');
    const individualProxyPanels=Array.isArray(proxy.panels)&&proxy.panels.length?proxy.panels:[];

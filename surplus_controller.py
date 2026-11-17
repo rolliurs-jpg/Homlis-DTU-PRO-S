@@ -4,7 +4,8 @@ import threading
 import time
 
 class SurplusController:
-    def __init__(self, proxy, sample, enabled=False, rated_w=1000, dtu=None, native_panels=0):
+    def __init__(self, proxy, sample, enabled=False, rated_w=1000, dtu=None, native_panels=0,
+                 dtu_poll_interval_s=300):
         self.proxy, self.sample = proxy, sample
         self.enabled, self.rated_w = enabled, rated_w
         # After a service restart, an already enabled controller must also
@@ -13,6 +14,12 @@ class SurplusController:
         if self.proxy is not None and hasattr(self.proxy, "config"):
             self.proxy.config["commands_enabled"] = bool(enabled)
         self.dtu = dtu
+        # Le DTU-Pro-S actualise son propre état environ toutes les cinq
+        # minutes. Garder la même cadence évite de le réveiller sans cesse.
+        self.dtu_poll_interval_s = max(60, int(dtu_poll_interval_s))
+        # Décalage volontaire de 15 s : la collecte générale de l'application
+        # n'ouvre ainsi pas le DTU au même instant que le contrôleur.
+        self._next_dtu_poll_at = time.time() + 15.0
         # Les panneaux régulés nativement par un DDSU sont inclus dans le
         # bilan global, mais ne reçoivent jamais de commande de ce programme.
         self.native_panels = max(0, int(native_panels))
@@ -97,7 +104,8 @@ class SurplusController:
         if self.dtu and self.enabled:
             d = s.get('dtu', {})
             try:
-                if d['state'] != 'online' or not 0 <= now-d['timestamp'] <= 45:
+                if (d['state'] != 'online'
+                        or not 0 <= now-d['timestamp'] <= self.dtu_poll_interval_s + 45):
                     raise ValueError()
                 if not all(isinstance(d[k], (int,float)) and not isinstance(d[k],bool) and math.isfinite(d[k]) for k in ('power_w','limit_pct')):
                     raise ValueError()
@@ -195,8 +203,15 @@ class SurplusController:
             try:
                 sample = self.sample()
                 if self.dtu and self.enabled:
-                    self._last_dtu_snapshot = self.dtu.snapshot()
-                    sample['dtu'] = self._last_dtu_snapshot
+                    # Le Shelly, la batterie et le proxy restent lus à leur
+                    # propre cadence pour la sécurité. Seul le DTU est
+                    # interrogé toutes les cinq minutes, et jamais en même
+                    # temps qu'une autre transaction DTU (verrou partagé).
+                    now = time.time()
+                    if now >= self._next_dtu_poll_at:
+                        self._next_dtu_poll_at = now + self.dtu_poll_interval_s
+                        self._last_dtu_snapshot = self.dtu.snapshot()
+                    sample['dtu'] = dict(self._last_dtu_snapshot)
                 elif self.dtu:
                     sample['dtu'] = dict(self._last_dtu_snapshot)
             except Exception:
