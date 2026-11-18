@@ -78,6 +78,14 @@ DEFAULT_DTU_HOST = "dtu.local"
 # doivent donc pas être confondus.
 DEFAULT_DTU_MODBUS_HOST = "dtu-modbus.local"
 DTU_WIFI_FALLBACK_INTERVAL_S = 300
+# Le DTU-Pro-S actualise ses mesures à sa propre cadence. Une interrogation
+# Modbus toutes les cinq minutes est suffisante et évite de relancer son
+# serveur TCP pendant une synchronisation S-Miles.
+DTU_MODBUS_POLL_INTERVAL_S = 300
+# Les cartes par panneau passent par le Wi-Fi direct : elles sont décalées de
+# la lecture Modbus principale afin que le DTU ne traite jamais les deux voies
+# de communication au même instant.
+DTU_PANEL_AFTER_MODBUS_DELAY_S = 45
 # La télémétrie détaillée (puissance par panneau) suit la cadence native du
 # DTU. Elle ne doit jamais être demandée à chaque rafraîchissement du site.
 DTU_PANEL_REFRESH_INTERVAL_S = 300
@@ -544,6 +552,13 @@ dtu_failures = 0
 dtu_failure_since = None
 last_dtu_wifi_recovery = None
 last_dtu_wifi_fallback_attempt = 0.0
+# Cache de la dernière réponse réellement reçue du DTU. Le tableau peut
+# continuer d'afficher cette valeur entre deux interrogations sans créer de
+# trafic réseau supplémentaire vers le DTU.
+last_dtu_payload = None
+last_dtu_poll_attempt = 0.0
+last_dtu_poll_error = ""
+last_dtu_modbus_success_at = 0.0
 # Les quatre entrées PV sont publiées par le DTU sur sa liaison Wi-Fi locale.
 # Elles servent uniquement à l'affichage des cartes de panneaux : aucune
 # consigne n'est déduite de ces valeurs.
@@ -1335,6 +1350,12 @@ def refresh_dtu_wifi_panels(force=False):
     """Lit les quatre entrées PV pour le tableau web, sans écrire au DTU."""
     global last_dtu_wifi_panels, last_dtu_wifi_panel_attempt
     now = monotonic()
+    # Décale la lecture Wi-Fi détaillée après un relevé Modbus réussi. Le
+    # prochain cycle du programme arrive une minute plus tard : il respecte
+    # donc largement cette marge sans créer un minuteur supplémentaire.
+    if (not force and last_dtu_modbus_success_at
+            and now - last_dtu_modbus_success_at < DTU_PANEL_AFTER_MODBUS_DELAY_S):
+        return dict(last_dtu_wifi_panels)
     # Le DTU actualise ses propres données lentement. Une lecture détaillée
     # toutes les cinq minutes suffit et évite les sollicitations concurrentes
     # lorsque plusieurs personnes ouvrent le tableau web.
@@ -1374,11 +1395,38 @@ def read_dtu():
     """Lecture DTU : Modbus LAN prioritaire, Wi-Fi direct uniquement en secours.
 
     Le DTU est déjà joint en Modbus par le nano-routeur. Le solliciter aussi
-    chaque minute sur son point d'accès Wi-Fi direct n'apporte aucune mesure
-    supplémentaire et fragilise sa pile réseau. En cas de panne Modbus, le
-    secours Wi-Fi est limité à une tentative toutes les cinq minutes.
+    trop souvent n'apporte aucune mesure supplémentaire et fragilise sa pile
+    réseau. La mesure reçue est donc conservée cinq minutes ; le secours
+    Wi-Fi suit la même cadence en cas de panne Modbus.
     """
     global HOST, last_dtu_wifi_fallback_attempt
+    global last_dtu_payload, last_dtu_poll_attempt, last_dtu_poll_error, last_dtu_modbus_success_at
+    now = monotonic()
+    # Une seule lecture réelle toutes les cinq minutes. Les appels
+    # intermédiaires (interface web, graphique, régulation) reçoivent une
+    # copie explicitement marquée comme mise en cache : ils ne touchent donc
+    # jamais au DTU.
+    if last_dtu_payload is not None and now - last_dtu_poll_attempt < DTU_MODBUS_POLL_INTERVAL_S:
+        cached = dict(last_dtu_payload)
+        cached["_cached"] = True
+        if last_dtu_poll_error:
+            cached["_cached_after_error"] = last_dtu_poll_error
+        return cached
+
+    last_dtu_poll_attempt = now
+
+    def remember(payload):
+        """Mémorise uniquement une réponse DTU complète et réellement reçue."""
+        global last_dtu_payload, last_dtu_poll_error, last_dtu_modbus_success_at
+        saved = dict(payload)
+        saved.pop("_cached", None)
+        saved.pop("_cached_after_error", None)
+        last_dtu_payload = saved
+        last_dtu_poll_error = ""
+        if saved.get("_source") == "modbus_tcp":
+            last_dtu_modbus_success_at = now
+        return dict(saved)
+
     # Le nano-routeur rend le Modbus du DTU accessible depuis le LAN. Cette
     # voie est la référence pour les quatre panneaux maison ; elle évite toute
     # interrogation Wi-Fi directe pendant le fonctionnement normal.
@@ -1390,13 +1438,13 @@ def read_dtu():
                 global ddsu_modbus_status
                 ddsu = read_ddsu_modbus(modbus_host)
                 ddsu_modbus_status = ddsu["status"]
-                return {
+                return remember({
                     "_source": "modbus_tcp",
                     "_modbus_pv_w": float(plant.pv_power),
                     "sgsData": [{"activePower": int(round(float(plant.pv_power) * 10)), "powerLimit": 0}],
                     "meterData": [{}],
                     "_ddsu_modbus": ddsu,
-                }
+                })
             except Exception as exc:
                 modbus_error = f"Modbus TCP {modbus_host}: {exc}"
     else:
@@ -1405,7 +1453,6 @@ def read_dtu():
     # En secours seulement : ne pas relancer le point d'accès du DTU chaque
     # minute lorsqu'il est déjà indisponible. Une nouvelle tentative après
     # cinq minutes suffit à constater un retour, comme S-Cloud.
-    now = monotonic()
     remaining = DTU_WIFI_FALLBACK_INTERVAL_S - (now - last_dtu_wifi_fallback_attempt)
     if last_dtu_wifi_fallback_attempt and remaining > 0:
         detail = f"secours Wi-Fi DTU différé {int(remaining)} s"
@@ -1443,12 +1490,13 @@ def read_dtu():
             if "sgsData" not in data or "meterData" not in data:
                 raise RuntimeError("Réponse DTU incomplète")
             HOST = host
-            return data
+            return remember(data)
         except Exception as e:
             errors.append(f"{host}: {e}")
     if modbus_error:
         errors.insert(0, modbus_error)
-    raise RuntimeError(" | ".join(errors))
+    last_dtu_poll_error = " | ".join(errors)
+    raise RuntimeError(last_dtu_poll_error)
 
 def reconnect_dtu_wifi():
     """Reconnecte uniquement l'adaptateur Wi-Fi réservé au DTU sous Windows."""
@@ -3954,16 +4002,25 @@ def update(_):
     try:
         data = read_dtu()
         now = datetime.now()
-        last_success = now
-        dtu_failure_since = None
-        dtu_power_recovery.note_dtu_online()
+        dtu_cached = bool(data.get("_cached"))
+        cached_after_error = str(data.get("_cached_after_error", "")).strip()
         dtu_delay = monotonic() - dtu_started
-        set_connection_badge(
-            connection_badges[0], "delayed" if dtu_delay > 3 else "online",
-            "● DTU délai important" if dtu_delay > 3 else "● DTU connecté",
-        )
-        # Le DTU répond : son rythme de mise à jour peut être lent sans être une panne.
-        set_connection_badge(connection_badges[0], "online", "● DTU connecté")
+        if not dtu_cached:
+            # Seule une transaction réellement terminée réarme l'état DTU.
+            last_success = now
+            dtu_failure_since = None
+            dtu_power_recovery.note_dtu_online()
+            set_connection_badge(
+                connection_badges[0], "delayed" if dtu_delay > 3 else "online",
+                "● DTU délai important" if dtu_delay > 3 else "● DTU connecté",
+            )
+        elif cached_after_error:
+            # Après un échec, on garde la dernière mesure connue sans faire
+            # croire que le DTU vient de répondre. La prochaine tentative est
+            # volontairement différée de cinq minutes.
+            set_connection_badge(connection_badges[0], "delayed", "● DTU en attente — dernière mesure conservée")
+        else:
+            set_connection_badge(connection_badges[0], "online", "● DTU connecté — mesure conservée")
 
         source = data.get("_source", "wifi_direct")
         # La production globale passe de préférence par le pont Ethernet.
@@ -4055,8 +4112,14 @@ def update(_):
         live_cards[3].set_text(linky_card_txt)
 
         mode = "suivi direct" if follow_now else "historique"
+        dtu_reading_note = (
+            "mesure conservée après erreur ; nouvel essai dans moins de 5 min"
+            if cached_after_error else
+            "mesure conservée ; lecture DTU espacée de 5 min" if dtu_cached else
+            "réponse reçue"
+        )
         status_text.set_text(
-            f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté ({'Modbus TCP' if source == 'modbus_tcp' else 'Wi-Fi direct'}) — réponse : 0 s — échecs DTU : {dtu_failures}\n"
+            f"Dernière mise à jour : {now:%d/%m/%Y %H:%M:%S} — DTU {HOST} connecté ({'Modbus TCP' if source == 'modbus_tcp' else 'Wi-Fi direct'}) — {dtu_reading_note} — échecs DTU : {dtu_failures}\n"
             f"Historique : {len(times)} mesures / {len(LOADED_HISTORY_FILES)} fichier(s) — {mode} — {equipment_status(linky_status, dinky_index_status, shelly_status)}{limit_note}"
             + (f" — {injection_alert_message}" if injection_alert_message else "")
         )
