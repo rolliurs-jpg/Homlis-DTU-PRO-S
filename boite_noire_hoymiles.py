@@ -4,6 +4,7 @@ from hoymiles_proxy import ProxyReader, DEFAULT_PROXY
 from surplus_controller import SurplusController
 from dtu_control import DtuControl
 from tuya_relay import DtuPowerRecovery, TuyaRelay
+from ddsu_watchdog import DdsuWatchdog
 surplus_controller = None
 from surplus_simulation import SurplusSimulation
 surplus_simulation = SurplusSimulation()
@@ -688,6 +689,7 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "tp_link_state": network_device_state(CONFIG.get("tp_link", {})),
             "tongou_state": network_device_state(CONFIG.get("tongou_relay", {})),
             "dtu_power_recovery": dtu_power_recovery.snapshot(),
+            "ddsu": ddsu_watchdog.snapshot(),
         })
         if equipment_enabled("battery") or equipment_enabled("shelly2"):
             current["production_source"] = "Total Shelly" if current["production_w"] is not None else "Production totale incomplète"
@@ -1256,6 +1258,8 @@ fig.canvas.mpl_connect("motion_notify_event", move_cursor)
 
 ddsu_modbus_status = "lecture non effectuée"
 dtu_modbus_lock = threading.RLock()
+ddsu_watchdog = DdsuWatchdog()
+last_ddsu_reference_grid_w = None
 
 
 def read_ddsu_modbus(host):
@@ -1282,9 +1286,9 @@ def read_ddsu_modbus(host):
             result["meter_registers"] = raw
             result["meter_serial"] = "".join(f"{v:04X}" for v in raw[:3])
             result["status_register"] = raw[47]
-            result["status"] = ("hors ligne selon DTU" if raw[47] == 0 else
-                                "en ligne, décodage à valider" if raw[47] == 1 else
-                                "état compteur inconnu")
+            # Ce code est non documenté et peut changer avec le firmware. Il
+            # ne doit jamais, à lui seul, conclure que le DDSU est hors ligne.
+            result["status"] = "réponse compteur reçue — statut interne non interprété"
     except Exception as exc:
         result["error"] = str(exc)
     return result
@@ -1437,7 +1441,9 @@ def read_dtu():
                 plant = HoymilesModbusTCP(modbus_host, port=502, unit_id=1).plant_data
                 global ddsu_modbus_status
                 ddsu = read_ddsu_modbus(modbus_host)
-                ddsu_modbus_status = ddsu["status"]
+                ddsu_modbus_status = ddsu_watchdog.observe(
+                    ddsu, reference_grid_w=last_ddsu_reference_grid_w
+                )["message"]
                 return remember({
                     "_source": "modbus_tcp",
                     "_modbus_pv_w": float(plant.pv_power),
@@ -3893,7 +3899,7 @@ def equipment_status(linky_status, index_status, shelly_status):
 
 
 def update(_):
-    global last_success, dtu_failures, dtu_failure_since, last_dtu_wifi_recovery
+    global last_success, dtu_failures, dtu_failure_since, last_dtu_wifi_recovery, last_ddsu_reference_grid_w
     battery_row, battery_error = battery_monitor.snapshot()
     if equipment_enabled("battery"):
         soc = battery_row.get("soc_pct")
@@ -3922,6 +3928,9 @@ def update(_):
         shelly_values, shelly_status = None, f"erreur Shelly ({exc})"
     shelly_delay = monotonic() - shelly_started
     if shelly_values is not None:
+        # Référence indépendante du DDSU. Elle évite de déclarer une absence
+        # si la maison ne tire ni n'injecte réellement de puissance.
+        last_ddsu_reference_grid_w = shelly_values[1]
         set_connection_badge(
             connection_badges[2], "delayed" if shelly_delay > 3 else "online",
             "● Shelly délai important" if shelly_delay > 3 else "● Shelly Pro EM connecté",
