@@ -5,6 +5,7 @@ from surplus_controller import SurplusController
 from dtu_control import DtuControl
 from tuya_relay import DtuPowerRecovery, TuyaRelay
 from ddsu_watchdog import DdsuWatchdog
+from dtu_generation_watchdog import DtuGenerationWatchdog
 surplus_controller = None
 from surplus_simulation import SurplusSimulation
 surplus_simulation = SurplusSimulation()
@@ -667,6 +668,11 @@ def publish_mobile_snapshot(dtu_state="waiting"):
         return
     try:
         current = mobile_point(len(times) - 1)
+        proxy_snapshot = proxy_reader.snapshot()
+        dtu_generation = dtu_generation_watchdog.observe(
+            last_dtu_wifi_panels,
+            cabanon_power_w=proxy_snapshot.get("power_w"),
+        )
         dtu_value = finite_mobile_value(ac_power[-1])
         shelly_pv_value = finite_mobile_value(shelly_a_power[-1])
         shelly_grid_value = finite_mobile_value(shelly_b_power[-1])
@@ -690,6 +696,7 @@ def publish_mobile_snapshot(dtu_state="waiting"):
             "tongou_state": network_device_state(CONFIG.get("tongou_relay", {})),
             "dtu_power_recovery": dtu_power_recovery.snapshot(),
             "ddsu": ddsu_watchdog.snapshot(),
+            "dtu_generation": dtu_generation,
         })
         if equipment_enabled("battery") or equipment_enabled("shelly2"):
             current["production_source"] = "Total Shelly" if current["production_w"] is not None else "Production totale incomplète"
@@ -697,7 +704,7 @@ def publish_mobile_snapshot(dtu_state="waiting"):
                 current["quality"] = "partial"
         start = max(0, len(times) - 360)
         history = [mobile_point(index) for index in range(start, len(times))]
-        current["hoymiles_proxy"] = proxy_reader.snapshot()
+        current["hoymiles_proxy"] = proxy_snapshot
         simulation = surplus_controller.snapshot() if surplus_controller is not None else surplus_simulation.evaluate(current, datetime.now().timestamp())
         # Quand le DDSU Hoymiles pilote nativement les quatre panneaux maison,
         # il n'y a volontairement pas de contrôleur Modbus externe. Conserver
@@ -1259,6 +1266,7 @@ fig.canvas.mpl_connect("motion_notify_event", move_cursor)
 ddsu_modbus_status = "lecture non effectuée"
 dtu_modbus_lock = threading.RLock()
 ddsu_watchdog = DdsuWatchdog()
+dtu_generation_watchdog = DtuGenerationWatchdog()
 last_ddsu_reference_grid_w = None
 
 
