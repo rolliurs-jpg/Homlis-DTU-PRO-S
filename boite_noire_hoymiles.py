@@ -3499,7 +3499,7 @@ def toggle_bilan(event=None):
     cursor_dot.set_visible(False)
     cursor_box.set_visible(False)
     bilan_cursor_box.set_visible(False)
-    bilan_button.label.set_text("Suivi production" if showing_bilan else "Bilan consommation")
+    bilan_button.label.set_text("Suivi production" if showing_bilan else "Bilan journalier")
     layout_bottom_actions()
     refresh_period_buttons()
     refresh_history_buttons()
@@ -3798,7 +3798,7 @@ alarm_button.label.set_fontsize(8)
 alarm_button.on_clicked(lambda event: open_settings(monitor, dialog_parent()))
 
 bilan_button_ax = plt.axes([0.52, 0.145, 0.22, 0.048])
-bilan_button = Button(bilan_button_ax, "Bilan consommation", color="#0ea5e9", hovercolor="#0284c7")
+bilan_button = Button(bilan_button_ax, "Bilan journalier", color="#0ea5e9", hovercolor="#0284c7")
 bilan_button.label.set_color("white")
 bilan_button.on_clicked(toggle_bilan)
 
