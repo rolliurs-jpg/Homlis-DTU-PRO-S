@@ -21,7 +21,7 @@ class DtuTests(unittest.TestCase):
  def test_only_temporary_limit_write(self):
   d=DtuControl('host')
   with patch.object(d,'transaction') as request:d.request_limit(90,{})
-  request.assert_called_once_with(5,0xC001,90)
+  request.assert_called_once_with(5,0x9D9D,90)
  def test_reject_bad_unit_and_exception_and_short_registers(self):
   for frame in [self.frame(bytes([3,2,0,100]),unit=2),self.frame(bytes([0x83,1])),self.frame(bytes([3,2,0,100]))]:
    with patch('socket.create_connection',return_value=FakeSocket(frame)):
@@ -33,13 +33,15 @@ class DtuTests(unittest.TestCase):
   d=DtuControl('host')
   with patch.object(d,'transaction') as request:
    state=dict(state='online',port_limits_pct=[100]*4)
-   d.request_limit(100,state);request.assert_called_once_with(5,0xC001,100)
-   d.request_limit(100,state);request.assert_called_once_with(5,0xC001,100)
+   d.request_limit(100,state);request.assert_called_once_with(5,0x9D9D,100)
+   d.request_limit(100,state);request.assert_called_once_with(5,0x9D9D,100)
  def test_snapshot_retries_a_transient_timeout(self):
   d=DtuControl('host')
   ports=[]
   for _ in range(4):ports += [1,17,0,0,0,0]
-  with patch.object(d,'transaction',side_effect=[TimeoutError(),[1],ports,[0,9223]]):
+  # La télémétrie détaillée par entrée est facultative : son échec ne doit
+  # pas annuler la lecture globale déjà validée.
+  with patch.object(d,'transaction',side_effect=[TimeoutError(),[1],ports,[0,9223],ValueError()]):
    state=d.snapshot()
   self.assertEqual(state['state'],'online')
   self.assertEqual(state['power_w'],922.3)

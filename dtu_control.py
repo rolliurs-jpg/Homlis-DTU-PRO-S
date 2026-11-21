@@ -5,6 +5,10 @@ import time
 from contextlib import nullcontext
 
 class DtuControl:
+    # Documentation Modbus Hoymiles 3Gen : C000..C00F sont réservés.
+    # 9D9D est la commande d'écrêtage de puissance active pour tous les
+    # micro-onduleurs reliés au DTU (pourcentage 2..100 pour la gamme HMS).
+    ALL_MICROINVERTERS_POWER_LIMIT = 0x9D9D
     def __init__(self, host, ports=4, rated_w=2000, lock=None):
         self.host, self.ports, self.rated_w = host, ports, rated_w
         self.lock = lock
@@ -99,13 +103,15 @@ class DtuControl:
         with (self.lock or nullcontext()):
             if isinstance(percent, bool) or not isinstance(percent, int) or not 2 <= percent <= 100:
                 raise ValueError('Limite DTU hors plage')
-            # En Modbus TCP, la commande active est le registre de statut
-            # C001 avec la fonction 05 (et non les registres de données Dxxx
-            # lus pour le suivi). Cette limite concerne tous les ports du
+            # En Modbus TCP, la commande d'écrêtage documentée est 9D9D avec
+            # la fonction 05 (et non les registres de données Dxxx lus pour
+            # le suivi). C001 est réservé : l'accusé reçu à cette adresse ne
+            # confirmait pas une limitation réellement appliquée. Cette
+            # limite concerne tous les ports du
             # DTU : un HMS-2000-4T reçoit donc la même consigne sur ses quatre
             # entrées. C'est une consigne de fonctionnement, pas un réglage
             # permanent enregistré dans le micro-onduleur.
             if self.last_command == percent:
                 return
-            self.transaction(5, 0xC001, percent)
+            self.transaction(5, self.ALL_MICROINVERTERS_POWER_LIMIT, percent)
             self.last_command = percent
