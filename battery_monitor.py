@@ -353,8 +353,21 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
         # Même si le Mac a démarré après le passage à 100 %, une décharge
         # réellement observée aujourd'hui reste une information valable.
         if full is None:
-            result.update(daily_battery_activity(
-                battery_rows, start, cycle_end, ongoing=result['ongoing']))
+            # Une décharge présente à minuit appartient à la nuit précédente ;
+            # elle ne doit pas apparaître comme le relais solaire du jour.
+            # Sans plein observé, commencer le suivi au premier relevé de
+            # production du jour permet de conserver le vrai relais mesuré.
+            solar_start = next((row['timestamp'] for row in pv_rows
+                                if start <= row['timestamp'] <= stop
+                                and (number(row.get('pv_w')) or 0) > 10), None)
+            if solar_start is not None:
+                result.update(daily_battery_activity(
+                    battery_rows, solar_start, cycle_end,
+                    ongoing=result['ongoing']))
+            else:
+                result.update(discharge_at=None, discharge_candidate_at=None,
+                              recharge_at=None, discharge_seconds=None,
+                              cycle_incomplete=True, cycle_pending=True)
         else:
             result.update(battery_cycle(battery_rows, full, cycle_end))
         results.append(result)
