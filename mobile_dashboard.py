@@ -317,6 +317,12 @@ class MobileDashboard:
         """Build the private dashboard state once for all read-only clients."""
         with self._lock:
             payload = deepcopy(self._payload)
+        try:
+            model = Path('/proc/device-tree/model').read_text(errors='ignore')
+            temperature = float(Path('/sys/class/thermal/thermal_zone0/temp').read_text().strip()) / 1000
+            payload['raspberry_temperature_c'] = temperature if 'Raspberry Pi' in model and -20 <= temperature <= 120 else None
+        except (OSError, ValueError):
+            payload['raspberry_temperature_c'] = None
         if self.proxy_snapshot is not None:
             payload.setdefault("current", {})["hoymiles_proxy"] = self.proxy_snapshot()
         if self.control_snapshot is not None:

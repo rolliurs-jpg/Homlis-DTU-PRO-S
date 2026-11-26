@@ -218,6 +218,35 @@ def daily_battery_activity(rows, start, until, ongoing=False):
     return result
 
 
+def discharge_end(rows, start, stop):
+    """Dernier arrêt confirmé de décharge, sans extrapoler les lacunes."""
+    if start is None:
+        return None
+    candidate = confirmed = previous = None
+    for row in rows:
+        t = row['timestamp']
+        if not start <= t <= stop:
+            continue
+        charge = number(row.get('charge_w'))
+        discharge = number(row.get('discharge_w'))
+        ac = number(row.get('ac_discharge_w'))
+        if previous is not None and t - previous > 45:
+            candidate = None
+        if charge is None or discharge is None or ac is None:
+            candidate = None
+        elif discharge - charge > 20 and ac > 20:
+            candidate = confirmed = None
+        else:
+            if candidate is None:
+                candidate = t
+            if t - candidate >= 120:
+                confirmed = candidate
+        previous = t
+    if previous is None or stop - previous > 45:
+        return None
+    return confirmed
+
+
 def solar_end(rows, start, stop):
     """Return a confirmed production end for a day, independently of SOC."""
     active = False
@@ -394,6 +423,8 @@ def full_charge_days(battery_rows, grid_rows, pv_rows, now):
                               discharge_seconds=None, cycle_pending=True)
 
     for result in results:
+        end = min(now, datetime.combine(datetime.fromisoformat(result['date']).date() + timedelta(days=2), datetime.min.time()).timestamp())
+        result['discharge_end_at'] = discharge_end(battery_rows, result.get('discharge_at'), min(end, (result.get('recharge_at') or end) + (120 if result.get('recharge_at') else 0)))
         result['display'] = list(cycle_values(result))
     return results
 
