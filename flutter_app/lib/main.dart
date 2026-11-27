@@ -4,7 +4,6 @@ import 'dart:io';
 // ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'equipment.dart';
 import 'energy_chart.dart';
 import 'battery_cycle.dart';
@@ -171,12 +170,6 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void select(int index) { setState(() { selected = index; report = null; battery = null; settings = null; }); refresh(); }
-  Future<void> openWeb() async {
-    if (address == null || demo) return;
-    if (!await launchUrl(address!, mode: LaunchMode.externalApplication) && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d’ouvrir le navigateur.')));
-    }
-  }
   Json get current => status?['current'] is Map<String, dynamic> ? status!['current'] : {};
   String freshness() {
     final stamp = DateTime.tryParse('${current['timestamp'] ?? ''}');
@@ -188,10 +181,9 @@ class _DashboardState extends State<Dashboard> {
   @override Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('☀ Mon solaire'), actions: [
       IconButton(tooltip: 'Actualiser', onPressed: () => refresh(), icon: const Icon(Icons.refresh)),
-      PopupMenuButton<String>(onSelected: (v) { if (v == 'address') changeAddress(); if (v == 'demo') { setState(() => demo = true); refresh(); } if (v == 'web') openWeb(); }, itemBuilder: (_) => [
+      PopupMenuButton<String>(onSelected: (v) { if (v == 'address') changeAddress(); if (v == 'demo') { setState(() => demo = true); refresh(); } }, itemBuilder: (_) => [
         const PopupMenuItem(value: 'address', child: Text('Adresse du Raspberry')),
         const PopupMenuItem(value: 'demo', child: Text('Mode démonstration')),
-        if (address != null && !demo) const PopupMenuItem(value: 'web', child: Text('Ouvrir le tableau web du Raspberry')),
       ]),
     ]),
     body: Column(children: [
@@ -230,7 +222,7 @@ class _DashboardState extends State<Dashboard> {
   ]; }
   List<Widget> reportView() { final d = report ?? {}; return [DropdownButton<String>(value: period, isExpanded: true, items: const [DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')), DropdownMenuItem(value: 'yesterday', child: Text('Hier')), DropdownMenuItem(value: 'week', child: Text('7 jours')), DropdownMenuItem(value: 'month', child: Text('Ce mois'))], onChanged: (v) { if (v != null) { setState(() { period = v; report = null; }); refresh(); } }), box('Énergie mesurée', [row('Production', number(d['production_kwh'], 'kWh', decimals: 2)), row('Consommation maison', number(d['consumption_kwh'], 'kWh', decimals: 2)), row('Injection', number(d['export_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(d['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(d['battery_discharge_kwh'], 'kWh', decimals: 2))])]; }
   List<Widget> budgetView() { final d=report??{}, b=d['billing'] is Map ? d['billing'] as Map : {}, month=monthYear(d['from_time']), start=shortDate(d['from_time']), end=shortDate(d['to_time']); return [if(start != null && end != null) info('Période : du $start au $end'), box(month == null ? 'Budget du mois' : 'Budget de $month', [row('Consommation maison', number(d['consumption_kwh'], 'kWh', decimals: 2)), row('Achat heures pleines', number(b['hp_kwh'], 'kWh', decimals: 2)), row('Achat heures creuses', number(b['hc_kwh'], 'kWh', decimals: 2)), row('Abonnement', number(d['subscription'], '€', decimals: 2)), row('Total', number(d['total_cost'], '€', decimals: 2))]), box('Solaire et batterie', [row('Production', number(d['production_kwh'], 'kWh', decimals: 2)), row('Injection', number(d['export_kwh'], 'kWh', decimals: 2)), row('Énergie locale', number(d['local_energy_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(d['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(d['battery_discharge_kwh'], 'kWh', decimals: 2))])]; }
-  List<Widget> annualView() { final d=report??{}, r=d['annual_real_readings'] is Map ? d['annual_real_readings'] as Map : {}, start=shortDate(r['start']), end=shortDate(r['as_of']) ?? shortDate(d['to_time']); return [info(start != null ? 'Relevés cumulés depuis le $start${end != null ? ' jusqu’au $end' : ''}.' : 'Période des relevés annuels non renseignée.'), box('Relevés cumulés', [row('Achat heures pleines', number(r['hp_kwh'], 'kWh', decimals: 2)), row('Achat heures creuses', number(r['hc_kwh'], 'kWh', decimals: 2)), row('Production', number(r['production_kwh'], 'kWh', decimals: 2)), row('Injection', number(r['export_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(r['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(r['battery_discharge_kwh'], 'kWh', decimals: 2))]), info('Les calculs détaillés et les périodes de référence restent disponibles dans le tableau complet.')]; }
+  List<Widget> annualView() { final d=report??{}, r=d['annual_real_readings'] is Map ? d['annual_real_readings'] as Map : {}, start=shortDate(r['start']), end=shortDate(r['as_of']) ?? shortDate(d['to_time']); return [info(start != null ? 'Relevés cumulés depuis le $start${end != null ? ' jusqu’au $end' : ''}.' : 'Période des relevés annuels non renseignée.'), box('Relevés cumulés', [row('Achat heures pleines', number(r['hp_kwh'], 'kWh', decimals: 2)), row('Achat heures creuses', number(r['hc_kwh'], 'kWh', decimals: 2)), row('Production', number(r['production_kwh'], 'kWh', decimals: 2)), row('Injection', number(r['export_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(r['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(r['battery_discharge_kwh'], 'kWh', decimals: 2))]), info('Les calculs détaillés et les périodes de référence ne sont pas encore disponibles dans l’application.')]; }
   List<Widget> batteryView() {
     final days = battery?['days'] is List ? (battery!['days'] as List).whereType<Map>().where((d) => d['date'] is String).toList() : <Map>[];
     final matching = days.where((day) => day['date'] == selectedCycleDay).toList();
@@ -262,7 +254,7 @@ class _DashboardState extends State<Dashboard> {
     final devices = equipmentList(settings!, current, fresh: fresh, now: DateTime.now());
     const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
-    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Le tableau web du Raspberry ouvre l’interface habituelle dans votre navigateur. Il donne accès aux réglages, à la régulation et au redémarrage, encore absents de cette application de test.'), if (!demo && address != null) OutlinedButton.icon(onPressed: openWeb, icon: const Icon(Icons.open_in_browser), label: const Text('Ouvrir le tableau web du Raspberry'))];
+    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Les réglages, la régulation et le redémarrage ne sont pas encore disponibles dans cette application de test.')];
   }
 }
 

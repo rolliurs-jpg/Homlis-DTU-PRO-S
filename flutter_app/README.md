@@ -2,7 +2,7 @@
 
 Première version mobile Android/iOS à interface Flutter. Elle lit les données de l'API du tableau solaire existant, sans piloter les appareils. L'adresse du Raspberry est saisie sur le téléphone et enregistrée localement ; aucun appareil personnel n'est configuré par défaut. Un mode démonstration utilise des données fictives.
 
-Les écrans comprennent le direct, les bilans, le budget, les relevés annuels, la batterie, les panneaux et l'état des équipements. Les réglages avancés, la régulation, les graphiques détaillés, l'export et le redémarrage restent accessibles dans le navigateur via « Ouvrir le tableau complet ». Les valeurs et calculs ne couvrent pas encore toutes les fonctions du tableau web : cette version est expérimentale.
+Les écrans comprennent le direct, les bilans, le budget, les relevés annuels, la batterie, les panneaux et l'état des équipements. Les réglages avancés, la régulation, certains calculs, l'export et le redémarrage ne sont pas encore intégrés : cette version est expérimentale.
 
 Le Raspberry doit être accessible sur le Wi-Fi privé ou via Tailscale. Les adresses HTTP acceptées sont locales ou privées Tailscale. HTTP transporte les données sans chiffrement applicatif : utilisez le réseau privé ou Tailscale. HTTPS est aussi accepté.
 

@@ -71,5 +71,8 @@ void main() {
     expect(last,findsOneWidget);
     expect(tester.getSize(first),tester.getSize(last));
     expect(find.text('95 W'),findsOneWidget);
+    await tester.tap(find.text('Équipements'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ouvrir le tableau web du Raspberry'),findsNothing);
   });
 }
