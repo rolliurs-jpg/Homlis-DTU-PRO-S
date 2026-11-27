@@ -14,6 +14,11 @@ void main() {
     expect(number(null, 'W'), '—');
     expect(number(0, 'W'), '0 W');
   });
+  test('le mois, l’année et les dates viennent du bilan', () {
+    expect(monthYear('2026-11-01T00:00:00'), 'novembre 2026');
+    expect(shortDate('2025-01-03'), '03/01/2025');
+    expect(monthYear(null), isNull);
+  });
   testWidgets('la démonstration affiche des valeurs fictives et les bilans', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const SolarApp());
@@ -25,5 +30,11 @@ void main() {
     await tester.tap(find.text('Bilan'));
     await tester.pumpAndSettle();
     expect(find.text('8,20 kWh'), findsOneWidget);
+    await tester.tap(find.text('Budget'));
+    await tester.pumpAndSettle();
+    expect(find.text('Budget de ${monthYear(DateTime.now().toIso8601String())}'), findsOneWidget);
+    await tester.tap(find.text('Annuel'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Relevés cumulés depuis le 01/01/2026'), findsOneWidget);
   });
 }
