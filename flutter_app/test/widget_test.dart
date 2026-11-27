@@ -1,4 +1,5 @@
 import 'dart:ui' show Size;
+import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mon_solaire_mobile/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,5 +55,13 @@ void main() {
     expect(find.text('Du plein au lendemain'), findsOneWidget);
     expect(find.text('Fin de décharge batterie'), findsOneWidget);
     expect(find.text('Historique des cycles'), findsOneWidget);
+    await tester.tap(find.text('Panneaux'));
+    await tester.pumpAndSettle();
+    final first=find.byKey(const ValueKey('panneau-Maison-1'));
+    final last=find.byKey(const ValueKey('panneau-Cabanon-2'));
+    expect(first,findsOneWidget);
+    expect(last,findsOneWidget);
+    expect(tester.getSize(first),tester.getSize(last));
+    expect(find.text('95 W'),findsOneWidget);
   });
 }
