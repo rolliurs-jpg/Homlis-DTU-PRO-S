@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'equipment.dart';
+import 'energy_chart.dart';
 
 const bg = Color(0xff071321);
 const panel = Color(0xff101f31);
@@ -172,7 +173,7 @@ class _DashboardState extends State<Dashboard> {
       PopupMenuButton<String>(onSelected: (v) { if (v == 'address') changeAddress(); if (v == 'demo') { setState(() => demo = true); refresh(); } if (v == 'web') openWeb(); }, itemBuilder: (_) => [
         const PopupMenuItem(value: 'address', child: Text('Adresse du Raspberry')),
         const PopupMenuItem(value: 'demo', child: Text('Mode démonstration')),
-        if (address != null && !demo) const PopupMenuItem(value: 'web', child: Text('Ouvrir le tableau complet')),
+        if (address != null && !demo) const PopupMenuItem(value: 'web', child: Text('Ouvrir le tableau web du Raspberry')),
       ]),
     ]),
     body: Column(children: [
@@ -203,7 +204,7 @@ class _DashboardState extends State<Dashboard> {
     box('La maison en direct', [row('Production solaire', number(c['production_w'], 'W'), color: green), row('Maison', number(c['consumption_w'], 'W'), color: blue), row('Acheté au réseau', number(c['import_w'], 'W')), row('Envoyé au réseau', number(c['export_w'], 'W'), color: gold)]),
     if (c['battery_enabled'] == true) box('Batterie', [row('Niveau', number(c['battery_soc_pct'], '%')), row('Charge', number(c['battery_ac_charge_w'], 'W')), row('Décharge', number(c['battery_ac_discharge_w'], 'W'))]),
     box('Raspberry Pi', [row('Température', number(status?['raspberry_temperature_c'], '°C', decimals: 1))]),
-    if (status?['history'] is List) box('Évolution de la production', [SizedBox(height: 140, width: double.infinity, child: CustomPaint(painter: HistoryPainter(status!['history'] as List)))]),
+    if (status?['history'] is List) box('Évolution des mesures', [EnergyChart(history:status!['history'] as List)]),
   ]; }
   List<Widget> reportView() { final d = report ?? {}; return [DropdownButton<String>(value: period, isExpanded: true, items: const [DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')), DropdownMenuItem(value: 'yesterday', child: Text('Hier')), DropdownMenuItem(value: 'week', child: Text('7 jours')), DropdownMenuItem(value: 'month', child: Text('Ce mois'))], onChanged: (v) { if (v != null) { setState(() { period = v; report = null; }); refresh(); } }), box('Énergie mesurée', [row('Production', number(d['production_kwh'], 'kWh', decimals: 2)), row('Consommation maison', number(d['consumption_kwh'], 'kWh', decimals: 2)), row('Injection', number(d['export_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(d['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(d['battery_discharge_kwh'], 'kWh', decimals: 2))])]; }
   List<Widget> budgetView() { final d=report??{}, b=d['billing'] is Map ? d['billing'] as Map : {}, month=monthYear(d['from_time']), start=shortDate(d['from_time']), end=shortDate(d['to_time']); return [if(start != null && end != null) info('Période : du $start au $end'), box(month == null ? 'Budget du mois' : 'Budget de $month', [row('Consommation maison', number(d['consumption_kwh'], 'kWh', decimals: 2)), row('Achat heures pleines', number(b['hp_kwh'], 'kWh', decimals: 2)), row('Achat heures creuses', number(b['hc_kwh'], 'kWh', decimals: 2)), row('Abonnement', number(d['subscription'], '€', decimals: 2)), row('Total', number(d['total_cost'], '€', decimals: 2))]), box('Solaire et batterie', [row('Production', number(d['production_kwh'], 'kWh', decimals: 2)), row('Injection', number(d['export_kwh'], 'kWh', decimals: 2)), row('Énergie locale', number(d['local_energy_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(d['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(d['battery_discharge_kwh'], 'kWh', decimals: 2))])]; }
@@ -217,25 +218,11 @@ class _DashboardState extends State<Dashboard> {
     final devices = equipmentList(settings!, current, fresh: fresh, now: DateTime.now());
     const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
-    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Les réglages, la régulation et le redémarrage sont accessibles dans le tableau complet.'), if (!demo && address != null) OutlinedButton.icon(onPressed: openWeb, icon: const Icon(Icons.open_in_browser), label: const Text('Ouvrir le tableau complet'))];
+    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Le tableau web du Raspberry ouvre l’interface habituelle dans votre navigateur. Il donne accès aux réglages, à la régulation et au redémarrage, encore absents de cette application de test.'), if (!demo && address != null) OutlinedButton.icon(onPressed: openWeb, icon: const Icon(Icons.open_in_browser), label: const Text('Ouvrir le tableau web du Raspberry'))];
   }
 }
 
-class HistoryPainter extends CustomPainter {
-  HistoryPainter(this.history);
-  final List history;
-  @override void paint(Canvas canvas, Size size) {
-    final values=history.map((e) => e is Map && e['production_w'] is num ? (e['production_w'] as num).toDouble() : double.nan).toList();
-    final valid=values.where((x)=>x.isFinite).toList(); if(valid.length < 2)return;
-    final maxValue=valid.reduce((a,b)=>a>b?a:b); final ceiling=maxValue>0?maxValue:1;
-    final line=Path(); bool started=false;
-    for(var i=0;i<values.length;i++){final v=values[i]; if(!v.isFinite){started=false;continue;} final x=i*size.width/(values.length-1),y=size.height-(v/ceiling).clamp(0,1)*size.height; if(!started){line.moveTo(x,y);started=true;}else{line.lineTo(x,y);}}
-    canvas.drawPath(line,Paint()..color=green..strokeWidth=2..style=PaintingStyle.stroke);
-  }
-  @override bool shouldRepaint(covariant HistoryPainter oldDelegate) => oldDelegate.history != history;
-}
-
-Json demoStatus()=>{'raspberry_temperature_c':42.1,'current':{'timestamp':DateTime.now().toIso8601String(),'production_w':1050,'consumption_w':420,'import_w':0,'export_w':30,'battery_enabled':true,'battery_soc_pct':63,'battery_timestamp':DateTime.now().millisecondsSinceEpoch/1000,'battery_ac_charge_w':600,'battery_ac_discharge_w':0,'pv2_w':200,'dtu_state':'online','linky_state':'online','shelly_state':'online','tp_link_state':'online','tongou_state':'online'},'history':List.generate(24,(i)=>{'production_w':i*45})};
+Json demoStatus()=>{'raspberry_temperature_c':42.1,'current':{'timestamp':DateTime.now().toIso8601String(),'production_w':1050,'consumption_w':420,'import_w':0,'export_w':30,'battery_enabled':true,'battery_soc_pct':63,'battery_timestamp':DateTime.now().millisecondsSinceEpoch/1000,'battery_ac_charge_w':600,'battery_ac_discharge_w':0,'pv2_w':200,'dtu_state':'online','linky_state':'online','shelly_state':'online','tp_link_state':'online','tongou_state':'online'},'history':List.generate(24,(i)=>{'timestamp':DateTime.now().subtract(Duration(minutes:(23-i)*15)).toIso8601String(),'production_w':i*45,'consumption_w':300+i*5,'import_w':i<6?100:0,'export_w':i>18?25:0,'battery_charge_w':i>6?200:0,'battery_discharge_w':i<=6?80:0})};
 Json demoReport()=>{'from_time':DateTime(DateTime.now().year,DateTime.now().month,1).toIso8601String(),'to_time':DateTime.now().toIso8601String(),'production_kwh':8.2,'consumption_kwh':6.1,'export_kwh':1.2,'battery_charge_kwh':2.3,'battery_discharge_kwh':1.1,'total_cost':1.48,'subscription':0.5,'local_energy_kwh':4.9,'billing':{'hp_kwh':2.1,'hc_kwh':1.0},'annual_real_readings':{'start':'2026-01-01','hp_kwh':350,'hc_kwh':120,'production_kwh':780,'export_kwh':120,'battery_charge_kwh':200,'battery_discharge_kwh':170}};
 Json demoBattery()=>{'days':[{'date':'Exemple','display':['Exemple','14:00','0,4 kWh','19:30','19:32','3 h 20','08:30']}]};
 Json demoSettings()=>{for(final key in ['tp_link','tongou_relay','linky','shelly','shelly2','battery']) key:{'enabled':true},'wireless_interfaces':[{'interface':'wlan1','name':'Alfa · Wi-Fi DTU','connected':true},{'interface':'wlan2','name':'Alfa · Wi-Fi cabanon','connected':true}],'esp_devices':[{'id':'proxy','name':'ESP32 · proxy Bluetooth','enabled':true,'connected':true,'checked_at':DateTime.now().millisecondsSinceEpoch/1000},{'id':'router','name':'ESP32 · routeur cabanon','enabled':true,'connected':true,'checked_at':DateTime.now().millisecondsSinceEpoch/1000}]};
