@@ -1,4 +1,5 @@
-import 'dart:ui' show Size;
+import 'dart:ui' show Size, Offset;
+import 'package:flutter/widgets.dart' show ListView;
 import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mon_solaire_mobile/main.dart';
@@ -58,6 +59,11 @@ void main() {
     await tester.tap(find.text('Annuel'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Relevés cumulés depuis le 01/01/2026'), findsOneWidget);
+    expect(find.text('Achat EDF total · HP + HC'), findsOneWidget);
+    expect(find.text('Coût EDF global · abonnement inclus'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0,-500));
+    await tester.pumpAndSettle();
+    expect(find.text('Économie solaire + batterie'), findsOneWidget);
     await tester.tap(find.text('Batterie'));
     await tester.pumpAndSettle();
     expect(find.text('Du plein au lendemain'), findsOneWidget);
