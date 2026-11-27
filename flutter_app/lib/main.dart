@@ -79,15 +79,15 @@ class SolarApp extends StatelessWidget {
 class SolarClient {
   SolarClient(this.base);
   final Uri base;
-  Future<Json> get(String endpoint) async {
+  Future<Json> get(String endpoint, {Duration timeout = const Duration(seconds: 25)}) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
       final request = await client.getUrl(base.resolve(endpoint));
       request.followRedirects = false;
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final response = await request.close().timeout(const Duration(seconds: 25));
+      final response = await request.close().timeout(timeout);
       if (response.statusCode != 200) throw HttpException('Réponse ${response.statusCode}');
-      final decoded = jsonDecode(await response.transform(utf8.decoder).join().timeout(const Duration(seconds: 25)));
+      final decoded = jsonDecode(await response.transform(utf8.decoder).join().timeout(timeout));
       if (decoded is! Map<String, dynamic>) throw const FormatException('Données invalides');
       return decoded;
     } finally { client.close(force: true); }
@@ -103,13 +103,13 @@ class _DashboardState extends State<Dashboard> {
   static const pages = ['Direct', 'Bilan journalier', 'Budget mensuel', 'Annuel', 'Batterie', 'Panneaux', 'Équipements'];
   static const icons = [Icons.home_outlined, Icons.today, Icons.euro, Icons.calendar_month, Icons.battery_charging_full, Icons.solar_power, Icons.settings];
   Uri? address;
-  bool demo = false, loading = false, requesting = false, statusReachable = false;
+  bool demo = false, loading = false, requesting = false, statusReachable = false, pollingLive = false;
   String? error;
   int selected = 0, generation = 0;
   String period = 'today';
   String? selectedCycleDay;
   Json? status, report, battery, settings;
-  DateTime? settingsUpdated;
+  DateTime? settingsUpdated, batteryUpdated;
   Timer? timer;
 
   @override void initState() { super.initState(); init(); }
@@ -121,7 +121,7 @@ class _DashboardState extends State<Dashboard> {
       setState(() => address = validateAddress(saved));
       refresh();
     }
-    timer = Timer.periodic(const Duration(seconds: 15), (_) { if (mounted && (address != null || demo)) refresh(silent: true); });
+    timer = Timer.periodic(const Duration(seconds: 15), (_) { if (!mounted || (address == null && !demo)) return; if (requesting && selected == 4 && !demo) { refreshLiveDuringBattery(); } else { refresh(silent: true); } });
   }
   @override void dispose() { timer?.cancel(); super.dispose(); }
 
@@ -140,7 +140,7 @@ class _DashboardState extends State<Dashboard> {
     if (uri == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse invalide. Utilisez une adresse locale ou Tailscale, ou une adresse HTTPS.'))); return; }
     final prefs = await SharedPreferences.getInstance(); await prefs.setString('dashboard_url', uri.toString());
     if (!mounted) return;
-    setState(() { address = uri; demo = false; status = null; statusReachable = false; report = null; battery = null; settings = null; });
+    setState(() { address = uri; demo = false; status = null; statusReachable = false; report = null; battery = null; batteryUpdated = null; settings = null; });
     refresh();
   }
 
@@ -157,26 +157,45 @@ class _DashboardState extends State<Dashboard> {
       if (!mounted || ticket != generation) return;
       setState(() { status = live; statusReachable = true; error = null; });
       Json? other;
+      var fetchedBattery = false;
       try {
         if (page == 1) other = await client.get('api/report?period=$selectedPeriod');
         if (page == 2) other = await client.get('api/report?period=month');
         if (page == 3) other = await client.get('api/report?period=year');
-        if (page == 4) other = await client.get('api/battery-full');
+        if (page == 4) {
+          final refreshBattery = !silent || battery == null || batteryUpdated == null || DateTime.now().difference(batteryUpdated!).inSeconds >= 60;
+          if (refreshBattery) { other = await client.get('api/battery-full', timeout:const Duration(seconds:90)); fetchedBattery = true; }
+          else { other = battery; }
+        }
         if (page == 6) other = await client.get('api/settings');
       } catch (_) {
         if (!mounted || ticket != generation) return;
-        setState(() { loading = false; error = page == 4 ? 'Mesures en direct reçues ; le bilan batterie est momentanément indisponible. Les anciens cycles restent affichés.' : 'Mesures en direct reçues ; les données de cette page sont momentanément indisponibles.'; });
+        setState(() { loading = false; error = page == 4 ? 'Mesures en direct reçues ; le bilan batterie est momentanément indisponible.${battery != null ? ' Les derniers cycles reçus restent affichés.' : ' Réessayez avec Actualiser.'}' : 'Mesures en direct reçues ; les données de cette page sont momentanément indisponibles.'; });
         return;
       }
       if (!mounted || ticket != generation) return;
-      setState(() { status = live; if (page >= 1 && page <= 3) report = other; if (page == 4) battery = other; if (page == 6) { settings = other; settingsUpdated = DateTime.now(); } loading = false; error = null; });
+      setState(() { if (page >= 1 && page <= 3) report = other; if (page == 4) { battery = other; if (fetchedBattery) batteryUpdated = DateTime.now(); } if (page == 6) { settings = other; settingsUpdated = DateTime.now(); } loading = false; error = null; });
     } catch (_) {
       if (!mounted || ticket != generation) return;
       setState(() { loading = false; statusReachable = false; error = 'Connexion ou données indisponibles. Vérifiez le Wi-Fi ou Tailscale. Les anciennes valeurs restent affichées.'; });
     } finally { if (ticket == generation) requesting = false; }
   }
 
-  void select(int index) { setState(() { selected = index; report = null; battery = null; settings = null; }); refresh(); }
+  Future<void> refreshLiveDuringBattery() async {
+    if (pollingLive || address == null) return;
+    pollingLive = true;
+    final ticket = generation, base = address!;
+    try {
+      final live = await SolarClient(base).get('api/status');
+      if (!mounted || ticket != generation || selected != 4) return;
+      setState(() { status = live; statusReachable = true; });
+    } catch (_) {
+      if (!mounted || ticket != generation || selected != 4) return;
+      setState(() { statusReachable = false; });
+    } finally { pollingLive = false; }
+  }
+
+  void select(int index) { setState(() { selected = index; report = null; settings = null; }); refresh(); }
   Json get current => status?['current'] is Map<String, dynamic> ? status!['current'] : {};
   String freshness() {
     final stamp = DateTime.tryParse('${current['timestamp'] ?? ''}');
@@ -275,7 +294,7 @@ class _DashboardState extends State<Dashboard> {
     return [
       box('Batterie en direct', batteryFlowRows(current)),
       box('Du plein au lendemain', [
-        if (cycle == null) info(loading ? 'Chargement du bilan batterie…' : 'Aucun cycle disponible.') else ...[
+        if (cycle == null) info(loading || requesting ? 'Chargement du bilan batterie…' : battery == null ? 'Bilan non chargé. Appuyez sur Actualiser pour réessayer.' : 'Aucun cycle enregistré.') else ...[
           DropdownButton<String>(isExpanded:true, value:cycle.day, items:days.map((d)=>DropdownMenuItem<String>(value:d['date'] as String, child:Text('${d['date']}${d['ongoing'] == true ? ' · en cours' : ''}'))).toList(), onChanged:(value)=>setState(()=>selectedCycleDay=value)),
           info(cycle.status), if (cycle.explanation.isNotEmpty) info(cycle.explanation),
           row('Batterie pleine', cycle.full), row('Fin solaire (< 10 W)', cycle.solarEnd), row('Batterie prend le relais', cycle.dischargeStart), row('Fin de décharge batterie', cycle.dischargeEnd), row('Recharge au prochain ensoleillement', cycle.recharge), row(cycle.durationLabel, cycle.dischargeDuration),
