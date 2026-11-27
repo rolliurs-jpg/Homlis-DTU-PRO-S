@@ -85,7 +85,7 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  static const pages = ['Direct', 'Bilan', 'Budget', 'Annuel', 'Batterie', 'Panneaux', 'Équipements'];
+  static const pages = ['Direct', 'Bilan journalier', 'Budget mensuel', 'Annuel', 'Batterie', 'Panneaux', 'Équipements'];
   static const icons = [Icons.home_outlined, Icons.today, Icons.euro, Icons.calendar_month, Icons.battery_charging_full, Icons.solar_power, Icons.settings];
   Uri? address;
   bool demo = false, loading = false, requesting = false;
@@ -191,7 +191,7 @@ class _DashboardState extends State<Dashboard> {
         if (selected == 5) ...panelsView(),
         if (selected == 6) ...devicesView(),
       ]))),
-      SafeArea(top: false, child: Wrap(alignment: WrapAlignment.center, children: List.generate(pages.length, (i) => SizedBox(width: MediaQuery.sizeOf(context).width / 4, child: TextButton(onPressed: () => select(i), style: TextButton.styleFrom(foregroundColor: selected == i ? green : Colors.blueGrey[200], padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icons[i], size: 19), Text(pages[i], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11))])))))),
+      SafeArea(top: false, child: Wrap(alignment: WrapAlignment.center, children: List.generate(pages.length, (i) => SizedBox(width: MediaQuery.sizeOf(context).width / 4, child: TextButton(onPressed: () => select(i), style: TextButton.styleFrom(foregroundColor: selected == i ? green : Colors.blueGrey[200], padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icons[i], size: 19), Text(pages[i], maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11))])))))),
     ]),
   );
   Widget banner(String text, Color color) => Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: color.withValues(alpha: .14), child: Text(text, style: TextStyle(color: color)));

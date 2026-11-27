@@ -1,3 +1,4 @@
+import 'dart:ui' show Size;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mon_solaire_mobile/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +20,18 @@ void main() {
     expect(shortDate('2025-01-03'), '03/01/2025');
     expect(monthYear(null), isNull);
   });
+  testWidgets('les intitulés restent visibles sur un petit écran', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const SolarApp());
+    await tester.pumpAndSettle();
+    expect(find.text('Bilan journalier'), findsOneWidget);
+    expect(find.text('Budget mensuel'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('la démonstration affiche des valeurs fictives et les bilans', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const SolarApp());
@@ -27,10 +40,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Démonstration · données fictives'), findsOneWidget);
     expect(find.text('1050 W'), findsOneWidget);
-    await tester.tap(find.text('Bilan'));
+    await tester.tap(find.text('Bilan journalier'));
     await tester.pumpAndSettle();
     expect(find.text('8,20 kWh'), findsOneWidget);
-    await tester.tap(find.text('Budget'));
+    await tester.tap(find.text('Budget mensuel'));
     await tester.pumpAndSettle();
     expect(find.text('Budget de ${monthYear(DateTime.now().toIso8601String())}'), findsOneWidget);
     await tester.tap(find.text('Annuel'));
