@@ -1,6 +1,6 @@
 Option Explicit
 
-Dim shell, fso, folder, appData, backup, configFile, choice
+Dim shell, fso, folder, appData, backup, configFile, choice, dinkyEnabled
 Dim dtuHost, dinkyHost, shellyHost, shellyChoice, shellyJson, shelly2Host, shelly2Choice, shelly2Json, json, outputFile, inputFile, shortcut, desktop, result, q, modeFile, dtuMode, chooser, re, existingConfig
 
 Set shell = CreateObject("WScript.Shell")
@@ -18,7 +18,7 @@ If Not fso.FileExists(folder & "\requirements.txt") Then
     WScript.Quit 1
 End If
 
-choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.69 ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
+choice = MsgBox("Installer ou mettre a jour Boite noire Hoymiles 7.0.71 (version de test) ?" & vbCrLf & vbCrLf & "Les historiques et les reglages deja presents seront conserves.", vbOKCancel + vbQuestion, "Confirmer l'installation")
 If choice <> vbOK Then WScript.Quit 0
 
 ' Installation des dependances sans fenetre de terminal.
@@ -182,6 +182,9 @@ fso.CopyFile folder & "\energy_analysis.py", appData & "\energy_analysis.py", Tr
 fso.CopyFile folder & "\surplus_simulation.py", appData & "\surplus_simulation.py", True
 fso.CopyFile folder & "\surplus_controller.py", appData & "\surplus_controller.py", True
 fso.CopyFile folder & "\dtu_control.py", appData & "\dtu_control.py", True
+fso.CopyFile folder & "\tuya_relay.py", appData & "\tuya_relay.py", True
+fso.CopyFile folder & "\ddsu_watchdog.py", appData & "\ddsu_watchdog.py", True
+fso.CopyFile folder & "\dtu_generation_watchdog.py", appData & "\dtu_generation_watchdog.py", True
 fso.CopyFile folder & "\PAIRER_HOYMILES.py", appData & "\PAIRER_HOYMILES.py", True
 fso.CopyFile folder & "\hoymiles_proxy.py", appData & "\hoymiles_proxy.py", True
 fso.CopyFile folder & "\HOYMILES_BLE_LICENSE.txt", appData & "\HOYMILES_BLE_LICENSE.txt", True
