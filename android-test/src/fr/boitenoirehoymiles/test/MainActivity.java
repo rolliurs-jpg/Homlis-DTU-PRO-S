@@ -3,6 +3,7 @@ package fr.boitenoirehoymiles.test;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.view.ViewGroup;
 import android.webkit.WebView;
@@ -13,6 +14,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+import android.widget.TextView;
+import android.view.View;
 import android.net.Uri;
 
 public class MainActivity extends Activity {
@@ -33,12 +36,17 @@ public class MainActivity extends Activity {
         toolbar.addView(settings, new LinearLayout.LayoutParams(0, -2, 2));
         toolbar.addView(reload, new LinearLayout.LayoutParams(0, -2, 1));
         root.addView(toolbar, new LinearLayout.LayoutParams(-1, -2));
+        TextView loading = new TextView(this); loading.setText("Chargement du tableau…");
+        loading.setTextColor(Color.WHITE); loading.setPadding(16, 10, 16, 10); loading.setVisibility(View.GONE);
+        root.addView(loading, new LinearLayout.LayoutParams(-1, -2));
         web = new WebView(this); web.setBackgroundColor(Color.rgb(6,17,31));
         web.setWebChromeClient(new WebChromeClient());
         web.getSettings().setJavaScriptEnabled(true); web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setUseWideViewPort(true); web.getSettings().setLoadWithOverviewMode(false);
         web.getSettings().setCacheMode(android.webkit.WebSettings.LOAD_NO_CACHE);
         web.setWebViewClient(new WebViewClient() {
+            @Override public void onPageStarted(WebView view, String url, Bitmap icon) { loading.setVisibility(View.VISIBLE); }
+            @Override public void onPageFinished(WebView view, String url) { loading.setVisibility(View.GONE); }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri u = request.getUrl();
                 if (origin != null && origin.equals(u.getScheme()+"://"+u.getAuthority())) return false;

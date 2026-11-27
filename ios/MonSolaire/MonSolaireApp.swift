@@ -24,6 +24,9 @@ struct DashboardView: View {
             if !error.isEmpty {
                 Text(error).foregroundColor(.red).padding(8)
             }
+            if browser.isLoading {
+                HStack { ProgressView(); Text("Chargement du tableau…") }.padding(8)
+            }
             DashboardBrowser(model: browser, error: $error)
         }
         .onAppear {
@@ -68,6 +71,7 @@ struct DashboardView: View {
 final class BrowserModel: ObservableObject {
     let webView = WKWebView()
     var origin = ""
+    @Published var isLoading = false
 }
 
 struct DashboardBrowser: UIViewRepresentable {
@@ -84,6 +88,10 @@ struct DashboardBrowser: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         var parent: DashboardBrowser
         init(_ parent: DashboardBrowser) { self.parent = parent }
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            parent.error = ""
+            parent.model.isLoading = true
+        }
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if parent.model.origin == "demo" {
                 decisionHandler(action.request.url?.isFileURL == true ? .allow : .cancel)
@@ -94,9 +102,14 @@ struct DashboardBrowser: UIViewRepresentable {
             decisionHandler(origin == parent.model.origin ? .allow : .cancel)
         }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            parent.model.isLoading = false
             parent.error = "Connexion impossible : vérifiez l’adresse, le Wi-Fi ou le VPN."
         }
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { parent.error = "" }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            parent.model.isLoading = false
+            parent.error = "Connexion interrompue : vérifiez le Wi-Fi ou le VPN."
+        }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { parent.model.isLoading = false; parent.error = "" }
         private func presenter() -> UIViewController? {
             let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             var current = scenes.flatMap { $0.windows }.first(where: { $0.isKeyWindow })?.rootViewController
