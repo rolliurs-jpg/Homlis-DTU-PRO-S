@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'equipment.dart';
 
 const bg = Color(0xff071321);
 const panel = Color(0xff101f31);
@@ -80,6 +81,7 @@ class _DashboardState extends State<Dashboard> {
   int selected = 0, generation = 0;
   String period = 'today';
   Json? status, report, battery, settings;
+  DateTime? settingsUpdated;
   Timer? timer;
 
   @override void initState() { super.initState(); init(); }
@@ -116,7 +118,7 @@ class _DashboardState extends State<Dashboard> {
 
   Future<void> refresh({bool silent = false}) async {
     if (silent && (loading || requesting)) return;
-    if (demo) { ++generation; requesting = false; setState(() { status = demoStatus(); report = demoReport(); battery = demoBattery(); settings = {}; error = null; loading = false; }); return; }
+    if (demo) { ++generation; requesting = false; setState(() { status = demoStatus(); report = demoReport(); battery = demoBattery(); settings = demoSettings(); settingsUpdated = DateTime.now(); error = null; loading = false; }); return; }
     if (address == null) return;
     final ticket = ++generation, page = selected, selectedPeriod = period;
     requesting = true;
@@ -131,7 +133,7 @@ class _DashboardState extends State<Dashboard> {
       if (page == 4) other = await client.get('api/battery-full');
       if (page == 6) other = await client.get('api/settings');
       if (!mounted || ticket != generation) return;
-      setState(() { status = live; if (page >= 1 && page <= 3) report = other; if (page == 4) battery = other; if (page == 6) settings = other; loading = false; error = null; });
+      setState(() { status = live; if (page >= 1 && page <= 3) report = other; if (page == 4) battery = other; if (page == 6) { settings = other; settingsUpdated = DateTime.now(); } loading = false; error = null; });
     } catch (_) {
       if (!mounted || ticket != generation) return;
       setState(() { loading = false; error = 'Connexion ou données indisponibles. Vérifiez le Wi-Fi ou Tailscale. Les anciennes valeurs restent affichées.'; });
@@ -197,7 +199,15 @@ class _DashboardState extends State<Dashboard> {
   List<Widget> annualView() { final d=report??{}, r=d['annual_real_readings'] is Map ? d['annual_real_readings'] as Map : {}; return [info('Relevés annuels disponibles sur le Raspberry.'), box('Relevés de l’année', [row('Achat heures pleines', number(r['hp_kwh'], 'kWh', decimals: 2)), row('Achat heures creuses', number(r['hc_kwh'], 'kWh', decimals: 2)), row('Production', number(r['production_kwh'], 'kWh', decimals: 2)), row('Injection', number(r['export_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(r['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(r['battery_discharge_kwh'], 'kWh', decimals: 2))]), info('Les calculs détaillés et les périodes de référence restent disponibles dans le tableau complet.')]; }
   List<Widget> batteryView() { final days=battery?['days'] is List ? battery!['days'] as List : []; return [box('Batterie en direct', [row('Niveau', number(current['battery_soc_pct'], '%')), row('Charge', number(current['battery_ac_charge_w'], 'W')), row('Décharge', number(current['battery_ac_discharge_w'], 'W'))]), box('Cycles enregistrés', [if (days.isEmpty) info(loading?'Chargement des cycles…':'Aucun cycle disponible') else ...days.take(14).map((day) { final d=day is Map ? day : {}; final display=d['display'] is List ? d['display'] as List : []; return ExpansionTile(title: Text('${d['date'] ?? 'Cycle'}'), children: List.generate(display.length > 7 ? 7 : display.length, (i) => row(['Jour','Batterie pleine','Surplus','Fin solaire','Décharge','Durée de décharge','Recharge'][i], '${display[i] ?? '—'}'))); })])]; }
   List<Widget> panelsView() { final sim=current['surplus_simulation'] is Map ? current['surplus_simulation'] as Map : {}; final dtu=sim['dtu'] is Map ? sim['dtu'] as Map : {}; final proxy=current['hoymiles_proxy'] is Map ? current['hoymiles_proxy'] as Map : {}; return [box('Panneaux maison', [row('État DTU', '${dtu['state'] ?? 'En attente'}'), if (dtu['panels'] is List) ...(dtu['panels'] as List).map((p) => row('Panneau ${p['port'] ?? '—'}', number(p['power_w'], 'W'))) else info('Mesures individuelles en attente.')]), box('Panneaux cabanon', [row('Production du relais', number(proxy['power_w'], 'W')), info('Répartition par panneau disponible si le relais la transmet.')])]; }
-  List<Widget> devicesView() { final s=settings??{}; return [box('Sources du suivi', [row('DTU', '${current['dtu_state'] ?? 'En attente'}'), row('Linky', '${current['linky_state'] ?? 'En attente'}'), row('Shelly', '${current['shelly_state'] ?? 'En attente'}'), if (s['esp_devices'] is List) ...(s['esp_devices'] as List).map((e) => row('${e['name'] ?? 'Équipement'}', e['connected'] == true ? 'Connecté' : 'Non joignable'))]), info('Les réglages, la régulation et le redémarrage sont accessibles dans le tableau complet.'), if (!demo && address != null) OutlinedButton.icon(onPressed: openWeb, icon: const Icon(Icons.open_in_browser), label: const Text('Ouvrir le tableau complet'))]; }
+  List<Widget> devicesView() {
+    if (settings == null) return [info(loading ? 'Chargement des équipements…' : 'État des équipements indisponible.')];
+    final timestamp = DateTime.tryParse('${current['timestamp'] ?? ''}');
+    final fresh = error == null && timestamp != null && DateTime.now().difference(timestamp).inSeconds.abs() <= 90 && settingsUpdated != null && DateTime.now().difference(settingsUpdated!).inSeconds <= 60;
+    final devices = equipmentList(settings!, current, fresh: fresh, now: DateTime.now());
+    const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
+    Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
+    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Les réglages, la régulation et le redémarrage sont accessibles dans le tableau complet.'), if (!demo && address != null) OutlinedButton.icon(onPressed: openWeb, icon: const Icon(Icons.open_in_browser), label: const Text('Ouvrir le tableau complet'))];
+  }
 }
 
 class HistoryPainter extends CustomPainter {
@@ -214,6 +224,7 @@ class HistoryPainter extends CustomPainter {
   @override bool shouldRepaint(covariant HistoryPainter oldDelegate) => oldDelegate.history != history;
 }
 
-Json demoStatus()=>{'raspberry_temperature_c':42.1,'current':{'timestamp':DateTime.now().toIso8601String(),'production_w':1050,'consumption_w':420,'import_w':0,'export_w':30,'battery_enabled':true,'battery_soc_pct':63,'battery_ac_charge_w':600,'battery_ac_discharge_w':0,'dtu_state':'online','linky_state':'online','shelly_state':'online'},'history':List.generate(24,(i)=>{'production_w':i*45})};
+Json demoStatus()=>{'raspberry_temperature_c':42.1,'current':{'timestamp':DateTime.now().toIso8601String(),'production_w':1050,'consumption_w':420,'import_w':0,'export_w':30,'battery_enabled':true,'battery_soc_pct':63,'battery_timestamp':DateTime.now().millisecondsSinceEpoch/1000,'battery_ac_charge_w':600,'battery_ac_discharge_w':0,'pv2_w':200,'dtu_state':'online','linky_state':'online','shelly_state':'online','tp_link_state':'online','tongou_state':'online'},'history':List.generate(24,(i)=>{'production_w':i*45})};
 Json demoReport()=>{'production_kwh':8.2,'consumption_kwh':6.1,'export_kwh':1.2,'battery_charge_kwh':2.3,'battery_discharge_kwh':1.1,'total_cost':1.48,'subscription':0.5,'local_energy_kwh':4.9,'billing':{'hp_kwh':2.1,'hc_kwh':1.0},'annual_real_readings':{'hp_kwh':350,'hc_kwh':120,'production_kwh':780,'export_kwh':120,'battery_charge_kwh':200,'battery_discharge_kwh':170}};
 Json demoBattery()=>{'days':[{'date':'Exemple','display':['Exemple','14:00','0,4 kWh','19:30','19:32','3 h 20','08:30']}]};
+Json demoSettings()=>{for(final key in ['tp_link','tongou_relay','linky','shelly','shelly2','battery']) key:{'enabled':true},'wireless_interfaces':[{'interface':'wlan1','name':'Alfa · Wi-Fi DTU','connected':true},{'interface':'wlan2','name':'Alfa · Wi-Fi cabanon','connected':true}],'esp_devices':[{'id':'proxy','name':'ESP32 · proxy Bluetooth','enabled':true,'connected':true,'checked_at':DateTime.now().millisecondsSinceEpoch/1000},{'id':'router','name':'ESP32 · routeur cabanon','enabled':true,'connected':true,'checked_at':DateTime.now().millisecondsSinceEpoch/1000}]};
