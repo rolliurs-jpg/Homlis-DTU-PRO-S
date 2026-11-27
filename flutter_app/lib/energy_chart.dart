@@ -1,3 +1,4 @@
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 enum EnergySeries { production, house, imported, exported, charge, discharge }
