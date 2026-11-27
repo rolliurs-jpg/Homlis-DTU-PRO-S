@@ -49,5 +49,10 @@ void main() {
     await tester.tap(find.text('Annuel'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Relevés cumulés depuis le 01/01/2026'), findsOneWidget);
+    await tester.tap(find.text('Batterie'));
+    await tester.pumpAndSettle();
+    expect(find.text('Du plein au lendemain'), findsOneWidget);
+    expect(find.text('Fin de décharge batterie'), findsOneWidget);
+    expect(find.text('Historique des cycles'), findsOneWidget);
   });
 }
