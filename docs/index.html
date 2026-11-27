@@ -53,7 +53,7 @@
         <a class="button secondary" href="#installation">Guide d’installation</a>
       </div>
       <p class="small">Deux APK expérimentaux hors Google Play : la démo fonctionne avec des données fictives sans connexion ; le test utilise votre propre installation et affiche ses commandes réelles. Votre appareil peut avertir lors de l’installation.</p>
-      <p class="small">iOS : projet source pour Xcode et simulateur, avec mode démo ; ce téléchargement n’est pas une application installable sur iPhone. La distribution nécessite une signature Apple et des essais sur appareil.</p>
+      <p class="small">iOS : projet source Xcode avec mode démo ; il doit être compilé et signé avant installation sur iPhone. <a href="#installer-ios">Lire le guide iOS</a>.</p>
       <ul class="trust-list" aria-label="Points essentiels">
         <li>✓ Collecte permanente sur Raspberry Pi</li>
         <li>✓ Vos mesures restent chez vous</li>
@@ -179,6 +179,19 @@
         <li><strong>7. Démarrage automatique Raspberry</strong><span>Le tableau web indique « Automatique » : le collecteur Raspberry démarre déjà automatiquement, sans réglage Oui/Non.</span></li>
       </ol>
       <aside class="mac-network-note"><strong>macOS 15.5 ou plus récent — erreur « No route to host »</strong><p>Si les appareils répondent depuis Terminal mais restent hors ligne dans l’application, autorisez votre sous-réseau Wi-Fi local puis redémarrez le Mac :</p><code>sudo defaults write com.apple.network.local-network AllowedWiFiLocalNetworkAddresses -array-add "VOTRE_SOUS_RESEAU_LOCAL"</code><p>Cette exception système concerne toutes les applications utilisant le réseau local. Procédure validée sous macOS 27.0. <a href="https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy">Explication officielle Apple</a>.</p></aside>
+    </section>
+
+    <section class="section intro" id="installer-ios">
+      <p class="eyebrow blue">IPHONE · PROJET EXPÉRIMENTAL</p>
+      <h2>Essayer Mon solaire sur iPhone.</h2>
+      <p>Le projet est gratuit à télécharger. Il comprend une démonstration fictive et peut aussi ouvrir le tableau réel de votre propre Raspberry Pi. Il n’est pas encore publié sur l’App Store : l’archive contient des sources, pas un fichier à installer directement sur l’iPhone.</p>
+      <ol class="steps">
+        <li><strong>1. Télécharger le projet</strong><span>Sur un Mac, <a href="mon-solaire-ios-projet.zip">téléchargez l’archive iOS</a>, décompressez-la et ouvrez <code>ios/MonSolaire.xcodeproj</code> dans Xcode. Le projet est aussi <a href="https://github.com/rolliurs-jpg/Homlis-DTU-PRO-S/tree/main/ios">disponible sur GitHub</a>.</span></li>
+        <li><strong>2. Essayer sans iPhone</strong><span>Installez Xcode et un simulateur iOS, choisissez un iPhone simulé puis cliquez sur ▶. Le bouton Démo présente des données fictives.</span></li>
+        <li><strong>3. Installer sur son iPhone</strong><span>Connectez votre compte Apple dans Xcode, branchez votre iPhone et acceptez les demandes de confiance. Dans Signing &amp; Capabilities, activez la signature automatique et choisissez votre équipe. Sélectionnez l’iPhone, activez le mode développeur si demandé et lancez ▶. Un identifiant d’application unique peut être nécessaire.</span></li>
+        <li><strong>4. Choisir sa connexion</strong><span>Utilisez la démo ou saisissez l’adresse de votre propre Raspberry Pi sur le réseau privé. Le tableau réel comporte des commandes qui agissent sur votre installation.</span></li>
+      </ol>
+      <p>Avec une équipe personnelle gratuite, le profil de test expire après sept jours et l’application doit être reconstruite et réinstallée. La version sur iPhone physique reste à valider. <a href="https://developer.apple.com/documentation/Xcode/running-your-app-on-simulated-or-physical-devices">Instructions officielles Apple</a> · <a href="https://developer.apple.com/help/account/basics/about-your-developer-account/">Limites du compte gratuit</a>.</p>
     </section>
 
     <section class="section split-section" id="mobile">
