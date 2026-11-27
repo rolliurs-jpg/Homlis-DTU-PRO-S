@@ -15,6 +15,7 @@ const panel = Color(0xff101f31);
 const green = Color(0xff4ee2a4);
 const gold = Color(0xffffd27a);
 const blue = Color(0xff94baff);
+const dischargeRed = Color(0xffff8797);
 typedef Json = Map<String, dynamic>;
 
 void main() => runApp(const SolarApp());
@@ -38,6 +39,12 @@ Uri? validateAddress(String input) {
 String number(dynamic value, String unit, {int decimals = 0}) {
   if (value is! num || !value.isFinite) return '—';
   return '${value.toStringAsFixed(decimals).replaceAll('.', ',')} $unit';
+}
+
+Color? batteryFlowColor(Map current, String key, DateTime now, {bool connected = true}) {
+  final power = current[key], stamp = current['battery_timestamp'];
+  if (!connected || power is! num || !power.isFinite || power <= 0 || stamp is! num || (now.millisecondsSinceEpoch / 1000 - stamp).abs() > 90) return null;
+  return key == 'battery_ac_discharge_w' ? dischargeRed : green;
 }
 
 const frenchMonths = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -90,7 +97,7 @@ class _DashboardState extends State<Dashboard> {
   static const pages = ['Direct', 'Bilan journalier', 'Budget mensuel', 'Annuel', 'Batterie', 'Panneaux', 'Équipements'];
   static const icons = [Icons.home_outlined, Icons.today, Icons.euro, Icons.calendar_month, Icons.battery_charging_full, Icons.solar_power, Icons.settings];
   Uri? address;
-  bool demo = false, loading = false, requesting = false;
+  bool demo = false, loading = false, requesting = false, statusReachable = false;
   String? error;
   int selected = 0, generation = 0;
   String period = 'today';
@@ -127,13 +134,13 @@ class _DashboardState extends State<Dashboard> {
     if (uri == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse invalide. Utilisez une adresse locale ou Tailscale, ou une adresse HTTPS.'))); return; }
     final prefs = await SharedPreferences.getInstance(); await prefs.setString('dashboard_url', uri.toString());
     if (!mounted) return;
-    setState(() { address = uri; demo = false; status = null; report = null; battery = null; settings = null; });
+    setState(() { address = uri; demo = false; status = null; statusReachable = false; report = null; battery = null; settings = null; });
     refresh();
   }
 
   Future<void> refresh({bool silent = false}) async {
     if (silent && (loading || requesting)) return;
-    if (demo) { ++generation; requesting = false; setState(() { status = demoStatus(); report = demoReport(); battery = demoBattery(); settings = demoSettings(); settingsUpdated = DateTime.now(); error = null; loading = false; }); return; }
+    if (demo) { ++generation; requesting = false; setState(() { status = demoStatus(); statusReachable = true; report = demoReport(); battery = demoBattery(); settings = demoSettings(); settingsUpdated = DateTime.now(); error = null; loading = false; }); return; }
     if (address == null) return;
     final ticket = ++generation, page = selected, selectedPeriod = period;
     requesting = true;
@@ -142,7 +149,7 @@ class _DashboardState extends State<Dashboard> {
     try {
       final live = await client.get('api/status');
       if (!mounted || ticket != generation) return;
-      setState(() { status = live; error = null; });
+      setState(() { status = live; statusReachable = true; error = null; });
       Json? other;
       try {
         if (page == 1) other = await client.get('api/report?period=$selectedPeriod');
@@ -159,7 +166,7 @@ class _DashboardState extends State<Dashboard> {
       setState(() { status = live; if (page >= 1 && page <= 3) report = other; if (page == 4) battery = other; if (page == 6) { settings = other; settingsUpdated = DateTime.now(); } loading = false; error = null; });
     } catch (_) {
       if (!mounted || ticket != generation) return;
-      setState(() { loading = false; error = 'Connexion ou données indisponibles. Vérifiez le Wi-Fi ou Tailscale. Les anciennes valeurs restent affichées.'; });
+      setState(() { loading = false; statusReachable = false; error = 'Connexion ou données indisponibles. Vérifiez le Wi-Fi ou Tailscale. Les anciennes valeurs restent affichées.'; });
     } finally { if (ticket == generation) requesting = false; }
   }
 
@@ -208,12 +215,16 @@ class _DashboardState extends State<Dashboard> {
   Widget banner(String text, Color color) => Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: color.withValues(alpha: .14), child: Text(text, style: TextStyle(color: color)));
   Widget welcome() => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.solar_power, size: 64, color: gold), const SizedBox(height: 20), const Text('Connectez votre Raspberry ou découvrez l’application en mode démonstration.', textAlign: TextAlign.center), const SizedBox(height: 18), FilledButton(onPressed: changeAddress, child: const Text('Adresse du Raspberry')), TextButton(onPressed: () { setState(() => demo = true); refresh(); }, child: const Text('Essayer la démonstration'))])));
   Widget box(String title, List<Widget> children) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 8), ...children])));
-  Widget row(String label, String value, {Color? color}) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(label)), const SizedBox(width: 8), Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: color))]));
+  Widget row(String label, String value, {Color? color, Color? labelColor}) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [Expanded(child: Text(label, style:TextStyle(color:labelColor))), const SizedBox(width: 8), Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: color))]));
+  List<Widget> batteryFlowRows(Map c) {
+    final charging=batteryFlowColor(c,'battery_ac_charge_w',DateTime.now(),connected:statusReachable), discharging=batteryFlowColor(c,'battery_ac_discharge_w',DateTime.now(),connected:statusReachable);
+    return [row('Niveau',number(c['battery_soc_pct'],'%')),row('Charge',number(c['battery_ac_charge_w'],'W'),color:charging,labelColor:charging),row('Décharge',number(c['battery_ac_discharge_w'],'W'),color:discharging,labelColor:discharging)];
+  }
   Widget info(String text) => Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Text(text, style: TextStyle(color: Colors.blueGrey[200])));
   List<Widget> direct() { final c = current; return [
     info(freshness()),
     box('La maison en direct', [row('Production solaire', number(c['production_w'], 'W'), color: green), row('Maison', number(c['consumption_w'], 'W'), color: blue), row('Acheté au réseau', number(c['import_w'], 'W')), row('Envoyé au réseau', number(c['export_w'], 'W'), color: gold)]),
-    if (c['battery_enabled'] == true) box('Batterie', [row('Niveau', number(c['battery_soc_pct'], '%')), row('Charge', number(c['battery_ac_charge_w'], 'W')), row('Décharge', number(c['battery_ac_discharge_w'], 'W'))]),
+    if (c['battery_enabled'] == true) box('Batterie', batteryFlowRows(c)),
     box('Raspberry Pi', [row('Température', number(status?['raspberry_temperature_c'], '°C', decimals: 1))]),
     if (status?['history'] is List) box('Évolution des mesures', [EnergyChart(history:status!['history'] as List)]),
   ]; }
@@ -226,7 +237,7 @@ class _DashboardState extends State<Dashboard> {
     final chosen = matching.isNotEmpty ? matching.first : days.isNotEmpty ? days.first : null;
     final cycle = chosen == null ? null : summarizeCycle(chosen, current, DateTime.now());
     return [
-      box('Batterie en direct', [row('Niveau', number(current['battery_soc_pct'], '%')), row('Charge', number(current['battery_ac_charge_w'], 'W')), row('Décharge', number(current['battery_ac_discharge_w'], 'W'))]),
+      box('Batterie en direct', batteryFlowRows(current)),
       box('Du plein au lendemain', [
         if (cycle == null) info(loading ? 'Chargement du bilan batterie…' : 'Aucun cycle disponible.') else ...[
           DropdownButton<String>(isExpanded:true, value:cycle.day, items:days.map((d)=>DropdownMenuItem<String>(value:d['date'] as String, child:Text('${d['date']}${d['ongoing'] == true ? ' · en cours' : ''}'))).toList(), onChanged:(value)=>setState(()=>selectedCycleDay=value)),

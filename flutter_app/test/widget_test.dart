@@ -16,6 +16,14 @@ void main() {
     expect(number(null, 'W'), '—');
     expect(number(0, 'W'), '0 W');
   });
+  test('la décharge est rouge seulement pour une mesure récente et active', () {
+    final now=DateTime(2026,11,27,19,34), timestamp=now.millisecondsSinceEpoch/1000;
+    expect(batteryFlowColor({'battery_ac_discharge_w':455,'battery_timestamp':timestamp},'battery_ac_discharge_w',now),dischargeRed);
+    expect(batteryFlowColor({'battery_ac_discharge_w':0,'battery_timestamp':timestamp},'battery_ac_discharge_w',now),isNull);
+    expect(batteryFlowColor({'battery_ac_discharge_w':455,'battery_timestamp':timestamp-120},'battery_ac_discharge_w',now),isNull);
+    expect(batteryFlowColor({'battery_ac_discharge_w':455,'battery_timestamp':timestamp},'battery_ac_discharge_w',now,connected:false),isNull);
+    expect(batteryFlowColor({'battery_ac_charge_w':100,'battery_timestamp':timestamp},'battery_ac_charge_w',now),green);
+  });
   test('le mois, l’année et les dates viennent du bilan', () {
     expect(monthYear('2026-11-01T00:00:00'), 'novembre 2026');
     expect(shortDate('2025-01-03'), '03/01/2025');
