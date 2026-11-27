@@ -53,6 +53,14 @@ void main() {
     await tester.tap(find.text('Bilan journalier'));
     await tester.pumpAndSettle();
     expect(find.text('8,20 kWh'), findsOneWidget);
+    expect(find.text('Acheté à EDF'), findsOneWidget);
+    expect(find.text('3,10 kWh'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0,-350));
+    await tester.pumpAndSettle();
+    expect(find.text('Coût EDF'), findsOneWidget);
+    expect(find.text('0,98 €'), findsOneWidget);
+    expect(find.text('1,48 €'), findsOneWidget);
+    expect(find.text('Énergie batterie sur la période'), findsOneWidget);
     await tester.tap(find.text('Budget mensuel'));
     await tester.pumpAndSettle();
     expect(find.text('Budget de ${monthYear(DateTime.now().toIso8601String())}'), findsOneWidget);

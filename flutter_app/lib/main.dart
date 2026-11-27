@@ -57,6 +57,12 @@ String? shortDate(dynamic value) {
   if (date == null) return null;
   return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
+String? dateAndTime(dynamic value) {
+  final date = DateTime.tryParse('${value ?? ''}');
+  if(date == null) return null;
+  final local=date.toLocal(), day=shortDate(local.toIso8601String());
+  return '$day ${local.hour.toString().padLeft(2,'0')}:${local.minute.toString().padLeft(2,'0')}';
+}
 
 class SolarApp extends StatelessWidget {
   const SolarApp({super.key});
@@ -221,7 +227,31 @@ class _DashboardState extends State<Dashboard> {
     box('Raspberry Pi', [row('Température', number(status?['raspberry_temperature_c'], '°C', decimals: 1))]),
     if (status?['history'] is List) box('Évolution des mesures', [EnergyChart(history:status!['history'] as List)]),
   ]; }
-  List<Widget> reportView() { final d = report ?? {}; return [DropdownButton<String>(value: period, isExpanded: true, items: const [DropdownMenuItem(value: 'today', child: Text('Aujourd’hui')), DropdownMenuItem(value: 'yesterday', child: Text('Hier')), DropdownMenuItem(value: 'week', child: Text('7 jours')), DropdownMenuItem(value: 'month', child: Text('Ce mois'))], onChanged: (v) { if (v != null) { setState(() { period = v; report = null; }); refresh(); } }), box('Énergie mesurée', [row('Production', number(d['production_kwh'], 'kWh', decimals: 2)), row('Consommation maison', number(d['consumption_kwh'], 'kWh', decimals: 2)), row('Injection', number(d['export_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(d['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(d['battery_discharge_kwh'], 'kWh', decimals: 2))])]; }
+  List<Widget> reportView() {
+    final d=report??{}, billing=d['billing'] is Map ? d['billing'] as Map : {}, from=dateAndTime(d['from_time']), to=dateAndTime(d['to_time']);
+    final productionNote=d['production_complete'] == true ? 'Total des installations mesurées' : d['production_complete'] == false ? 'Production partielle ou source unique' : 'État de la production indisponible';
+    return [
+      DropdownButton<String>(value:period,isExpanded:true,items:const [DropdownMenuItem(value:'today',child:Text('Aujourd’hui')),DropdownMenuItem(value:'yesterday',child:Text('Hier')),DropdownMenuItem(value:'week',child:Text('7 jours')),DropdownMenuItem(value:'month',child:Text('Ce mois')),DropdownMenuItem(value:'year',child:Text('Cette année'))],onChanged:(v){if(v!=null){setState((){period=v;report=null;});refresh();}}),
+      if(from != null && to != null) info('Du $from au $to'),
+      box('Énergie',[
+        row('Production solaire',number(d['production_kwh'],'kWh',decimals:2),color:green), info(productionNote),
+        row('Consommation maison',number(d['consumption_kwh'],'kWh',decimals:2),color:blue),
+        row('Envoyé à EDF',number(d['export_kwh'],'kWh',decimals:2),color:gold),
+        row('Acheté à EDF',number(billing['import_kwh'],'kWh',decimals:2)), info('Achats calculés à partir des index Linky HP + HC.'),
+      ]),
+      box('Coût EDF',[
+        row('Énergie achetée',number(d['energy_cost'],'€',decimals:2)),
+        row('Abonnement',number(d['subscription'],'€',decimals:2)),
+        row('Total',number(d['total_cost'],'€',decimals:2)),
+      ]),
+      box('Énergie batterie sur la période',[
+        info('Mesures AC, pas le niveau de batterie.'),
+        row('Énergie chargée',number(d['battery_charge_kwh'],'kWh',decimals:2)),
+        row('Énergie déchargée',number(d['battery_discharge_kwh'],'kWh',decimals:2)),
+        info(from != null && to != null ? 'Ces kWh sont calculés à partir des puissances mesurées entre le $from et le $to. Ils ne représentent pas la différence de pourcentage de la batterie ; les pauses et trous de mesure sont exclus.' : 'Ces kWh proviennent des puissances mesurées. Les pauses et trous de mesure sont exclus.'),
+      ]),
+    ];
+  }
   List<Widget> budgetView() { final d=report??{}, b=d['billing'] is Map ? d['billing'] as Map : {}, month=monthYear(d['from_time']), start=shortDate(d['from_time']), end=shortDate(d['to_time']); return [if(start != null && end != null) info('Période : du $start au $end'), box(month == null ? 'Budget du mois' : 'Budget de $month', [row('Consommation maison', number(d['consumption_kwh'], 'kWh', decimals: 2)), row('Achat heures pleines', number(b['hp_kwh'], 'kWh', decimals: 2)), row('Achat heures creuses', number(b['hc_kwh'], 'kWh', decimals: 2)), row('Abonnement', number(d['subscription'], '€', decimals: 2)), row('Total', number(d['total_cost'], '€', decimals: 2))]), box('Solaire et batterie', [row('Production', number(d['production_kwh'], 'kWh', decimals: 2)), row('Injection', number(d['export_kwh'], 'kWh', decimals: 2)), row('Énergie locale', number(d['local_energy_kwh'], 'kWh', decimals: 2)), row('Charge batterie', number(d['battery_charge_kwh'], 'kWh', decimals: 2)), row('Décharge batterie', number(d['battery_discharge_kwh'], 'kWh', decimals: 2))])]; }
   List<Widget> annualView() {
     final d=report??{}, r=d['annual_real_readings'] is Map ? d['annual_real_readings'] as Map : {}, start=shortDate(r['start']), end=shortDate(r['as_of']) ?? shortDate(d['to_time']);
@@ -287,6 +317,6 @@ class _PanelGridPainter extends CustomPainter {
 }
 
 Json demoStatus()=>{'raspberry_temperature_c':42.1,'current':{'timestamp':DateTime.now().toIso8601String(),'production_w':1050,'consumption_w':420,'import_w':0,'export_w':30,'battery_enabled':true,'battery_soc_pct':63,'battery_timestamp':DateTime.now().millisecondsSinceEpoch/1000,'battery_ac_charge_w':600,'battery_ac_discharge_w':0,'pv2_w':200,'dtu_state':'online','linky_state':'online','shelly_state':'online','tp_link_state':'online','tongou_state':'online','surplus_simulation':{'dtu':{'state':'online','timestamp':DateTime.now().millisecondsSinceEpoch/1000,'panels':[for(var i=1;i<=4;i++){'port':i,'power_w':200+i*10}]}},'hoymiles_proxy':{'state':'online','timestamp':DateTime.now().millisecondsSinceEpoch/1000,'panels':[{'port':1,'power_w':95},{'port':2,'power_w':105}]}},'history':List.generate(24,(i)=>{'timestamp':DateTime.now().subtract(Duration(minutes:(23-i)*15)).toIso8601String(),'production_w':i*45,'consumption_w':300+i*5,'import_w':i<6?100:0,'export_w':i>18?25:0,'battery_charge_w':i>6?200:0,'battery_discharge_w':i<=6?80:0})};
-Json demoReport()=>{'from_time':DateTime(DateTime.now().year,DateTime.now().month,1).toIso8601String(),'to_time':DateTime.now().toIso8601String(),'production_kwh':8.2,'consumption_kwh':6.1,'export_kwh':1.2,'battery_charge_kwh':2.3,'battery_discharge_kwh':1.1,'total_cost':1.48,'subscription':0.5,'local_energy_kwh':4.9,'billing':{'hp_kwh':2.1,'hc_kwh':1.0},'tariffs':{'hp_eur_kwh':0.25,'hc_eur_kwh':0.20,'abonnement_journalier_eur':0.5},'annual_real_readings':{'start':'2026-01-01','hp_kwh':350,'hc_kwh':120,'production_kwh':780,'export_kwh':120,'battery_charge_kwh':200,'battery_discharge_kwh':170,'reference_2025':{'hp_kwh':1200,'hc_kwh':400,'hp_eur_kwh':0.25,'hc_eur_kwh':0.20,'subscription_start':'2025-01-01','end':'2025-12-31','subscription_monthly_eur':12}}};
+Json demoReport()=>{'from_time':DateTime(DateTime.now().year,DateTime.now().month,1).toIso8601String(),'to_time':DateTime.now().toIso8601String(),'production_kwh':8.2,'production_complete':true,'consumption_kwh':6.1,'export_kwh':1.2,'battery_charge_kwh':2.3,'battery_discharge_kwh':1.1,'energy_cost':0.98,'total_cost':1.48,'subscription':0.5,'local_energy_kwh':4.9,'billing':{'hp_kwh':2.1,'hc_kwh':1.0,'import_kwh':3.1},'tariffs':{'hp_eur_kwh':0.25,'hc_eur_kwh':0.20,'abonnement_journalier_eur':0.5},'annual_real_readings':{'start':'2026-01-01','hp_kwh':350,'hc_kwh':120,'production_kwh':780,'export_kwh':120,'battery_charge_kwh':200,'battery_discharge_kwh':170,'reference_2025':{'hp_kwh':1200,'hc_kwh':400,'hp_eur_kwh':0.25,'hc_eur_kwh':0.20,'subscription_start':'2025-01-01','end':'2025-12-31','subscription_monthly_eur':12}}};
 Json demoBattery()=>{'days':[{'date':DateTime.now().toIso8601String().substring(0,10),'ongoing':true,'display':['Exemple','—','—','19:30','19:32','3 h 20','—']}]};
 Json demoSettings()=>{for(final key in ['tp_link','tongou_relay','linky','shelly','shelly2','battery']) key:{'enabled':true},'wireless_interfaces':[{'interface':'wlan1','name':'Alfa · Wi-Fi DTU','connected':true},{'interface':'wlan2','name':'Alfa · Wi-Fi cabanon','connected':true}],'esp_devices':[{'id':'proxy','name':'ESP32 · proxy Bluetooth','enabled':true,'connected':true,'checked_at':DateTime.now().millisecondsSinceEpoch/1000},{'id':'router','name':'ESP32 · routeur cabanon','enabled':true,'connected':true,'checked_at':DateTime.now().millisecondsSinceEpoch/1000}]};
