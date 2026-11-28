@@ -1,8 +1,8 @@
-# Mon solaire — application Flutter de test
+# Mon solaire — application Flutter
 
-Version Flutter Android, iOS et macOS de test. Elle lit les données de l'API du tableau solaire existant, sans piloter les appareils. L'adresse du Raspberry est saisie sur chaque appareil et enregistrée localement ; aucun appareil personnel n'est configuré par défaut. Un mode démonstration utilise des données fictives.
+Application Flutter Android, iOS et macOS. Elle lit les données du Raspberry et permet certaines commandes, notamment la régulation, les réglages et le redémarrage. L'adresse du Raspberry est saisie sur chaque appareil et enregistrée localement ; aucun appareil personnel n'est configuré par défaut. Un mode démonstration utilise des données fictives.
 
-Les écrans comprennent le direct, les bilans, le budget, les relevés annuels, la batterie, les panneaux et l'état des équipements. Les réglages avancés, la régulation, certains calculs, l'export et le redémarrage ne sont pas encore intégrés : cette version est expérimentale.
+Les écrans comprennent le direct, les bilans, le budget, les relevés annuels, la batterie, les panneaux et l'état des équipements. Certaines fonctions du tableau web, notamment l'export et des réglages avancés, ne sont pas encore intégrées. L’application nécessite une installation Raspberry compatible ; la capacité de batterie affichée est actuellement fixée à 5,76 kWh.
 
 Le Raspberry doit être accessible sur le Wi-Fi privé ou via Tailscale. Les adresses HTTP acceptées sont locales ou privées Tailscale. HTTP transporte les données sans chiffrement applicatif : utilisez le réseau privé ou Tailscale. HTTPS est aussi accepté.
 
@@ -18,6 +18,6 @@ flutter run
 
 Pour l'APK locale de test : `flutter build apk --debug`. Cette APK est signée avec une clé de débogage ; elle ne constitue pas une version destinée aux boutiques. Pour iOS, ouvrir `ios/Runner.xcworkspace` dans Xcode ou lancer `flutter run` avec un simulateur sélectionné. Une installation sur iPhone ou une distribution exige la signature Apple appropriée.
 
-Pour macOS : `flutter build macos --release`. L'application est un client du Raspberry, pas le collecteur : elle ne le remplace pas et n'écrit pas dans ses réglages. Autoriser l'accès au réseau local si macOS le demande. Cette version n'inclut pas encore toutes les commandes du tableau web ; conserver l'application existante. Une distribution publique nécessitera une signature et une notarisation adaptées.
+Pour macOS : `flutter build macos --release`. L'application est un client du Raspberry, pas le collecteur : elle ne le remplace pas et certaines commandes peuvent modifier ses réglages. Autoriser l'accès au réseau local si macOS le demande. Cette version n'inclut pas encore toutes les commandes du tableau web ; conserver l'application existante. Une distribution publique nécessitera une signature et une notarisation adaptées.
 
 Ne pas inclure dans une publication les adresses personnelles, mots de passe, fichiers de configuration locaux, clés ou historiques réels. L'ancienne application reste distincte, avec son propre identifiant Android.
