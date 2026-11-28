@@ -126,15 +126,7 @@ class _DashboardState extends State<Dashboard> {
   @override void dispose() { timer?.cancel(); super.dispose(); }
 
   Future<void> changeAddress() async {
-    final controller = TextEditingController(text: address?.toString() ?? '');
-    final result = await showDialog<String>(context: context, builder: (context) => AlertDialog(
-      title: const Text('Adresse du Raspberry'),
-      content: TextField(controller: controller, keyboardType: TextInputType.url, autocorrect: false,
-        decoration: const InputDecoration(hintText: 'http://adresse-du-raspberry:8765', helperText: 'Wi-Fi local ou VPN privé')),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-        FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Connecter'))],
-    ));
-    controller.dispose();
+    final result = await showDialog<String>(context: context, builder: (_) => AddressDialog(initialAddress: address?.toString() ?? ''));
     if (!mounted || result == null) return;
     final uri = validateAddress(result);
     if (uri == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adresse invalide. Utilisez une adresse locale ou Tailscale, ou une adresse HTTPS.'))); return; }
@@ -324,6 +316,25 @@ class _DashboardState extends State<Dashboard> {
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
     return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Les réglages, la régulation et le redémarrage ne sont pas encore disponibles dans cette application de test.')];
   }
+}
+
+class AddressDialog extends StatefulWidget {
+  const AddressDialog({super.key, required this.initialAddress});
+  final String initialAddress;
+  @override State<AddressDialog> createState() => _AddressDialogState();
+}
+
+class _AddressDialogState extends State<AddressDialog> {
+  late final TextEditingController controller;
+  @override void initState() { super.initState(); controller = TextEditingController(text: widget.initialAddress); }
+  @override void dispose() { controller.dispose(); super.dispose(); }
+  @override Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Adresse du Raspberry'),
+    content: TextField(controller: controller, keyboardType: TextInputType.url, autocorrect: false,
+      decoration: const InputDecoration(hintText: 'http://adresse-du-raspberry:8765', helperText: 'Wi-Fi local ou VPN privé')),
+    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+      FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Connecter'))],
+  );
 }
 
 class BatteryLevelCard extends StatelessWidget {

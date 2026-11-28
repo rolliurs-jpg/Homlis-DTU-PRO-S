@@ -40,6 +40,18 @@ void main() {
     expect(find.text('Dernière mesure · état non actualisé'), findsOneWidget);
     expect(find.text('En charge · 120 W'), findsNothing);
   });
+  testWidgets('fermer le dialogue adresse ne détruit pas le contrôleur pendant son animation', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const SolarApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Adresse du Raspberry'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'adresse invalide');
+    await tester.tap(find.text('Connecter'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Adresse invalide'), findsOneWidget);
+  });
   testWidgets('les intitulés restent visibles sur un petit écran', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
