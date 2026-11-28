@@ -26,4 +26,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Toutes les courbes'),findsNothing);
   });
+  testWidgets('les valeurs suivent le point sélectionné sans sortir du graphique', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: SizedBox(width: 320, child: EnergyChart(history: const [
+      {'timestamp':'2026-11-28T10:00:00','production_w':10},
+      {'timestamp':'2026-11-28T10:10:00','production_w':250},
+    ])))));
+    final plot = find.byKey(const ValueKey('energy-plot'));
+    await tester.tapAt(tester.getTopRight(plot) + const Offset(-2, 20));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('energy-tooltip')), findsOneWidget);
+    expect(find.text('Production : 250 W'), findsOneWidget);
+    final graph = tester.getRect(plot), tooltip = tester.getRect(find.byKey(const ValueKey('energy-tooltip')));
+    expect(tooltip.left, greaterThanOrEqualTo(graph.left));
+    expect(tooltip.right, lessThanOrEqualTo(graph.right));
+    expect(tester.takeException(), isNull);
+  });
 }

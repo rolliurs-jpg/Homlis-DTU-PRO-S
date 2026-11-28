@@ -45,17 +45,26 @@ class _EnergyChartState extends State<EnergyChart> {
   @override Widget build(BuildContext context) {
     final history = widget.history, visible = selected == null ? EnergySeries.values : [selected!];
     final sample = cursor != null && cursor! < history.length ? history[cursor!] : null;
-    final entries = [for (final s in visible) if (energyValue(sample,s) != null) '${seriesLabels[s]} : ${energyValue(sample,s)!.abs().round()} W'];
     return Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
       Text('Touchez une légende pour isoler une courbe ; touchez le graphique pour lire les valeurs.', style:TextStyle(color:Colors.blueGrey[200],fontSize:12)),
       const SizedBox(height:8),
       Wrap(spacing:6,runSpacing:3,children:[for(final series in EnergySeries.values) FilterChip(label:Text(seriesLabels[series]!),selected:selected==series,showCheckmark:false,labelStyle:TextStyle(color:seriesColors[series],fontSize:12),onSelected:(_)=>setState((){selected=selected==series?null:series;cursor=null;})), if(selected!=null) TextButton(onPressed:()=>setState((){selected=null;cursor=null;}),child:const Text('Toutes les courbes'))]),
       if(history.length < 2) const Padding(padding:EdgeInsets.symmetric(vertical:24),child:Text('Pas assez de mesures pour tracer les courbes.')) else LayoutBuilder(builder:(context,constraints){
         void position(double x) { final width=constraints.maxWidth; if(width<=0)return; setState(()=>cursor=((x/width).clamp(0.0,1.0)*(history.length-1)).round()); }
-        return Column(children:[GestureDetector(behavior:HitTestBehavior.opaque,onTapDown:(d)=>position(d.localPosition.dx),onHorizontalDragUpdate:(d)=>position(d.localPosition.dx),child:SizedBox(height:180,width:double.infinity,child:CustomPaint(painter:_EnergyPainter(history,visible,cursor)))),
+        final chartWidth = constraints.maxWidth;
+        final tooltipWidth = chartWidth < 210 ? chartWidth : 210.0;
+        final cursorX = cursor == null ? 0.0 : cursor! * chartWidth / (history.length - 1);
+        final tooltipLeft = (cursorX + tooltipWidth + 12 <= chartWidth ? cursorX + 8 : cursorX - tooltipWidth - 8).clamp(0.0, (chartWidth - tooltipWidth).clamp(0.0, double.infinity));
+        return Column(children:[MouseRegion(onHover:(event)=>position(event.localPosition.dx),child:GestureDetector(behavior:HitTestBehavior.opaque,onTapDown:(d)=>position(d.localPosition.dx),onHorizontalDragUpdate:(d)=>position(d.localPosition.dx),child:SizedBox(key:const ValueKey('energy-plot'),height:180,width:double.infinity,child:Stack(children:[
+          Positioned.fill(child:CustomPaint(painter:_EnergyPainter(history,visible,cursor))),
+          if(sample != null) Positioned(left:tooltipLeft,top:4,width:tooltipWidth,child:IgnorePointer(child:Container(key:const ValueKey('energy-tooltip'),padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),decoration:BoxDecoration(color:const Color(0xf2091524),border:Border.all(color:const Color(0xff668099)),borderRadius:BorderRadius.circular(7)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
+            Text(historyTime(sample) ?? 'Heure inconnue',style:const TextStyle(fontSize:11,fontWeight:FontWeight.bold)),
+            for(final series in visible) if(energyValue(sample,series)!=null) Text('${seriesLabels[series]} : ${energyValue(sample,series)!.abs().round()} W',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:11,color:seriesColors[series])),
+            if(!visible.any((series)=>energyValue(sample,series)!=null)) const Text('Mesures indisponibles',style:TextStyle(fontSize:11)),
+          ])))),
+        ])))),
           Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text(historyTime(history.first)??'—',style:const TextStyle(fontSize:11)),const Text('Puissance (W)',style:TextStyle(fontSize:11)),Text(historyTime(history.last)??'—',style:const TextStyle(fontSize:11))])]);
       }),
-      if(sample != null) Padding(padding:const EdgeInsets.only(top:10), child:Text('${historyTime(sample) ?? 'Heure inconnue'} · ${entries.isEmpty ? 'Mesures indisponibles' : entries.join('  ·  ')}',style:const TextStyle(fontSize:12))),
     ]);
   }
 }
