@@ -1,5 +1,5 @@
 import 'dart:ui' show Size, Offset;
-import 'package:flutter/widgets.dart' show ListView;
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mon_solaire_mobile/main.dart';
@@ -29,6 +29,15 @@ void main() {
     expect(monthYear('2026-11-01T00:00:00'), 'novembre 2026');
     expect(shortDate('2025-01-03'), '03/01/2025');
     expect(monthYear(null), isNull);
+  });
+  testWidgets('la jauge affiche le niveau et distingue charge et mesure ancienne', (tester) async {
+    final now = DateTime.now().millisecondsSinceEpoch / 1000;
+    await tester.pumpWidget(SolarAppForBattery(current: {'battery_soc_pct': 20, 'battery_timestamp': now, 'battery_ac_charge_w': 120, 'battery_ac_discharge_w': 0}, connected: true));
+    expect(find.text('20 %'), findsOneWidget);
+    expect(find.text('En charge · 120 W'), findsOneWidget);
+    await tester.pumpWidget(SolarAppForBattery(current: {'battery_soc_pct': 20, 'battery_timestamp': now - 120, 'battery_ac_charge_w': 120, 'battery_ac_discharge_w': 0}, connected: true));
+    expect(find.text('Dernière mesure · état non actualisé'), findsOneWidget);
+    expect(find.text('En charge · 120 W'), findsNothing);
   });
   testWidgets('les intitulés restent visibles sur un petit écran', (tester) async {
     tester.view.physicalSize = const Size(320, 640);
@@ -88,6 +97,8 @@ void main() {
     expect(find.text('Économie solaire + batterie'), findsOneWidget);
     await tester.tap(find.text('Batterie'));
     await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0,-250));
+    await tester.pumpAndSettle();
     expect(find.text('Du plein au lendemain'), findsOneWidget);
     expect(find.text('Fin de décharge batterie'), findsOneWidget);
     expect(find.text('Historique des cycles'), findsOneWidget);
@@ -103,4 +114,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Ouvrir le tableau web du Raspberry'),findsNothing);
   });
+}
+
+class SolarAppForBattery extends StatelessWidget {
+  const SolarAppForBattery({super.key, required this.current, required this.connected});
+  final Map current;
+  final bool connected;
+  @override Widget build(BuildContext context) => MaterialApp(home: Scaffold(body: BatteryLevelCard(current: current, connected: connected)));
 }

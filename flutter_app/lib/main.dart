@@ -296,6 +296,7 @@ class _DashboardState extends State<Dashboard> {
     final chosen = matching.isNotEmpty ? matching.first : days.isNotEmpty ? days.first : null;
     final cycle = chosen == null ? null : summarizeCycle(chosen, current, DateTime.now());
     return [
+      BatteryLevelCard(current: current, connected: statusReachable || demo),
       box('Batterie en direct', batteryFlowRows(current)),
       box('Du plein au lendemain', [
         if (cycle == null) info(loading || requesting ? 'Chargement du bilan batterie…' : battery == null ? 'Bilan non chargé. Appuyez sur Actualiser pour réessayer.' : 'Aucun cycle enregistré.') else ...[
@@ -322,6 +323,38 @@ class _DashboardState extends State<Dashboard> {
     const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
     return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Les réglages, la régulation et le redémarrage ne sont pas encore disponibles dans cette application de test.')];
+  }
+}
+
+class BatteryLevelCard extends StatelessWidget {
+  const BatteryLevelCard({super.key, required this.current, required this.connected});
+  final Map current;
+  final bool connected;
+
+  @override Widget build(BuildContext context) {
+    final raw = current['battery_soc_pct'];
+    final level = raw is num && raw.isFinite && raw >= 0 && raw <= 100 ? raw.toDouble() : null;
+    final stamp = current['battery_timestamp'];
+    final fresh = connected && stamp is num && stamp.isFinite && (DateTime.now().millisecondsSinceEpoch / 1000 - stamp).abs() <= 90;
+    final charge = current['battery_ac_charge_w'], discharge = current['battery_ac_discharge_w'];
+    final validPower = charge is num && charge.isFinite && discharge is num && discharge.isFinite;
+    final net = validPower ? (charge - discharge) : 0;
+    final label = level == null ? 'Mesure indisponible' : !fresh ? 'Dernière mesure · état non actualisé' : !validPower ? 'État de charge indisponible' : net > 20 ? 'En charge · ${number(net, 'W')}' : net < -20 ? 'En décharge · ${number(-net, 'W')}' : level >= 100 ? 'Pleine · au repos' : 'Au repos';
+    final color = fresh && validPower && net < -20 ? dischargeRed : green;
+    return Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(child: Container(height: 78, decoration: BoxDecoration(border: Border.all(color: Colors.blueGrey.shade200, width: 3), borderRadius: BorderRadius.circular(13)), child: ClipRRect(borderRadius: BorderRadius.circular(9), child: Stack(children: [
+          if (level != null) FractionallySizedBox(widthFactor: level / 100, child: Container(color: color.withValues(alpha: .65))),
+          Center(child: Text(number(level, '%'), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold))),
+        ])))),
+        Container(width: 8, height: 27, decoration: BoxDecoration(color: Colors.blueGrey.shade200, borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)))),
+      ]),
+      const SizedBox(height: 12),
+      Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: fresh ? color : Colors.blueGrey[200])),
+      const SizedBox(height: 4),
+      Text(level == null ? 'Niveau de batterie indisponible' : 'Niveau mesuré : ${number(level, '%')}', style: const TextStyle(fontWeight: FontWeight.w600)),
+      Text('Charge et décharge enregistrées séparément', style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)),
+    ])));
   }
 }
 
