@@ -39,6 +39,13 @@ void main() {
     expect(find.text('Dernière mesure · état non actualisé'), findsOneWidget);
     expect(find.text('En charge · 120 W'), findsNothing);
   });
+  testWidgets('la validation DTU affiche le temps et la barre', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: DtuWaitIndicator(remainingSeconds: 65))));
+    expect(find.text('DTU Pro-S'), findsOneWidget);
+    expect(find.text('65 s'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
   testWidgets('fermer le dialogue adresse ne détruit pas le contrôleur pendant son animation', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const SolarApp());

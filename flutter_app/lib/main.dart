@@ -271,8 +271,12 @@ class _DashboardState extends State<Dashboard> {
   ]; }
   Widget automationCard(Map control) {
     final active = control['commands_enabled'];
+    final waiting = active == true && (control['write_hold'] == true || (control['hold_remaining_s'] is num && control['hold_remaining_s'] > 0));
+    final stateColor = active is! bool || !statusReachable ? Colors.blueGrey : !active ? dischargeRed : waiting ? gold : green;
+    final stateLabel = active is! bool || !statusReachable ? 'État indisponible' : !active ? 'Gestion désactivée' : waiting ? 'Gestion activée · en attente' : 'Gestion activée';
     return box('Gestion automatique du surplus', [
-      info(active is bool ? (active ? 'Gestion activée' : 'Gestion désactivée') : 'État indisponible'),
+      Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Text(stateLabel, style: TextStyle(color: stateColor, fontWeight: FontWeight.bold))),
+      if (waiting && statusReachable && control['hold_remaining_s'] is num && (control['hold_remaining_s'] as num).isFinite && control['hold_remaining_s'] > 0) DtuWaitIndicator(remainingSeconds: (control['hold_remaining_s'] as num).ceil()),
       if (control['reason'] is String) info(control['reason']),
       if (!demo && address != null && active is bool && statusReachable) OutlinedButton(onPressed: () async {
         final target = !active;
@@ -280,7 +284,7 @@ class _DashboardState extends State<Dashboard> {
         if (confirmed != true || !mounted || address == null) return;
         try { await SolarClient(address!).action('surplus_control', {'enabled': target}); if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Commande acceptée. Vérification de l’état…'))); await refresh(); }
         catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Commande non confirmée : $e'))); }
-      }, child: Text(active ? 'Désactiver la gestion' : 'Activer la gestion')),
+      }, style: OutlinedButton.styleFrom(foregroundColor: active ? dischargeRed : green, side: BorderSide(color: active ? dischargeRed : green)), child: Text(active ? 'Désactiver la gestion' : 'Activer la gestion')),
       if (demo) info('Commande indisponible en démonstration.'),
     ]);
   }
@@ -357,6 +361,29 @@ class _DashboardState extends State<Dashboard> {
     const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
     return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), if (!demo && address != null) OutlinedButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EquipmentSettingsPage(base: address!, initial: settings!))), child: const Text('Modifier les adresses IP et les réglages')), if (demo) info('Réglages indisponibles en démonstration.')];
+  }
+}
+
+class DtuWaitIndicator extends StatefulWidget {
+  const DtuWaitIndicator({super.key, required this.remainingSeconds});
+  final int remainingSeconds;
+  @override State<DtuWaitIndicator> createState() => _DtuWaitIndicatorState();
+}
+class _DtuWaitIndicatorState extends State<DtuWaitIndicator> {
+  Timer? timer;
+  late DateTime until;
+  int tick = 0;
+  @override void initState() { super.initState(); updateDeadline(); timer = Timer.periodic(const Duration(seconds: 1), (_) { if (mounted) setState(() => tick++); }); }
+  @override void didUpdateWidget(covariant DtuWaitIndicator oldWidget) { super.didUpdateWidget(oldWidget); if (oldWidget.remainingSeconds != widget.remainingSeconds) updateDeadline(); }
+  void updateDeadline() { until = DateTime.now().add(Duration(seconds: widget.remainingSeconds)); }
+  @override void dispose() { timer?.cancel(); super.dispose(); }
+  @override Widget build(BuildContext context) {
+    final remaining = (until.difference(DateTime.now()).inMilliseconds / 1000).ceil().clamp(0, 120);
+    return Container(key: const ValueKey('dtu-validation'), margin: const EdgeInsets.symmetric(vertical: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xff34270c), border: Border.all(color: gold), borderRadius: BorderRadius.circular(12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(border: Border.all(color: gold, width: 2), borderRadius: BorderRadius.circular(8)), child: Column(children: [const Text('DTU Pro-S', style: TextStyle(color: gold, fontWeight: FontWeight.bold)), const SizedBox(height: 6), Row(children: List.generate(4, (i) => Container(width: 9, height: 6, margin: const EdgeInsets.symmetric(horizontal: 3), decoration: BoxDecoration(color: (tick + i) % 4 == 0 ? Colors.blueGrey : green, borderRadius: BorderRadius.circular(4)))))])), const SizedBox(width: 12), Expanded(child: Text(remaining > 0 ? '$remaining s' : 'Vérification…', style: const TextStyle(color: gold, fontSize: 25, fontWeight: FontWeight.bold)))]),
+      const SizedBox(height: 8), LinearProgressIndicator(value: 1 - remaining / 120, color: gold, backgroundColor: Colors.blueGrey.shade800),
+      const SizedBox(height: 6), const Text('Reprise automatique après contrôle des mesures', style: TextStyle(fontSize: 12)),
+    ]));
   }
 }
 
