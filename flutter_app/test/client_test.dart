@@ -37,6 +37,7 @@ void main() {
       if (request.method == 'GET') { request.response.write("const ACTION_TOKEN='test_token-123';"); }
       else {
         expect(request.headers.value('X-Action-Token'), 'test_token-123');
+        expect(request.contentLength, greaterThan(0));
         final data = jsonDecode(await utf8.decoder.bind(request).join());
         expect(data['action'], 'settings');
         request.response.headers.contentType = ContentType.json;

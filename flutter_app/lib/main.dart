@@ -93,7 +93,9 @@ class SolarClient {
       request.followRedirects = false;
       request.headers.contentType = ContentType.json;
       request.headers.set('X-Action-Token', match.group(1)!);
-      request.write(jsonEncode({'action': name, 'values': values}));
+      final payload = utf8.encode(jsonEncode({'action': name, 'values': values}));
+      request.contentLength = payload.length;
+      request.add(payload);
       final result = await request.close().timeout(const Duration(seconds: 25));
       final body = await result.transform(utf8.decoder).join();
       if (result.statusCode != 200) throw HttpException('Commande refusée (${result.statusCode})');
