@@ -42,6 +42,19 @@ void main() {
     expect(find.text('Budget mensuel'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('sur ordinateur, la navigation est placée sur le côté', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const SolarApp());
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('navigation-large-ecran')),findsOneWidget);
+    expect(find.text('Bilan journalier'),findsOneWidget);
+    expect(find.text('Budget mensuel'),findsOneWidget);
+    expect(tester.takeException(),isNull);
+  });
   testWidgets('la démonstration affiche des valeurs fictives et les bilans', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const SolarApp());

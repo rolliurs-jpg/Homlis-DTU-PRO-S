@@ -1,6 +1,6 @@
 # Mon solaire — application Flutter de test
 
-Première version mobile Android/iOS à interface Flutter. Elle lit les données de l'API du tableau solaire existant, sans piloter les appareils. L'adresse du Raspberry est saisie sur le téléphone et enregistrée localement ; aucun appareil personnel n'est configuré par défaut. Un mode démonstration utilise des données fictives.
+Version Flutter Android, iOS et macOS de test. Elle lit les données de l'API du tableau solaire existant, sans piloter les appareils. L'adresse du Raspberry est saisie sur chaque appareil et enregistrée localement ; aucun appareil personnel n'est configuré par défaut. Un mode démonstration utilise des données fictives.
 
 Les écrans comprennent le direct, les bilans, le budget, les relevés annuels, la batterie, les panneaux et l'état des équipements. Les réglages avancés, la régulation, certains calculs, l'export et le redémarrage ne sont pas encore intégrés : cette version est expérimentale.
 
@@ -17,5 +17,7 @@ flutter run
 ```
 
 Pour l'APK locale de test : `flutter build apk --debug`. Cette APK est signée avec une clé de débogage ; elle ne constitue pas une version destinée aux boutiques. Pour iOS, ouvrir `ios/Runner.xcworkspace` dans Xcode ou lancer `flutter run` avec un simulateur sélectionné. Une installation sur iPhone ou une distribution exige la signature Apple appropriée.
+
+Pour macOS : `flutter build macos --release`. L'application est un client du Raspberry, pas le collecteur : elle ne le remplace pas et n'écrit pas dans ses réglages. Autoriser l'accès au réseau local si macOS le demande. Cette version n'inclut pas encore toutes les commandes du tableau web ; conserver l'application existante. Une distribution publique nécessitera une signature et une notarisation adaptées.
 
 Ne pas inclure dans une publication les adresses personnelles, mots de passe, fichiers de configuration locaux, clés ou historiques réels. L'ancienne application reste distincte, avec son propre identifiant Android.

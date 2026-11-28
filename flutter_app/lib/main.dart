@@ -212,12 +212,18 @@ class _DashboardState extends State<Dashboard> {
         const PopupMenuItem(value: 'demo', child: Text('Mode démonstration')),
       ]),
     ]),
-    body: Column(children: [
+    body: LayoutBuilder(builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 900;
+      return Row(children: [
+      if (wide) SizedBox(key:const ValueKey('navigation-large-ecran'),width:220,child:SafeArea(child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        for(var i=0;i<pages.length;i++) Padding(padding:const EdgeInsets.symmetric(horizontal:8,vertical:2),child:TextButton.icon(onPressed:()=>select(i),style:TextButton.styleFrom(alignment:Alignment.centerLeft,foregroundColor:selected==i?green:Colors.blueGrey[200],backgroundColor:selected==i?const Color(0xff172b42):Colors.transparent,padding:const EdgeInsets.symmetric(horizontal:14,vertical:14)),icon:Icon(icons[i]),label:Text(pages[i])))
+      ])))),
+      Expanded(child:Column(children: [
       if (demo) banner('Démonstration · données fictives', gold),
       if (loading) const LinearProgressIndicator(),
       if (loading) banner('Chargement des données…', blue),
       if (error != null) banner(error!, gold),
-      Expanded(child: address == null && !demo ? welcome() : RefreshIndicator(onRefresh: refresh, child: ListView(key: ValueKey(selected), padding: const EdgeInsets.all(16), children: [
+      Expanded(child: Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1050),child:address == null && !demo ? welcome() : RefreshIndicator(onRefresh: refresh, child: ListView(key: ValueKey(selected), padding: const EdgeInsets.all(16), children: [
         Text(pages[selected], style: Theme.of(context).textTheme.headlineMedium), const SizedBox(height: 12),
         if (selected == 0) ...direct(),
         if (selected == 1) ...reportView(),
@@ -226,9 +232,10 @@ class _DashboardState extends State<Dashboard> {
         if (selected == 4) ...batteryView(),
         if (selected == 5) ...panelsView(),
         if (selected == 6) ...devicesView(),
-      ]))),
-      SafeArea(top: false, child: Wrap(alignment: WrapAlignment.center, children: List.generate(pages.length, (i) => SizedBox(width: MediaQuery.sizeOf(context).width / 4, child: TextButton(onPressed: () => select(i), style: TextButton.styleFrom(foregroundColor: selected == i ? green : Colors.blueGrey[200], padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icons[i], size: 19), Text(pages[i], maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11))])))))),
-    ]),
+      ]))))),
+      if (!wide) SafeArea(top: false, child: Wrap(alignment: WrapAlignment.center, children: List.generate(pages.length, (i) => SizedBox(width: MediaQuery.sizeOf(context).width / 4, child: TextButton(onPressed: () => select(i), style: TextButton.styleFrom(foregroundColor: selected == i ? green : Colors.blueGrey[200], padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icons[i], size: 19), Text(pages[i], maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11))])))))),
+    ]))]);
+    }),
   );
   Widget banner(String text, Color color) => Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), color: color.withValues(alpha: .14), child: Text(text, style: TextStyle(color: color)));
   Widget welcome() => Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.solar_power, size: 64, color: gold), const SizedBox(height: 20), const Text('Connectez votre Raspberry ou découvrez l’application en mode démonstration.', textAlign: TextAlign.center), const SizedBox(height: 18), FilledButton(onPressed: changeAddress, child: const Text('Adresse du Raspberry')), TextButton(onPressed: () { setState(() => demo = true); refresh(); }, child: const Text('Essayer la démonstration'))])));
