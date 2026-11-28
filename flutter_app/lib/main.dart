@@ -352,7 +352,7 @@ class BatteryLevelCard extends StatelessWidget {
       const SizedBox(height: 12),
       Text(label, style: TextStyle(fontWeight: FontWeight.bold, color: fresh ? color : Colors.blueGrey[200])),
       const SizedBox(height: 4),
-      Text(level == null ? 'Niveau de batterie indisponible' : 'Niveau mesuré : ${number(level, '%')}', style: const TextStyle(fontWeight: FontWeight.w600)),
+      Text(level == null ? 'Niveau de batterie indisponible' : 'Niveau mesuré : ${number(level, '%')} · ≈ ${number(level * 5.76 / 100, 'kWh', decimals: 2)} / 5,76 kWh', style: const TextStyle(fontWeight: FontWeight.w600)),
       Text('Charge et décharge enregistrées séparément', style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)),
     ])));
   }

@@ -35,6 +35,7 @@ void main() {
     await tester.pumpWidget(SolarAppForBattery(current: {'battery_soc_pct': 20, 'battery_timestamp': now, 'battery_ac_charge_w': 120, 'battery_ac_discharge_w': 0}, connected: true));
     expect(find.text('20 %'), findsOneWidget);
     expect(find.text('En charge · 120 W'), findsOneWidget);
+    expect(find.text('Niveau mesuré : 20 % · ≈ 1,15 kWh / 5,76 kWh'), findsOneWidget);
     await tester.pumpWidget(SolarAppForBattery(current: {'battery_soc_pct': 20, 'battery_timestamp': now - 120, 'battery_ac_charge_w': 120, 'battery_ac_discharge_w': 0}, connected: true));
     expect(find.text('Dernière mesure · état non actualisé'), findsOneWidget);
     expect(find.text('En charge · 120 W'), findsNothing);
