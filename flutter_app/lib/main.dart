@@ -360,7 +360,7 @@ class _DashboardState extends State<Dashboard> {
     final devices = equipmentList(settings!, current, fresh: fresh, now: DateTime.now());
     const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
-    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), if (!demo && address != null) OutlinedButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EquipmentSettingsPage(base: address!, initial: settings!))), child: const Text('Modifier les adresses IP et les réglages')), if (demo) info('Réglages indisponibles en démonstration.')];
+    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), if (!demo && address != null) OutlinedButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EquipmentSettingsPage(base: address!, initial: settings!))), child: const Text('Modifier les adresses IP et les réglages')), if (!demo && address != null) RebootCard(base: address!, passwordEnabled: settings!['settings_password_enabled'] == true), if (demo) info('Réglages indisponibles en démonstration.')];
   }
 }
 
@@ -428,7 +428,45 @@ class _EquipmentSettingsPageState extends State<EquipmentSettingsPage> {
     for (final key in names.keys) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(names[key]!), value: enabled[key], onChanged: saving ? null : (v) => setState(() => enabled[key] = v == true)), TextField(controller: hosts[key], enabled: !saving, decoration: const InputDecoration(labelText: 'Adresse IP ou nom réseau'), autocorrect: false)]))),
     if (widget.initial['settings_password_enabled'] == true) TextField(controller: password, obscureText: true, enabled: !saving, decoration: const InputDecoration(labelText: 'Mot de passe des réglages')),
     const SizedBox(height: 12), FilledButton(onPressed: saving ? null : save, child: Text(saving ? 'Enregistrement…' : 'Enregistrer les réglages')),
+    RebootCard(base: widget.base, passwordEnabled: widget.initial['settings_password_enabled'] == true),
   ]));
+}
+
+class RebootCard extends StatefulWidget {
+  const RebootCard({super.key, required this.base, required this.passwordEnabled});
+  final Uri base;
+  final bool passwordEnabled;
+  @override State<RebootCard> createState() => _RebootCardState();
+}
+class _RebootCardState extends State<RebootCard> {
+  final password = TextEditingController();
+  bool pending = false;
+  String? message;
+  @override void dispose() { password.dispose(); super.dispose(); }
+  Future<void> reboot() async {
+    if (password.text.isEmpty) { setState(() => message = 'Saisissez le mot de passe de redémarrage.'); return; }
+    final confirmed = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(title: const Text('Redémarrer le Raspberry Pi ?'), content: const Text('Le suivi sera temporairement interrompu.'), actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Annuler')), FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Redémarrer'))]));
+    if (confirmed != true || !mounted) return;
+    final entered = password.text;
+    password.clear();
+    setState(() { pending = true; message = 'Envoi de la demande…'; });
+    try {
+      final result = await SolarClient(widget.base).action('raspberry_reboot', {'password': entered});
+      if (!mounted) return;
+      setState(() => message = result['ok'] == true ? 'Redémarrage demandé. Le tableau sera indisponible pendant quelques instants ; actualisez ensuite.' : 'Réponse non confirmée. Vérifiez si le Raspberry redémarre.');
+    } catch(e) { if (mounted) setState(() => message = 'Résultat non confirmé : $e. Vérifiez si le Raspberry redémarre.'); }
+    finally { if (mounted) setState(() => pending = false); }
+  }
+  @override Widget build(BuildContext context) => Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const Text('Redémarrage manuel', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+    const SizedBox(height: 8),
+    const Text('Redémarre le Raspberry Pi ; le suivi sera temporairement indisponible.'),
+    if (!widget.passwordEnabled) const Text('Configurez d’abord un mot de passe des réglages dans le tableau du Raspberry.') else ...[
+      TextField(controller: password, obscureText: true, enabled: !pending, decoration: const InputDecoration(labelText: 'Mot de passe de redémarrage')),
+      const SizedBox(height: 8), OutlinedButton(onPressed: pending ? null : reboot, child: const Text('Redémarrer le Raspberry Pi')),
+    ],
+    if (message != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(message!)),
+  ])));
 }
 
 class AddressDialog extends StatefulWidget {

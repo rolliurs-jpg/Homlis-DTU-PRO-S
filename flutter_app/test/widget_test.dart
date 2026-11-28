@@ -39,6 +39,19 @@ void main() {
     expect(find.text('Dernière mesure · état non actualisé'), findsOneWidget);
     expect(find.text('En charge · 120 W'), findsNothing);
   });
+  testWidgets('le redémarrage demande un mot de passe et une confirmation', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: RebootCard(base: Uri.parse('http://127.0.0.1:8765'), passwordEnabled: true))));
+    await tester.tap(find.text('Redémarrer le Raspberry Pi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saisissez le mot de passe de redémarrage.'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'mot-de-passe-test');
+    await tester.tap(find.text('Redémarrer le Raspberry Pi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Redémarrer le Raspberry Pi ?'), findsOneWidget);
+    await tester.tap(find.text('Annuler'));
+    await tester.pumpAndSettle();
+    expect(find.text('Redémarrer le Raspberry Pi ?'), findsNothing);
+  });
   testWidgets('la validation DTU affiche le temps et la barre', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: Scaffold(body: DtuWaitIndicator(remainingSeconds: 65))));
     expect(find.text('DTU Pro-S'), findsOneWidget);
