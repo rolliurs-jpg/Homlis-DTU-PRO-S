@@ -79,6 +79,30 @@ class SolarApp extends StatelessWidget {
 class SolarClient {
   SolarClient(this.base);
   final Uri base;
+  Future<Json> action(String name, Map<String, dynamic> values) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    try {
+      final page = await client.getUrl(base.resolve('/'));
+      page.followRedirects = false;
+      final response = await page.close().timeout(const Duration(seconds: 15));
+      if (response.statusCode != 200) throw const HttpException('Impossible de préparer la commande');
+      final html = await response.transform(utf8.decoder).join();
+      final match = RegExp(r"ACTION_TOKEN='([A-Za-z0-9_-]+)'").firstMatch(html);
+      if (match == null) throw const FormatException('Jeton de commande indisponible');
+      final request = await client.postUrl(base.resolve('/api/action'));
+      request.followRedirects = false;
+      request.headers.contentType = ContentType.json;
+      request.headers.set('X-Action-Token', match.group(1)!);
+      request.write(jsonEncode({'action': name, 'values': values}));
+      final result = await request.close().timeout(const Duration(seconds: 25));
+      final body = await result.transform(utf8.decoder).join();
+      if (result.statusCode != 200) throw HttpException('Commande refusée (${result.statusCode})');
+      final data = jsonDecode(body);
+      if (data is! Map<String, dynamic>) throw const FormatException('Réponse invalide');
+      if (data['error'] != null) throw Exception(data['error']);
+      return data;
+    } finally { client.close(force: true); }
+  }
   Future<Json> get(String endpoint, {Duration timeout = const Duration(seconds: 25)}) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
@@ -237,11 +261,27 @@ class _DashboardState extends State<Dashboard> {
   Widget info(String text) => Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Text(text, style: TextStyle(color: Colors.blueGrey[200])));
   List<Widget> direct() { final c = current; return [
     info(freshness()),
+    if (c['surplus_simulation'] is Map) automationCard(c['surplus_simulation'] as Map),
     box('La maison en direct', [row('Production solaire', number(c['production_w'], 'W'), color: green), row('Maison', number(c['consumption_w'], 'W'), color: blue), row('Acheté au réseau', number(c['import_w'], 'W')), row('Envoyé au réseau', number(c['export_w'], 'W'), color: gold)]),
     if (c['battery_enabled'] == true) box('Batterie', batteryFlowRows(c)),
     box('Raspberry Pi', [row('Température', number(status?['raspberry_temperature_c'], '°C', decimals: 1))]),
     if (status?['history'] is List) box('Évolution des mesures', [EnergyChart(history:status!['history'] as List)]),
   ]; }
+  Widget automationCard(Map control) {
+    final active = control['commands_enabled'];
+    return box('Gestion automatique du surplus', [
+      info(active is bool ? (active ? 'Gestion activée' : 'Gestion désactivée') : 'État indisponible'),
+      if (control['reason'] is String) info(control['reason']),
+      if (!demo && address != null && active is bool && statusReachable) OutlinedButton(onPressed: () async {
+        final target = !active;
+        final confirmed = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(title: Text(target ? 'Activer la gestion automatique ?' : 'Désactiver la gestion automatique ?'), content: const Text('Cette commande agit sur la régulation des panneaux.'), actions: [TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('Annuler')), FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('Confirmer'))]));
+        if (confirmed != true || !mounted || address == null) return;
+        try { await SolarClient(address!).action('surplus_control', {'enabled': target}); if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Commande acceptée. Vérification de l’état…'))); await refresh(); }
+        catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Commande non confirmée : $e'))); }
+      }, child: Text(active ? 'Désactiver la gestion' : 'Activer la gestion')),
+      if (demo) info('Commande indisponible en démonstration.'),
+    ]);
+  }
   List<Widget> reportView() {
     final d=report??{}, billing=d['billing'] is Map ? d['billing'] as Map : {}, from=dateAndTime(d['from_time']), to=dateAndTime(d['to_time']);
     final productionNote=d['production_complete'] == true ? 'Total des installations mesurées' : d['production_complete'] == false ? 'Production partielle ou source unique' : 'État de la production indisponible';
@@ -314,8 +354,52 @@ class _DashboardState extends State<Dashboard> {
     final devices = equipmentList(settings!, current, fresh: fresh, now: DateTime.now());
     const groups = ['Installation maison', 'Installation cabanon', 'Équipement commun'];
     Color statusColor(EquipmentHealth health) => switch (health) { EquipmentHealth.online => green, EquipmentHealth.offline => const Color(0xffff8797), EquipmentHealth.warning || EquipmentHealth.waiting => gold, EquipmentHealth.disabled => Colors.blueGrey };
-    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), info('Les réglages, la régulation et le redémarrage ne sont pas encore disponibles dans cette application de test.')];
+    return [info(fresh ? 'État actualisé automatiquement' : 'Les états ne sont pas à jour.'), for (final group in groups) box(group, [for (final device in devices.where((d) => d.group == group)) Padding(padding: const EdgeInsets.symmetric(vertical: 9), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.circle, size: 10, color: statusColor(device.health)), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(device.name, style: const TextStyle(fontWeight: FontWeight.w600)), if (device.detail.isNotEmpty) Text(device.detail, style: TextStyle(color: Colors.blueGrey[200], fontSize: 12)), Text(device.status, style: TextStyle(color: statusColor(device.health)))]))]))]), if (!demo && address != null) OutlinedButton(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EquipmentSettingsPage(base: address!, initial: settings!))), child: const Text('Modifier les adresses IP et les réglages')), if (demo) info('Réglages indisponibles en démonstration.')];
   }
+}
+
+class EquipmentSettingsPage extends StatefulWidget {
+  const EquipmentSettingsPage({super.key, required this.base, required this.initial});
+  final Uri base;
+  final Json initial;
+  @override State<EquipmentSettingsPage> createState() => _EquipmentSettingsPageState();
+}
+class _EquipmentSettingsPageState extends State<EquipmentSettingsPage> {
+  static const names = {'linky':'Linky & Denky D4', 'shelly':'Shelly Pro EM', 'battery':'Batterie Zendure', 'shelly2':'Shelly EM Gen3', 'tp_link':'Nano-routeur TP-Link', 'tongou_relay':'Relais Tongou', 'hoymiles_proxy':'ESP32 proxy Bluetooth', 'esp_router':'ESP32 routeur Wi-Fi'};
+  final hosts = <String, TextEditingController>{};
+  final enabled = <String, bool>{};
+  final password = TextEditingController();
+  bool saving = false;
+  @override void initState() { super.initState(); for (final key in names.keys) { final item = widget.initial[key] is Map ? widget.initial[key] as Map : {}; hosts[key] = TextEditingController(text: '${item['host'] ?? ''}'); enabled[key] = item['enabled'] == true; } }
+  @override void dispose() { for (final c in hosts.values) { c.dispose(); } password.dispose(); super.dispose(); }
+  Future<void> save() async {
+    final shelly = widget.initial['shelly'], second = widget.initial['shelly2'];
+    if (shelly is! Map || second is! Map || shelly['pv_reverse'] is! bool || shelly['grid_export_positive'] is! bool || second['reverse'] is! bool || widget.initial['production_complete'] is! bool) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mise à jour du Raspberry nécessaire : réglages des pinces incomplets. Aucun changement envoyé.'))); return;
+    }
+    final devices = <String, dynamic>{};
+    for (final key in names.keys) { final host = hosts[key]!.text.trim(); if ((enabled[key] == true && host.isEmpty) || host.length > 253 || host.contains(RegExp(r'\s'))) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Adresse invalide : ${names[key]}'))); return; } devices[key] = {'enabled': enabled[key], 'host': host}; }
+    setState(() => saving = true);
+    try {
+      final latest = await SolarClient(widget.base).get('api/settings');
+      for (final key in names.keys) {
+        final before = widget.initial[key], after = latest[key];
+        if (before is! Map || after is! Map || before['enabled'] != after['enabled'] || before['host'] != after['host']) throw Exception('Les réglages ont changé depuis l’ouverture. Revenez en arrière et rechargez.');
+      }
+      final freshShelly = latest['shelly'], freshSecond = latest['shelly2'];
+      if (freshShelly is! Map || freshSecond is! Map || latest['production_complete'] != widget.initial['production_complete'] || freshShelly['pv_reverse'] != shelly['pv_reverse'] || freshShelly['grid_export_positive'] != shelly['grid_export_positive'] || freshSecond['reverse'] != second['reverse']) throw Exception('Les réglages ont changé depuis l’ouverture. Revenez en arrière et rechargez.');
+      final result = await SolarClient(widget.base).action('settings', {'devices': devices, 'settings_password': password.text, 'production_complete': widget.initial['production_complete'], 'shelly_pv_reverse': shelly['pv_reverse'], 'shelly_grid_reverse': shelly['grid_export_positive'], 'shelly2_reverse': second['reverse']});
+      if (!mounted) return; password.clear();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['restart_required'] == true ? 'Enregistré. Redémarrage du service Raspberry nécessaire.' : 'Réglages enregistrés.')));
+    } catch(e) { if (mounted) { password.clear(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Enregistrement non confirmé : $e'))); } }
+    finally { if (mounted) setState(() => saving = false); }
+  }
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Réglages des équipements')), body: ListView(padding: const EdgeInsets.all(16), children: [
+    const Text('Les changements sont appliqués après redémarrage du service Raspberry.'),
+    for (final key in names.keys) Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [CheckboxListTile(contentPadding: EdgeInsets.zero, title: Text(names[key]!), value: enabled[key], onChanged: saving ? null : (v) => setState(() => enabled[key] = v == true)), TextField(controller: hosts[key], enabled: !saving, decoration: const InputDecoration(labelText: 'Adresse IP ou nom réseau'), autocorrect: false)]))),
+    if (widget.initial['settings_password_enabled'] == true) TextField(controller: password, obscureText: true, enabled: !saving, decoration: const InputDecoration(labelText: 'Mot de passe des réglages')),
+    const SizedBox(height: 12), FilledButton(onPressed: saving ? null : save, child: Text(saving ? 'Enregistrement…' : 'Enregistrer les réglages')),
+  ]));
 }
 
 class AddressDialog extends StatefulWidget {

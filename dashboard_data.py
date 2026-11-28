@@ -456,6 +456,9 @@ class DashboardData:
         for name in ('linky','shelly','battery','shelly2','tp_link','tongou_relay','hoymiles_proxy','esp_router'):
             item=self.config.get(name,{})
             result[name]={k:item.get(k) for k in ('enabled','host','reverse')}
+        result['shelly2']['reverse'] = bool(self.config.get('shelly2', {}).get('reverse'))
+        result['shelly']['pv_reverse'] = bool(self.config.get('shelly', {}).get('pv_reverse'))
+        result['shelly']['grid_export_positive'] = bool(self.config.get('shelly', {}).get('grid_export_positive'))
         result['esp_devices'] = self.esp_devices()
         result['wireless_interfaces'] = self.wireless_interfaces()
         try:

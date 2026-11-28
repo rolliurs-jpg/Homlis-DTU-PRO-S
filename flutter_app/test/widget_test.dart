@@ -1,6 +1,5 @@
-import 'dart:ui' show Size, Offset;
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mon_solaire_mobile/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
