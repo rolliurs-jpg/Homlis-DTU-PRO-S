@@ -213,11 +213,8 @@ class _DashboardState extends State<Dashboard> {
       ]),
     ]),
     body: LayoutBuilder(builder: (context, constraints) {
-      final wide = constraints.maxWidth >= 900;
+      final wide = constraints.maxWidth >= 700;
       return Row(children: [
-      if (wide) SizedBox(key:const ValueKey('navigation-large-ecran'),width:220,child:SafeArea(child:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-        for(var i=0;i<pages.length;i++) Padding(padding:const EdgeInsets.symmetric(horizontal:8,vertical:2),child:TextButton.icon(onPressed:()=>select(i),style:TextButton.styleFrom(alignment:Alignment.centerLeft,foregroundColor:selected==i?green:Colors.blueGrey[200],backgroundColor:selected==i?const Color(0xff172b42):Colors.transparent,padding:const EdgeInsets.symmetric(horizontal:14,vertical:14)),icon:Icon(icons[i]),label:Text(pages[i])))
-      ])))),
       Expanded(child:Column(children: [
       if (demo) banner('Démonstration · données fictives', gold),
       if (loading) const LinearProgressIndicator(),
@@ -233,7 +230,7 @@ class _DashboardState extends State<Dashboard> {
         if (selected == 5) ...panelsView(),
         if (selected == 6) ...devicesView(),
       ]))))),
-      if (!wide) SafeArea(top: false, child: Wrap(alignment: WrapAlignment.center, children: List.generate(pages.length, (i) => SizedBox(width: MediaQuery.sizeOf(context).width / 4, child: TextButton(onPressed: () => select(i), style: TextButton.styleFrom(foregroundColor: selected == i ? green : Colors.blueGrey[200], padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icons[i], size: 19), Text(pages[i], maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11))])))))),
+      SafeArea(top: false, child: Wrap(key: const ValueKey('navigation-bas'), alignment: WrapAlignment.center, children: List.generate(pages.length, (i) => SizedBox(width: constraints.maxWidth / (wide ? 7 : 4), child: TextButton(onPressed: () => select(i), style: TextButton.styleFrom(foregroundColor: selected == i ? green : Colors.blueGrey[200], padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2)), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(icons[i], size: 19), Text(pages[i], maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11))])))))),
     ]))]);
     }),
   );

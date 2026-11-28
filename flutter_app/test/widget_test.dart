@@ -42,7 +42,7 @@ void main() {
     expect(find.text('Budget mensuel'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('sur ordinateur, la navigation est placée sur le côté', (tester) async {
+  testWidgets('sur ordinateur, la navigation est alignée en bas', (tester) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -50,7 +50,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const SolarApp());
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('navigation-large-ecran')),findsOneWidget);
+    expect(find.byKey(const ValueKey('navigation-bas')), findsOneWidget);
+    expect(tester.getCenter(find.text('Direct')).dy, tester.getCenter(find.text('Équipements')).dy);
     expect(find.text('Bilan journalier'),findsOneWidget);
     expect(find.text('Budget mensuel'),findsOneWidget);
     expect(tester.takeException(),isNull);
